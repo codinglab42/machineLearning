@@ -1,6 +1,11 @@
 import pytest
 import machine_learning_module as ml
 
+def test_module_import():
+    """Verifica se la libreria viene caricata correttamente."""
+    assert ml is not None
+    print(f"Libreria caricata con successo da: {ml.__file__}")
+
 def test_dense_layer_dimensions():
     """Verifica che il layer Dense mantenga la coerenza delle dimensioni."""
     input_sz = 10

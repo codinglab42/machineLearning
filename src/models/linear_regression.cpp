@@ -43,6 +43,7 @@ void LinearRegression::set_lambda(double lambda) {
 }
 
 // Metodi privati
+/*
 void LinearRegression::fit_scaler(const MatrixXd& X) {
     ML_CHECK_NOT_EMPTY(X, "X", get_model_type());
     
@@ -63,6 +64,7 @@ MatrixXd LinearRegression::transform(const MatrixXd& X) const {
     return (X.rowwise() - scaler_.mean.transpose()).array().rowwise() 
            / scaler_.std.transpose().array();
 }
+*/
 
 // Metodo fit principale
 void LinearRegression::fit(const MatrixXd& X, const Eigen::VectorXd& y) {
@@ -83,15 +85,17 @@ void LinearRegression::fit(const MatrixXd& X, const Eigen::VectorXd& y) {
     }
     n_features_ = static_cast<int>(cols);
     
-    fit_scaler(X);
-    MatrixXd X_scaled = transform(X);
+    //fit_scaler(X);
+    //MatrixXd X_scaled = transform(X);
+
+    MatrixXd X_int = MathUtils::add_intercept(X);
 
     if (solver_ == GRADIENT_DESCENT) {
-        gradient_descent(X_scaled, y);
+        gradient_descent(X_int, y);
     } else if (solver_ == NORMAL_EQUATION) {
-        normal_equation(X_scaled, y);
+        normal_equation(X_int, y);
     } else {
-        svd_solve(X_scaled, y);
+        svd_solve(X_int, y);
     }
 }
 
@@ -160,7 +164,8 @@ void LinearRegression::gradient_descent(const MatrixXd& X, const VectorXd& y) {
 }
 
 double LinearRegression::compute_cost(const MatrixXd& X, const VectorXd& y) const {
-    MatrixXd X_int = MathUtils::add_intercept(transform(X));
+    //MatrixXd X_int = MathUtils::add_intercept(transform(X));
+    MatrixXd X_int = MathUtils::add_intercept((X));
     double m = static_cast<double>(X.rows());
     double J = (X_int * theta_ - y).squaredNorm() / (2.0 * m);
     if (lambda_ > 0) {
@@ -175,7 +180,8 @@ VectorXd LinearRegression::predict(const MatrixXd& X) const {
     ML_CHECK_NOT_EMPTY(X, "X", get_model_type());
     ML_CHECK_FEATURES(X.cols(), n_features_, get_model_type());
     
-    MatrixXd X_int = MathUtils::add_intercept(transform(X));
+    //MatrixXd X_int = MathUtils::add_intercept(transform(X));
+    MatrixXd X_int = MathUtils::add_intercept(X);
     return X_int * theta_;
 }
 
@@ -262,6 +268,7 @@ VectorXd LinearRegression::cross_val_score(const MatrixXd& X, const VectorXd& y,
 }
 
 // Serializzazione
+/*
 void LinearRegression::Scaler::serialize(std::ostream& out) const {
     using namespace utils;
     
@@ -281,6 +288,7 @@ void LinearRegression::Scaler::deserialize(std::istream& in) {
         eigen_utils::deserialize_eigen_vector(std, in);
     }
 }
+*/
 
 void LinearRegression::serialize_binary(std::ostream& out) const {
     using namespace utils;
@@ -297,7 +305,7 @@ void LinearRegression::serialize_binary(std::ostream& out) const {
     
     // Serializza theta e scaler
     eigen_utils::serialize_eigen_vector(theta_, out);
-    scaler_.serialize(out);
+    //scaler_.serialize(out);
     
     // Serializza cost history
     size_t cost_size = cost_history_.size();
@@ -323,7 +331,7 @@ void LinearRegression::deserialize_binary(std::istream& in) {
     
     // Deserializza theta e scaler
     eigen_utils::deserialize_eigen_vector(theta_, in);
-    scaler_.deserialize(in);
+    //scaler_.deserialize(in);
     
     // Deserializza cost history
     size_t cost_size;

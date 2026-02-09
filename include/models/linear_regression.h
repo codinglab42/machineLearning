@@ -58,6 +58,7 @@ namespace models {
         Eigen::VectorXd theta_;
         std::vector<double> cost_history_;
     
+        /*
         struct Scaler {
             Eigen::VectorXd mean, std;
             bool fit = false;
@@ -65,13 +66,14 @@ namespace models {
             void serialize(std::ostream& out) const;
             void deserialize(std::istream& in);
         } scaler_;
-    
+        */
+
         void gradient_descent(const Eigen::MatrixXd& X, const Eigen::VectorXd& y);
         void normal_equation(const Eigen::MatrixXd& X, const Eigen::VectorXd& y);
         void svd_solve(const Eigen::MatrixXd& X, const Eigen::VectorXd& y);
         double compute_cost(const Eigen::MatrixXd& X, const Eigen::VectorXd& y) const;
-        void fit_scaler(const Eigen::MatrixXd& X);
-        Eigen::MatrixXd transform(const Eigen::MatrixXd& X) const;
+        //void fit_scaler(const Eigen::MatrixXd& X);
+        //Eigen::MatrixXd transform(const Eigen::MatrixXd& X) const;
         
         // Utility
         static std::string solver_to_string(Solver solver);

@@ -58,6 +58,7 @@ namespace models {
         int n_iter_;
         std::vector<double> cost_history_, accuracy_history_;
     
+        /*
         struct Scaler {
             Eigen::VectorXd mean, std;
             bool fit = false;
@@ -65,11 +66,12 @@ namespace models {
             void serialize(std::ostream& out) const;
             void deserialize(std::istream& in);
         } scaler_;
-    
+        */
+
         double compute_cost(const Eigen::MatrixXd& X, const Eigen::VectorXd& y) const;
         double compute_accuracy(const Eigen::MatrixXd& X, const Eigen::VectorXd& y) const;
-        void fit_scaler(const Eigen::MatrixXd& X);
-        Eigen::MatrixXd transform(const Eigen::MatrixXd& X) const;
+        //void fit_scaler(const Eigen::MatrixXd& X);
+        //Eigen::MatrixXd transform(const Eigen::MatrixXd& X) const;
         
         // Metodi di training
         void gradient_descent(const Eigen::MatrixXd& X, const Eigen::VectorXd& y);

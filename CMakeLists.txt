@@ -49,11 +49,28 @@ if(VERBOSE_OUTPUT)
     message(STATUS "✅ Eigen3 trovato: ${EIGEN3_VERSION}")
 endif()
 
-# 3. pybind11 (con fallback a FetchContent)
-find_package(pybind11 CONFIG QUIET)
-if(NOT pybind11_FOUND)
+
+# 3. pybind11 (Cerca in pip/sistema, poi fallback a FetchContent)
+# 3. pybind11
+# Invece di find_package, proviamo a importare direttamente il modulo python
+execute_process(
+    COMMAND "${Python3_EXECUTABLE}" -c "import pybind11; print(pybind11.get_cmake_dir())"
+    OUTPUT_VARIABLE pybind11_CMAKE_DIR
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    ERROR_QUIET
+)
+
+if(pybind11_CMAKE_DIR)
     if(VERBOSE_OUTPUT)
-        message(STATUS "📦 pybind11 non trovato, scaricando...")
+        message(STATUS "🐍 Percorso CMake pybind11 trovato: ${pybind11_CMAKE_DIR}")
+    endif()
+    # Aggiungiamo il percorso alla lista di ricerca di CMake
+    list(APPEND CMAKE_PREFIX_PATH "${pybind11_CMAKE_DIR}")
+    find_package(pybind11 CONFIG REQUIRED)
+else()
+    # Solo se il comando sopra fallisce, scarichiamo
+    if(VERBOSE_OUTPUT)
+        message(STATUS "📦 pybind11 non trovato tramite modulo Python, scaricando...")
     endif()
     include(FetchContent)
     FetchContent_Declare(
@@ -62,9 +79,6 @@ if(NOT pybind11_FOUND)
         GIT_TAG v2.13.1
     )
     FetchContent_MakeAvailable(pybind11)
-endif()
-if(VERBOSE_OUTPUT)
-    message(STATUS "✅ pybind11: ${pybind11_VERSION}")
 endif()
 
 # 4. OpenMP opzionale

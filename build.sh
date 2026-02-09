@@ -65,7 +65,7 @@ fi
 
 # Controlla modulo python
 echo -e "\n${YELLOW}Esecuzione test import Python...${NC}"
-$PYTHON_EXE "$PROJECT_ROOT/tests/test_python_import.py"
+$PYTHON_EXE "$PROJECT_ROOT/tests/python/test_python_import.py"
 
 #!/bin/bash
 # build.sh - Script per build automatica

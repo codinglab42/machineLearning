@@ -52,6 +52,7 @@ void LogisticRegression::set_verbose(bool verbose) {
 }
 
 // Metodi privati
+/*
 void LogisticRegression::fit_scaler(const MatrixXd& X) {
     ML_CHECK_NOT_EMPTY(X, "X", get_model_type());
     
@@ -72,6 +73,7 @@ MatrixXd LogisticRegression::transform(const MatrixXd& X) const {
     return (X.rowwise() - scaler_.mean.transpose()).array().rowwise() 
            / scaler_.std.transpose().array();
 }
+*/
 
 // Metodo fit principale
 void LogisticRegression::fit(const MatrixXd& X, const Eigen::VectorXd& y) {
@@ -100,10 +102,12 @@ void LogisticRegression::fit(const MatrixXd& X, const Eigen::VectorXd& y) {
     }
     n_features_ = static_cast<int>(cols);
     
-    fit_scaler(X);
-    MatrixXd X_scaled = transform(X);
+    //fit_scaler(X);
+    //MatrixXd X_scaled = transform(X);
+
+    MatrixXd X_int = MathUtils::add_intercept(X);
     
-    gradient_descent(X_scaled, y);
+    gradient_descent(X_int, y);
 }
 
 void LogisticRegression::gradient_descent(const MatrixXd& X, const VectorXd& y) {
@@ -171,7 +175,8 @@ void LogisticRegression::gradient_descent(const MatrixXd& X, const VectorXd& y) 
 }
 
 double LogisticRegression::compute_cost(const MatrixXd& X, const VectorXd& y) const {
-    MatrixXd X_int = MathUtils::add_intercept(transform(X));
+    //MatrixXd X_int = MathUtils::add_intercept(transform(X));
+    MatrixXd X_int = MathUtils::add_intercept(X);
     double m = static_cast<double>(X.rows());
     
     VectorXd z = X_int * theta_;
@@ -208,7 +213,8 @@ VectorXd LogisticRegression::predict(const MatrixXd& X) const {
     ML_CHECK_NOT_EMPTY(X, "X", get_model_type());
     ML_CHECK_FEATURES(X.cols(), n_features_, get_model_type());
     
-    MatrixXd X_int = MathUtils::add_intercept(transform(X));
+    //MatrixXd X_int = MathUtils::add_intercept(transform(X));
+    MatrixXd X_int = MathUtils::add_intercept(X);
     VectorXd z = X_int * theta_;
     return MathUtils::sigmoid_vec(z);
 }
@@ -264,6 +270,7 @@ MatrixXd LogisticRegression::confusion_matrix(const MatrixXd& X,
 }
 
 // Serializzazione
+/*
 void LogisticRegression::Scaler::serialize(std::ostream& out) const {
     using namespace utils;
     
@@ -283,6 +290,7 @@ void LogisticRegression::Scaler::deserialize(std::istream& in) {
         eigen_utils::deserialize_eigen_vector(std, in);
     }
 }
+*/
 
 void LogisticRegression::serialize_binary(std::ostream& out) const {
     using namespace utils;
@@ -298,7 +306,7 @@ void LogisticRegression::serialize_binary(std::ostream& out) const {
     
     // Serializza theta e scaler
     eigen_utils::serialize_eigen_vector(theta_, out);
-    scaler_.serialize(out);
+    //scaler_.serialize(out);
     
     // Serializza history
     size_t cost_size = cost_history_.size();
@@ -330,7 +338,7 @@ void LogisticRegression::deserialize_binary(std::istream& in) {
     
     // Deserializza theta e scaler
     eigen_utils::deserialize_eigen_vector(theta_, in);
-    scaler_.deserialize(in);
+    //scaler_.deserialize(in);
     
     // Deserializza history
     size_t cost_size;

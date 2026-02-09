@@ -7,6 +7,7 @@
 #include "models/linear_regression.h"
 #include "models/logistic_regression.h"
 #include "utils/math_utils.h"
+#include "utils/scaler_factory.h"
 #include "models/neural_network.h"
 
 // Includi le eccezioni
@@ -373,6 +374,50 @@ PYBIND11_MODULE(machine_learning_module, m) {
         .def("__repr__", &models::NeuralNetwork::to_string)
         .def("__str__", &models::NeuralNetwork::to_string);
     
+    // Classe base Scaler
+    py::class_<ml::Scaler, std::shared_ptr<ml::Scaler>> scaler(m, "Scaler");
+    scaler
+        .def("fit", &ml::Scaler::fit, "Fit scaler to data")
+        .def("transform", &ml::Scaler::transform, "Transform data")
+        .def("fit_transform", &ml::Scaler::fit_transform, "Fit and transform data")
+        .def("inverse_transform", &ml::Scaler::inverse_transform, 
+             "Inverse transform to original scale")
+        .def("get_type", &ml::Scaler::get_type, "Get scaler type name");
+    
+    // StandardScaler
+    py::class_<ml::StandardScaler, ml::Scaler, std::shared_ptr<ml::StandardScaler>>(m, "StandardScaler")
+        .def(py::init<>(), "Create StandardScaler with default epsilon=1e-8")
+        .def(py::init<double>(), py::arg("epsilon"), 
+             "Create StandardScaler with custom epsilon")
+        .def("get_mean", &ml::StandardScaler::get_mean, "Get mean values")
+        .def("get_std", &ml::StandardScaler::get_std, "Get standard deviation values")
+        .def("set_params", &ml::StandardScaler::set_params, 
+             "Set scaler parameters", py::arg("mean"), py::arg("std"));
+    
+    // MinMaxScaler
+    py::class_<ml::MinMaxScaler, ml::Scaler, std::shared_ptr<ml::MinMaxScaler>>(m, "MinMaxScaler")
+        .def(py::init<>(), "Create MinMaxScaler with default range [0, 1]")
+        .def(py::init<double, double>(), 
+             py::arg("feature_range_min") = 0.0, 
+             py::arg("feature_range_max") = 1.0,
+             "Create MinMaxScaler with custom range")
+        .def("get_min", &ml::MinMaxScaler::get_min, "Get min values")
+        .def("get_max", &ml::MinMaxScaler::get_max, "Get max values")
+        .def("set_params", &ml::MinMaxScaler::set_params, 
+             "Set scaler parameters", py::arg("min"), py::arg("max"));
+    
+    // Factory function con lambda
+    m.def("create_scaler", 
+          [](const std::string& type_name) -> std::shared_ptr<ml::Scaler> {
+              return ml::ScalerFactory::create_scaler(type_name);
+          },
+          py::arg("scaler_type") = "standard",
+          "Create a scaler\n\n"
+          "Args:\n"
+          "    scaler_type (str): 'standard' or 'minmax'\n\n"
+          "Returns:\n"
+          "    Scaler: A new scaler instance");
+    
     // Bind MathUtils as a utility module
     py::class_<utils::MathUtils>(m, "MathUtils")
         .def_static("sigmoid", py::overload_cast<double>(&utils::MathUtils::sigmoid),
@@ -416,4 +461,8 @@ PYBIND11_MODULE(machine_learning_module, m) {
     // Register Eigen matrix converters
     // py::implicitly_convertible<py::array_t<double>, Eigen::MatrixXd>();
     // py::implicitly_convertible<py::array_t<double>, Eigen::VectorXd>();
+
+
+
+    
 }
