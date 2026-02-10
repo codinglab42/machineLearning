@@ -172,8 +172,10 @@ Eigen::MatrixXd NeuralNetwork::compute_loss_gradient(const Eigen::MatrixXd& y_pr
 void NeuralNetwork::fit(const Eigen::MatrixXd& X, const Eigen::VectorXd& y) {
     ML_CHECK_NOT_EMPTY(X, "X", get_model_type());
     ML_CHECK_NOT_EMPTY(y, "y", get_model_type());
-    ML_CHECK_DIMENSIONS(X.rows(), y.size(), X.cols(), 1, 
-                       "X and y rows", get_model_type());
+    ML_CHECK_XY_SIZE(X.rows(), y.size(), get_model_type());
+
+    // Salva il numero di futeres
+    n_input_features_ = static_cast<int>(X.cols());
     
     // Inizializza weights se necessario
     if (layers_.empty()) {
@@ -266,6 +268,7 @@ void NeuralNetwork::fit(const Eigen::MatrixXd& X, const Eigen::VectorXd& y) {
 VectorXd NeuralNetwork::predict(const MatrixXd& X) const {
     ML_CHECK_FITTED(!layers_.empty(), get_model_type());
     ML_CHECK_NOT_EMPTY(X, "X", get_model_type());
+    ML_CHECK_FEATURE_DIMENSIONS(X.cols(), n_input_features_, get_model_type());
     
     // Verifica dimensioni input
     int expected_input = layers_.front()->get_input_size();
@@ -280,6 +283,7 @@ VectorXd NeuralNetwork::predict(const MatrixXd& X) const {
 Eigen::MatrixXd NeuralNetwork::predict_proba(const MatrixXd& X) const {
     ML_CHECK_FITTED(!layers_.empty(), get_model_type());
     ML_CHECK_NOT_EMPTY(X, "X", get_model_type());
+    ML_CHECK_FEATURE_DIMENSIONS(X.cols(), n_input_features_, get_model_type());
     
     return forward_pass(X, false);
 }
@@ -411,6 +415,9 @@ void NeuralNetwork::serialize_binary(std::ostream& out) const {
     out.write(reinterpret_cast<const char*>(&epochs_), sizeof(int));
     out.write(reinterpret_cast<const char*>(&validation_split_), sizeof(double));
     out.write(reinterpret_cast<const char*>(&verbose_), sizeof(bool));
+
+    // Serializza n_input_features_
+    out.write(reinterpret_cast<const char*>(&n_input_features_), sizeof(int));
     
     // Serializza loss function
     size_t loss_len = loss_function_.size();
@@ -462,6 +469,9 @@ void NeuralNetwork::deserialize_binary(std::istream& in) {
     in.read(reinterpret_cast<char*>(&epochs_), sizeof(int));
     in.read(reinterpret_cast<char*>(&validation_split_), sizeof(double));
     in.read(reinterpret_cast<char*>(&verbose_), sizeof(bool));
+
+    // Serializza n_input_features_
+    in.read(reinterpret_cast<char*>(&n_input_features_), sizeof(int));
     
     // Deserializza loss function
     size_t loss_len;

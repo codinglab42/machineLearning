@@ -79,8 +79,7 @@ MatrixXd LogisticRegression::transform(const MatrixXd& X) const {
 void LogisticRegression::fit(const MatrixXd& X, const Eigen::VectorXd& y) {
     ML_CHECK_NOT_EMPTY(X, "X", get_model_type());
     ML_CHECK_NOT_EMPTY(y, "y", get_model_type());
-    ML_CHECK_DIMENSIONS(X.rows(), y.size(), X.cols(), 1, 
-                       "X and y rows", get_model_type());
+    ML_CHECK_XY_SIZE(X.rows(), y.size(), get_model_type());
     
     // Verifica che y sia binario (0 o 1)
     double y_min = y.minCoeff();
@@ -100,7 +99,7 @@ void LogisticRegression::fit(const MatrixXd& X, const Eigen::VectorXd& y) {
             get_model_type()
         );
     }
-    n_features_ = static_cast<int>(cols);
+    n_features_ = static_cast<int>(X.cols());
     
     //fit_scaler(X);
     //MatrixXd X_scaled = transform(X);
@@ -211,7 +210,7 @@ double LogisticRegression::compute_accuracy(const MatrixXd& X, const VectorXd& y
 VectorXd LogisticRegression::predict(const MatrixXd& X) const {
     ML_CHECK_FITTED(theta_.size() > 0, get_model_type());
     ML_CHECK_NOT_EMPTY(X, "X", get_model_type());
-    ML_CHECK_FEATURES(X.cols(), n_features_, get_model_type());
+    ML_CHECK_FEATURE_DIMENSIONS(X.cols(), n_features_, get_model_type());
     
     //MatrixXd X_int = MathUtils::add_intercept(transform(X));
     MatrixXd X_int = MathUtils::add_intercept(X);

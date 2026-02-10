@@ -70,8 +70,7 @@ MatrixXd LinearRegression::transform(const MatrixXd& X) const {
 void LinearRegression::fit(const MatrixXd& X, const Eigen::VectorXd& y) {
     ML_CHECK_NOT_EMPTY(X, "X", get_model_type());
     ML_CHECK_NOT_EMPTY(y, "y", get_model_type());
-    ML_CHECK_DIMENSIONS(X.rows(), y.size(), X.cols(), 1, 
-                       "X and y rows", get_model_type());
+    ML_CHECK_XY_SIZE(X.rows(), y.size(), get_model_type());
     
     // Cast sicuro da Eigen::Index a int
     Eigen::Index cols = X.cols();
@@ -93,10 +92,33 @@ void LinearRegression::fit(const MatrixXd& X, const Eigen::VectorXd& y) {
     if (solver_ == GRADIENT_DESCENT) {
         gradient_descent(X_int, y);
     } else if (solver_ == NORMAL_EQUATION) {
-        normal_equation(X_int, y);
+        normal_equation(X, y);
     } else {
-        svd_solve(X_int, y);
+        svd_solve(X, y);
     }
+
+    // ----->  void LinearRegression::fit(const MatrixXd& X, const VectorXd& y)  ----->DEBUG: Stampa theta_
+
+    n_features_ = static_cast<int>(cols);  // Questo dovrebbe essere 1
+    
+    MatrixXd X_int_bis = MathUtils::add_intercept(X);
+    
+    // DEBUG CRITICO
+    std::cout << "[DEBUG FIT] X cols: " << X.cols() << std::endl;
+    std::cout << "[DEBUG FIT] X_int cols: " << X_int.cols() << std::endl;
+    std::cout << "[DEBUG FIT] n_features_: " << n_features_ << std::endl;
+    std::cout << "[DEBUG FIT] X_int.rows(): " << X_int.rows() << ", X_int.cols(): " << X_int.cols() << std::endl;
+
+
+	if (solver_ == NORMAL_EQUATION) {
+        normal_equation(X_int_bis, y);
+    }
+
+
+    std::cout << "[DEBUG] theta_ size: " << theta_.size() << std::endl;
+    std::cout << "[DEBUG] theta_ values: " << theta_.transpose() << std::endl;
+    std::cout << "[DEBUG] X_int size: " << X_int.rows() << "x" << X_int.cols() << std::endl;
+    std::cout << "[DEBUG] y size: " << y.size() << std::endl;
 }
 
 void LinearRegression::normal_equation(const MatrixXd& X, const VectorXd& y) {
@@ -126,9 +148,16 @@ void LinearRegression::svd_solve(const MatrixXd& X, const VectorXd& y) {
 }
 
 void LinearRegression::gradient_descent(const MatrixXd& X, const VectorXd& y) {
-    MatrixXd X_int = MathUtils::add_intercept(X);
+    MatrixXd X_int = X; //MathUtils::add_intercept(X);
     double m = static_cast<double>(X.rows());
-    theta_ = VectorXd::Zero(X_int.cols());
+    //theta_ = VectorXd::Zero(X_int.cols());
+    theta_ = VectorXd::Zero(X.cols());
+
+    std::cout << "[DEBUG] gradient_descent: theta_ size = " << theta_.size() << std::endl;
+    std::cout << "[DEBUG] gradient_descent: X.cols() = " << X.cols() << std::endl;
+    std::cout << "[DEBUG] gradient_descent: n_features_ = " << n_features_ << std::endl;
+
+
     cost_history_.clear();
     cost_history_.reserve(max_iter_);
 
@@ -178,7 +207,7 @@ double LinearRegression::compute_cost(const MatrixXd& X, const VectorXd& y) cons
 VectorXd LinearRegression::predict(const MatrixXd& X) const {
     ML_CHECK_FITTED(theta_.size() > 0, get_model_type());
     ML_CHECK_NOT_EMPTY(X, "X", get_model_type());
-    ML_CHECK_FEATURES(X.cols(), n_features_, get_model_type());
+    ML_CHECK_FEATURE_DIMENSIONS(X.cols(), n_features_, get_model_type());
     
     //MatrixXd X_int = MathUtils::add_intercept(transform(X));
     MatrixXd X_int = MathUtils::add_intercept(X);

@@ -37,7 +37,11 @@ namespace models {
                                               Solver solver = GRADIENT_DESCENT);
     
         // Getters
-        const Eigen::VectorXd& coefficients() const { return theta_; }
+        //const Eigen::VectorXd& coefficients() const { return theta_; }
+        Eigen::VectorXd coefficients() const { 
+            if (theta_.size() <= 1) return Eigen::VectorXd::Zero(0);
+            return theta_.tail(n_features_); // Restituisce solo i coefficenti, non l'intercept
+        }
         double intercept() const { return (theta_.size() > 0) ? theta_(0) : 0.0; }
         const std::vector<double>& cost_history() const { return cost_history_; }
         
