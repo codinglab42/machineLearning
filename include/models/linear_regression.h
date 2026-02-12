@@ -62,15 +62,6 @@ namespace models {
         Eigen::VectorXd theta_;
         std::vector<double> cost_history_;
     
-        /*
-        struct Scaler {
-            Eigen::VectorXd mean, std;
-            bool fit = false;
-            
-            void serialize(std::ostream& out) const;
-            void deserialize(std::istream& in);
-        } scaler_;
-        */
 
         void gradient_descent(const Eigen::MatrixXd& X, const Eigen::VectorXd& y);
         void normal_equation(const Eigen::MatrixXd& X, const Eigen::VectorXd& y);

@@ -51,30 +51,6 @@ void LogisticRegression::set_verbose(bool verbose) {
     verbose_ = verbose;
 }
 
-// Metodi privati
-/*
-void LogisticRegression::fit_scaler(const MatrixXd& X) {
-    ML_CHECK_NOT_EMPTY(X, "X", get_model_type());
-    
-    scaler_.mean = X.colwise().mean();
-    scaler_.std = ((X.rowwise() - scaler_.mean.transpose()).array().square()
-                  .colwise().sum() / static_cast<double>(X.rows())).sqrt();
-    
-    for (Eigen::Index i = 0; i < scaler_.std.size(); ++i) {
-        if (scaler_.std(i) < 1e-9) scaler_.std(i) = 1.0;
-    }
-    scaler_.fit = true;
-}
-
-MatrixXd LogisticRegression::transform(const MatrixXd& X) const {
-    if (!scaler_.fit) return X;
-    
-    ML_CHECK_FEATURES(X.cols(), n_features_, get_model_type());
-    return (X.rowwise() - scaler_.mean.transpose()).array().rowwise() 
-           / scaler_.std.transpose().array();
-}
-*/
-
 // Metodo fit principale
 void LogisticRegression::fit(const MatrixXd& X, const Eigen::VectorXd& y) {
     ML_CHECK_NOT_EMPTY(X, "X", get_model_type());
@@ -89,7 +65,7 @@ void LogisticRegression::fit(const MatrixXd& X, const Eigen::VectorXd& y) {
             "y", "must contain only 0 and 1 values", get_model_type());
     }
     
-    // Cast sicuro da Eigen::Index a int
+    // Salva il numero di feature ORIGINALI (senza bias)
     Eigen::Index cols = X.cols();
     if (cols > std::numeric_limits<int>::max()) {
         throw ml_exception::DimensionMismatchException(
@@ -99,20 +75,17 @@ void LogisticRegression::fit(const MatrixXd& X, const Eigen::VectorXd& y) {
             get_model_type()
         );
     }
-    n_features_ = static_cast<int>(X.cols());
+    n_features_ = static_cast<int>(cols);
     
-    //fit_scaler(X);
-    //MatrixXd X_scaled = transform(X);
-
-    MatrixXd X_int = MathUtils::add_intercept(X);
+    // Aggiunge intercetta UNA SOLA VOLTA per il training
+    MatrixXd X_with_bias = MathUtils::add_intercept(X);
     
-    gradient_descent(X_int, y);
+    gradient_descent(X_with_bias, y);
 }
 
-void LogisticRegression::gradient_descent(const MatrixXd& X, const VectorXd& y) {
-    MatrixXd X_int = MathUtils::add_intercept(X);
-    double m = static_cast<double>(X.rows());
-    theta_ = VectorXd::Zero(X_int.cols());
+void LogisticRegression::gradient_descent(const MatrixXd& X_with_bias, const VectorXd& y) {
+    double m = static_cast<double>(X_with_bias.rows());
+    theta_ = VectorXd::Zero(X_with_bias.cols());  // Dimensione = n_features_ + 1
     cost_history_.clear();
     accuracy_history_.clear();
     cost_history_.reserve(max_iter_);
@@ -120,14 +93,14 @@ void LogisticRegression::gradient_descent(const MatrixXd& X, const VectorXd& y) 
 
     for (n_iter_ = 0; n_iter_ < max_iter_; ++n_iter_) {
         // Forward pass
-        VectorXd z = X_int * theta_;
+        VectorXd z = X_with_bias * theta_;
         VectorXd h = MathUtils::sigmoid_vec(z);
         
         // Calcolo gradienti
         VectorXd error = h - y;
-        VectorXd gradient = (X_int.transpose() * error) / m;
+        VectorXd gradient = (X_with_bias.transpose() * error) / m;
         
-        // Regularizzazione L2
+        // Regularizzazione L2 (non regolarizzare l'intercetta)
         if (lambda_ > 0) {
             VectorXd reg = (lambda_ / m) * theta_;
             reg(0) = 0; // Non regolarizzare l'intercetta
@@ -137,9 +110,9 @@ void LogisticRegression::gradient_descent(const MatrixXd& X, const VectorXd& y) 
         // Aggiornamento parametri
         theta_ -= learning_rate_ * gradient;
         
-        // Calcolo metriche
-        cost_history_.push_back(compute_cost(X, y));
-        accuracy_history_.push_back(compute_accuracy(X, y));
+        // Calcolo metriche (passa X_with_bias che ha già il bias)
+        cost_history_.push_back(compute_cost(X_with_bias, y));
+        accuracy_history_.push_back(compute_accuracy(X_with_bias, y));
         
         // Early stopping
         if (n_iter_ > 10 && cost_history_.size() > 10) {
@@ -173,12 +146,10 @@ void LogisticRegression::gradient_descent(const MatrixXd& X, const VectorXd& y) 
     }
 }
 
-double LogisticRegression::compute_cost(const MatrixXd& X, const VectorXd& y) const {
-    //MatrixXd X_int = MathUtils::add_intercept(transform(X));
-    MatrixXd X_int = MathUtils::add_intercept(X);
-    double m = static_cast<double>(X.rows());
+double LogisticRegression::compute_cost(const MatrixXd& X_with_bias, const VectorXd& y) const {
+    double m = static_cast<double>(X_with_bias.rows());
     
-    VectorXd z = X_int * theta_;
+    VectorXd z = X_with_bias * theta_;
     VectorXd h = MathUtils::sigmoid_vec(z);
     
     // Log loss con stabilità numerica
@@ -187,16 +158,16 @@ double LogisticRegression::compute_cost(const MatrixXd& X, const VectorXd& y) co
     
     double J = -(y.dot(log_h) + (VectorXd::Ones(y.size()) - y).dot(log_1_minus_h)) / m;
     
-    // Regularizzazione L2
-    if (lambda_ > 0) {
+    // Regularizzazione L2 (escludi intercetta)
+    if (lambda_ > 0 && theta_.size() > 1) {
         J += (lambda_ / (2.0 * m)) * theta_.tail(theta_.size() - 1).squaredNorm();
     }
     
     return J;
 }
 
-double LogisticRegression::compute_accuracy(const MatrixXd& X, const VectorXd& y) const {
-    VectorXi y_pred_class = predict_class(X, 0.5);
+double LogisticRegression::compute_accuracy(const MatrixXd& X_with_bias, const VectorXd& y) const {
+    VectorXi y_pred_class = predict_class_from_features(X_with_bias, 0.5);
     int correct = 0;
     for (Eigen::Index i = 0; i < y.size(); ++i) {
         if (y_pred_class(i) == static_cast<int>(y(i))) {
@@ -206,23 +177,22 @@ double LogisticRegression::compute_accuracy(const MatrixXd& X, const VectorXd& y
     return static_cast<double>(correct) / static_cast<double>(y.size());
 }
 
-// Metodi predict
-VectorXd LogisticRegression::predict(const MatrixXd& X) const {
+// Metodo interno per predire su X che ha GIA' il bias
+VectorXd LogisticRegression::predict_from_features(const MatrixXd& X_with_bias) const {
     ML_CHECK_FITTED(theta_.size() > 0, get_model_type());
-    ML_CHECK_NOT_EMPTY(X, "X", get_model_type());
-    ML_CHECK_FEATURE_DIMENSIONS(X.cols(), n_features_, get_model_type());
+    ML_CHECK_NOT_EMPTY(X_with_bias, "X", get_model_type());
+    ML_CHECK_FEATURE_DIMENSIONS(X_with_bias.cols(), theta_.size(), get_model_type());
     
-    //MatrixXd X_int = MathUtils::add_intercept(transform(X));
-    MatrixXd X_int = MathUtils::add_intercept(X);
-    VectorXd z = X_int * theta_;
+    VectorXd z = X_with_bias * theta_;
     return MathUtils::sigmoid_vec(z);
 }
 
-VectorXi LogisticRegression::predict_class(const MatrixXd& X, double threshold) const {
+// Metodo interno per classificare su X che ha GIA' il bias
+VectorXi LogisticRegression::predict_class_from_features(const MatrixXd& X_with_bias, double threshold) const {
     ML_CHECK_PARAM(threshold >= 0 && threshold <= 1, "threshold", 
                   "must be between 0 and 1", get_model_type());
     
-    VectorXd probabilities = predict(X);
+    VectorXd probabilities = predict_from_features(X_with_bias);
     VectorXi classes(probabilities.size());
     
     for (Eigen::Index i = 0; i < probabilities.size(); ++i) {
@@ -232,15 +202,39 @@ VectorXi LogisticRegression::predict_class(const MatrixXd& X, double threshold) 
     return classes;
 }
 
+// Metodi predict pubblici - accettano X SENZA bias
+VectorXd LogisticRegression::predict(const MatrixXd& X) const {
+    ML_CHECK_FITTED(theta_.size() > 0, get_model_type());
+    ML_CHECK_NOT_EMPTY(X, "X", get_model_type());
+    ML_CHECK_FEATURE_DIMENSIONS(X.cols(), n_features_, get_model_type());
+    
+    // Aggiunge bias automaticamente per l'utente
+    MatrixXd X_with_bias = MathUtils::add_intercept(X);
+    return predict_from_features(X_with_bias);
+}
+
+VectorXi LogisticRegression::predict_class(const MatrixXd& X, double threshold) const {
+    ML_CHECK_PARAM(threshold >= 0 && threshold <= 1, "threshold", 
+                  "must be between 0 and 1", get_model_type());
+    
+    // Aggiunge bias automaticamente per l'utente
+    MatrixXd X_with_bias = MathUtils::add_intercept(X);
+    return predict_class_from_features(X_with_bias, threshold);
+}
+
 // Metodi score
 double LogisticRegression::score(const MatrixXd& X, const VectorXd& y) const {
-    return compute_accuracy(X, y);
+    ML_CHECK_FEATURE_DIMENSIONS(X.cols(), n_features_, get_model_type());
+    MatrixXd X_with_bias = MathUtils::add_intercept(X);
+    return compute_accuracy(X_with_bias, y);
 }
 
 Vector3d LogisticRegression::precision_recall_f1(const MatrixXd& X, 
                                                const VectorXd& y, 
                                                double threshold) const {
-    Eigen::MatrixXd cm = confusion_matrix(X, y, threshold);
+    ML_CHECK_FEATURE_DIMENSIONS(X.cols(), n_features_, get_model_type());
+    MatrixXd X_with_bias = MathUtils::add_intercept(X);
+    Eigen::MatrixXd cm = confusion_matrix_from_features(X_with_bias, y, threshold);
     
     double tp = cm(1, 1);
     double fp = cm(0, 1);
@@ -256,41 +250,29 @@ Vector3d LogisticRegression::precision_recall_f1(const MatrixXd& X,
 MatrixXd LogisticRegression::confusion_matrix(const MatrixXd& X, 
                                             const VectorXd& y, 
                                             double threshold) const {
-    VectorXi y_pred = predict_class(X, threshold);
+    ML_CHECK_FEATURE_DIMENSIONS(X.cols(), n_features_, get_model_type());
+    MatrixXd X_with_bias = MathUtils::add_intercept(X);
+    return confusion_matrix_from_features(X_with_bias, y, threshold);
+}
+
+MatrixXd LogisticRegression::confusion_matrix_from_features(const MatrixXd& X_with_bias, 
+                                                          const VectorXd& y, 
+                                                          double threshold) const {
+    VectorXi y_pred = predict_class_from_features(X_with_bias, threshold);
     MatrixXd cm = MatrixXd::Zero(2, 2);
     
     for (Eigen::Index i = 0; i < y.size(); ++i) {
         int actual = static_cast<int>(y(i));
         int predicted = y_pred(i);
-        cm(actual, predicted) += 1.0;
+        if (actual >= 0 && actual < 2 && predicted >= 0 && predicted < 2) {
+            cm(actual, predicted) += 1.0;
+        }
     }
     
     return cm;
 }
 
 // Serializzazione
-/*
-void LogisticRegression::Scaler::serialize(std::ostream& out) const {
-    using namespace utils;
-    
-    out.write(reinterpret_cast<const char*>(&fit), sizeof(bool));
-    if (fit) {
-        eigen_utils::serialize_eigen_vector(mean, out);
-        eigen_utils::serialize_eigen_vector(std, out);
-    }
-}
-
-void LogisticRegression::Scaler::deserialize(std::istream& in) {
-    using namespace utils;
-    
-    in.read(reinterpret_cast<char*>(&fit), sizeof(bool));
-    if (fit) {
-        eigen_utils::deserialize_eigen_vector(mean, in);
-        eigen_utils::deserialize_eigen_vector(std, in);
-    }
-}
-*/
-
 void LogisticRegression::serialize_binary(std::ostream& out) const {
     using namespace utils;
     
@@ -303,9 +285,8 @@ void LogisticRegression::serialize_binary(std::ostream& out) const {
     out.write(reinterpret_cast<const char*>(&n_features_), sizeof(int));
     out.write(reinterpret_cast<const char*>(&n_iter_), sizeof(int));
     
-    // Serializza theta e scaler
+    // Serializza theta
     eigen_utils::serialize_eigen_vector(theta_, out);
-    //scaler_.serialize(out);
     
     // Serializza history
     size_t cost_size = cost_history_.size();
@@ -335,9 +316,8 @@ void LogisticRegression::deserialize_binary(std::istream& in) {
     in.read(reinterpret_cast<char*>(&n_features_), sizeof(int));
     in.read(reinterpret_cast<char*>(&n_iter_), sizeof(int));
     
-    // Deserializza theta e scaler
+    // Deserializza theta
     eigen_utils::deserialize_eigen_vector(theta_, in);
-    //scaler_.deserialize(in);
     
     // Deserializza history
     size_t cost_size;

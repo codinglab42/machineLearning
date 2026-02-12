@@ -42,37 +42,13 @@ void LinearRegression::set_lambda(double lambda) {
     lambda_ = lambda;
 }
 
-// Metodi privati
-/*
-void LinearRegression::fit_scaler(const MatrixXd& X) {
-    ML_CHECK_NOT_EMPTY(X, "X", get_model_type());
-    
-    scaler_.mean = X.colwise().mean();
-    scaler_.std = ((X.rowwise() - scaler_.mean.transpose()).array().square()
-                  .colwise().sum() / static_cast<double>(X.rows())).sqrt();
-    
-    for (Eigen::Index i = 0; i < scaler_.std.size(); ++i) {
-        if (scaler_.std(i) < 1e-9) scaler_.std(i) = 1.0;
-    }
-    scaler_.fit = true;
-}
-
-MatrixXd LinearRegression::transform(const MatrixXd& X) const {
-    if (!scaler_.fit) return X;
-    
-    ML_CHECK_FEATURES(X.cols(), n_features_, get_model_type());
-    return (X.rowwise() - scaler_.mean.transpose()).array().rowwise() 
-           / scaler_.std.transpose().array();
-}
-*/
-
-// Metodo fit principale
+// Metodo fit principale - CORRETTO
 void LinearRegression::fit(const MatrixXd& X, const Eigen::VectorXd& y) {
     ML_CHECK_NOT_EMPTY(X, "X", get_model_type());
     ML_CHECK_NOT_EMPTY(y, "y", get_model_type());
     ML_CHECK_XY_SIZE(X.rows(), y.size(), get_model_type());
     
-    // Cast sicuro da Eigen::Index a int
+    // Salva numero feature ORIGINALI (senza bias)
     Eigen::Index cols = X.cols();
     if (cols > std::numeric_limits<int>::max()) {
         throw ml_exception::DimensionMismatchException(
@@ -84,53 +60,37 @@ void LinearRegression::fit(const MatrixXd& X, const Eigen::VectorXd& y) {
     }
     n_features_ = static_cast<int>(cols);
     
-    //fit_scaler(X);
-    //MatrixXd X_scaled = transform(X);
-
-    MatrixXd X_int = MathUtils::add_intercept(X);
-
+    // Aggiungi bias UNA SOLA VOLTA
+    MatrixXd X_with_bias = MathUtils::add_intercept(X);
+    
+    // Chiama il solver appropriato UNA SOLA VOLTA
     if (solver_ == GRADIENT_DESCENT) {
-        gradient_descent(X_int, y);
+        gradient_descent(X_with_bias, y);
     } else if (solver_ == NORMAL_EQUATION) {
-        normal_equation(X, y);
+        normal_equation(X_with_bias, y);
     } else {
-        svd_solve(X, y);
+        svd_solve(X_with_bias, y);
     }
-
-    // ----->  void LinearRegression::fit(const MatrixXd& X, const VectorXd& y)  ----->DEBUG: Stampa theta_
-
-    n_features_ = static_cast<int>(cols);  // Questo dovrebbe essere 1
     
-    MatrixXd X_int_bis = MathUtils::add_intercept(X);
-    
-    // DEBUG CRITICO
-    std::cout << "[DEBUG FIT] X cols: " << X.cols() << std::endl;
-    std::cout << "[DEBUG FIT] X_int cols: " << X_int.cols() << std::endl;
-    std::cout << "[DEBUG FIT] n_features_: " << n_features_ << std::endl;
-    std::cout << "[DEBUG FIT] X_int.rows(): " << X_int.rows() << ", X_int.cols(): " << X_int.cols() << std::endl;
-
-
-	if (solver_ == NORMAL_EQUATION) {
-        normal_equation(X_int_bis, y);
+    // Debug (opzionale)
+    if (verbose_) {
+        std::cout << "[DEBUG] Model fitted. Features: " << n_features_ 
+                  << ", Theta size: " << theta_.size() 
+                  << " (includes bias)" << std::endl;
     }
-
-
-    std::cout << "[DEBUG] theta_ size: " << theta_.size() << std::endl;
-    std::cout << "[DEBUG] theta_ values: " << theta_.transpose() << std::endl;
-    std::cout << "[DEBUG] X_int size: " << X_int.rows() << "x" << X_int.cols() << std::endl;
-    std::cout << "[DEBUG] y size: " << y.size() << std::endl;
 }
 
-void LinearRegression::normal_equation(const MatrixXd& X, const VectorXd& y) {
-    MatrixXd X_int = MathUtils::add_intercept(X);
-    MatrixXd XtX = X_int.transpose() * X_int;
-    VectorXd Xty = X_int.transpose() * y;
+void LinearRegression::normal_equation(const MatrixXd& X_with_bias, const VectorXd& y) {
+    // X_with_bias ha già la colonna di 1
+    MatrixXd XtX = X_with_bias.transpose() * X_with_bias;
+    VectorXd Xty = X_with_bias.transpose() * y;
 
     if (lambda_ > 0) {
         MatrixXd I = MatrixXd::Identity(XtX.rows(), XtX.cols());
-        I(0, 0) = 0; 
+        I(0, 0) = 0; // Non regolarizzare intercetta
         XtX += lambda_ * I;
     }
+    
     theta_ = XtX.ldlt().solve(Xty);
     
     if (verbose_) {
@@ -138,41 +98,39 @@ void LinearRegression::normal_equation(const MatrixXd& X, const VectorXd& y) {
     }
 }
 
-void LinearRegression::svd_solve(const MatrixXd& X, const VectorXd& y) {
-    MatrixXd X_int = MathUtils::add_intercept(X);
-    theta_ = X_int.bdcSvd(ComputeThinU | ComputeThinV).solve(y);
+void LinearRegression::svd_solve(const MatrixXd& X_with_bias, const VectorXd& y) {
+    // X_with_bias ha già la colonna di 1
+    theta_ = X_with_bias.bdcSvd(ComputeThinU | ComputeThinV).solve(y);
     
     if (verbose_) {
         std::cout << "SVD solved. Theta size: " << theta_.size() << std::endl;
     }
 }
 
-void LinearRegression::gradient_descent(const MatrixXd& X, const VectorXd& y) {
-    MatrixXd X_int = X; //MathUtils::add_intercept(X);
-    double m = static_cast<double>(X.rows());
-    //theta_ = VectorXd::Zero(X_int.cols());
-    theta_ = VectorXd::Zero(X.cols());
-
-    std::cout << "[DEBUG] gradient_descent: theta_ size = " << theta_.size() << std::endl;
-    std::cout << "[DEBUG] gradient_descent: X.cols() = " << X.cols() << std::endl;
-    std::cout << "[DEBUG] gradient_descent: n_features_ = " << n_features_ << std::endl;
-
+void LinearRegression::gradient_descent(const MatrixXd& X_with_bias, const VectorXd& y) {
+    double m = static_cast<double>(X_with_bias.rows());
+    theta_ = VectorXd::Zero(X_with_bias.cols());  // Dimensione = n_features_ + 1
+    
+    if (verbose_) {
+        std::cout << "[DEBUG] gradient_descent: theta_ size = " << theta_.size() 
+                  << " (includes bias)" << std::endl;
+    }
 
     cost_history_.clear();
     cost_history_.reserve(max_iter_);
 
     for (n_iter_ = 0; n_iter_ < max_iter_; ++n_iter_) {
-        VectorXd error = (X_int * theta_) - y;
-        VectorXd gradient = (X_int.transpose() * error) / m;
+        VectorXd error = (X_with_bias * theta_) - y;
+        VectorXd gradient = (X_with_bias.transpose() * error) / m;
         
         if (lambda_ > 0) {
             VectorXd reg = (lambda_ / m) * theta_;
-            reg(0) = 0;
+            reg(0) = 0; // Non regolarizzare intercetta
             gradient += reg;
         }
 
         theta_ -= learning_rate_ * gradient;
-        cost_history_.push_back(compute_cost(X, y));
+        cost_history_.push_back(compute_cost(X_with_bias, y));
         
         // Early stopping
         if (n_iter_ > 10 && cost_history_.size() > 10) {
@@ -192,35 +150,30 @@ void LinearRegression::gradient_descent(const MatrixXd& X, const VectorXd& y) {
     }
 }
 
-double LinearRegression::compute_cost(const MatrixXd& X, const VectorXd& y) const {
-    //MatrixXd X_int = MathUtils::add_intercept(transform(X));
-    MatrixXd X_int = MathUtils::add_intercept((X));
-    double m = static_cast<double>(X.rows());
-    double J = (X_int * theta_ - y).squaredNorm() / (2.0 * m);
-    if (lambda_ > 0) {
+double LinearRegression::compute_cost(const MatrixXd& X_with_bias, const VectorXd& y) const {
+    double m = static_cast<double>(X_with_bias.rows());
+    double J = (X_with_bias * theta_ - y).squaredNorm() / (2.0 * m);
+    
+    if (lambda_ > 0 && theta_.size() > 1) {
         J += (lambda_ / (2.0 * m)) * theta_.tail(theta_.size() - 1).squaredNorm();
     }
     return J;
 }
 
-// Metodi predict
+// Metodi predict - ACCETTANO X SENZA BIAS
 VectorXd LinearRegression::predict(const MatrixXd& X) const {
     ML_CHECK_FITTED(theta_.size() > 0, get_model_type());
     ML_CHECK_NOT_EMPTY(X, "X", get_model_type());
     ML_CHECK_FEATURE_DIMENSIONS(X.cols(), n_features_, get_model_type());
     
-    //MatrixXd X_int = MathUtils::add_intercept(transform(X));
-    MatrixXd X_int = MathUtils::add_intercept(X);
-    return X_int * theta_;
+    // Aggiungi bias automaticamente per l'utente
+    MatrixXd X_with_bias = MathUtils::add_intercept(X);
+    return X_with_bias * theta_;
 }
 
 double LinearRegression::predict(const VectorXd& x) const {
     ML_CHECK_FITTED(theta_.size() > 0, get_model_type());
-    
-    if (x.size() != n_features_) {
-        throw ml_exception::FeatureMismatchException(
-            n_features_, static_cast<int>(x.size()), get_model_type());
-    }
+    ML_CHECK_FEATURE_DIMENSIONS(x.size(), n_features_, get_model_type());
     
     MatrixXd X_row(1, n_features_);
     X_row.row(0) = x;
@@ -257,8 +210,7 @@ VectorXd LinearRegression::cross_val_score(const MatrixXd& X, const VectorXd& y,
     ML_CHECK_PARAM(cv > 1, "cv", "must be > 1", "LinearRegression");
     ML_CHECK_NOT_EMPTY(X, "X", "LinearRegression");
     ML_CHECK_NOT_EMPTY(y, "y", "LinearRegression");
-    ML_CHECK_DIMENSIONS(X.rows(), y.size(), X.cols(), 1, 
-                       "X and y rows", "LinearRegression");
+    ML_CHECK_XY_SIZE(X.rows(), y.size(), "LinearRegression");
     
     Eigen::Index n_samples = X.rows();
     Eigen::Index fold_size = n_samples / static_cast<Eigen::Index>(cv);
@@ -267,25 +219,31 @@ VectorXd LinearRegression::cross_val_score(const MatrixXd& X, const VectorXd& y,
     for (int i = 0; i < cv; ++i) {
         Eigen::Index start = static_cast<Eigen::Index>(i) * fold_size;
         Eigen::Index end = (i == cv-1) ? n_samples : static_cast<Eigen::Index>(i+1) * fold_size;
-        Eigen::Index test_size = end - start;
-        Eigen::Index train_size = n_samples - test_size;
         
-        MatrixXd X_train(train_size, X.cols());
-        VectorXd y_train(train_size);
-        MatrixXd X_test(test_size, X.cols());
-        VectorXd y_test(test_size);
-        
-        Eigen::Index train_idx = 0, test_idx = 0;
+        // Indici per training e test
+        std::vector<Eigen::Index> train_indices, test_indices;
         for (Eigen::Index j = 0; j < n_samples; ++j) {
             if (j >= start && j < end) {
-                X_test.row(test_idx) = X.row(j);
-                y_test(test_idx) = y(j);
-                test_idx++;
+                test_indices.push_back(j);
             } else {
-                X_train.row(train_idx) = X.row(j);
-                y_train(train_idx) = y(j);
-                train_idx++;
+                train_indices.push_back(j);
             }
+        }
+        
+        // Costruisci matrici
+        MatrixXd X_train(train_indices.size(), X.cols());
+        VectorXd y_train(train_indices.size());
+        MatrixXd X_test(test_indices.size(), X.cols());
+        VectorXd y_test(test_indices.size());
+        
+        for (size_t j = 0; j < train_indices.size(); ++j) {
+            X_train.row(static_cast<Eigen::Index>(j)) = X.row(train_indices[j]);
+            y_train(static_cast<Eigen::Index>(j)) = y(train_indices[j]);
+        }
+        
+        for (size_t j = 0; j < test_indices.size(); ++j) {
+            X_test.row(static_cast<Eigen::Index>(j)) = X.row(test_indices[j]);
+            y_test(static_cast<Eigen::Index>(j)) = y(test_indices[j]);
         }
         
         LinearRegression lr(0.01, 1000, 0.0, solver);
@@ -297,32 +255,9 @@ VectorXd LinearRegression::cross_val_score(const MatrixXd& X, const VectorXd& y,
 }
 
 // Serializzazione
-/*
-void LinearRegression::Scaler::serialize(std::ostream& out) const {
-    using namespace utils;
-    
-    out.write(reinterpret_cast<const char*>(&fit), sizeof(bool));
-    if (fit) {
-        eigen_utils::serialize_eigen_vector(mean, out);
-        eigen_utils::serialize_eigen_vector(std, out);
-    }
-}
-
-void LinearRegression::Scaler::deserialize(std::istream& in) {
-    using namespace utils;
-    
-    in.read(reinterpret_cast<char*>(&fit), sizeof(bool));
-    if (fit) {
-        eigen_utils::deserialize_eigen_vector(mean, in);
-        eigen_utils::deserialize_eigen_vector(std, in);
-    }
-}
-*/
-
 void LinearRegression::serialize_binary(std::ostream& out) const {
     using namespace utils;
     
-    // Serializza parametri
     out.write(reinterpret_cast<const char*>(&learning_rate_), sizeof(double));
     out.write(reinterpret_cast<const char*>(&max_iter_), sizeof(int));
     out.write(reinterpret_cast<const char*>(&lambda_), sizeof(double));
@@ -332,11 +267,8 @@ void LinearRegression::serialize_binary(std::ostream& out) const {
     out.write(reinterpret_cast<const char*>(&n_features_), sizeof(int));
     out.write(reinterpret_cast<const char*>(&n_iter_), sizeof(int));
     
-    // Serializza theta e scaler
     eigen_utils::serialize_eigen_vector(theta_, out);
-    //scaler_.serialize(out);
     
-    // Serializza cost history
     size_t cost_size = cost_history_.size();
     out.write(reinterpret_cast<const char*>(&cost_size), sizeof(size_t));
     if (cost_size > 0) {
@@ -348,7 +280,6 @@ void LinearRegression::serialize_binary(std::ostream& out) const {
 void LinearRegression::deserialize_binary(std::istream& in) {
     using namespace utils;
     
-    // Deserializza parametri
     in.read(reinterpret_cast<char*>(&learning_rate_), sizeof(double));
     in.read(reinterpret_cast<char*>(&max_iter_), sizeof(int));
     in.read(reinterpret_cast<char*>(&lambda_), sizeof(double));
@@ -358,11 +289,8 @@ void LinearRegression::deserialize_binary(std::istream& in) {
     in.read(reinterpret_cast<char*>(&n_features_), sizeof(int));
     in.read(reinterpret_cast<char*>(&n_iter_), sizeof(int));
     
-    // Deserializza theta e scaler
     eigen_utils::deserialize_eigen_vector(theta_, in);
-    //scaler_.deserialize(in);
     
-    // Deserializza cost history
     size_t cost_size;
     in.read(reinterpret_cast<char*>(&cost_size), sizeof(size_t));
     cost_history_.resize(cost_size);

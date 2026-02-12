@@ -81,7 +81,37 @@ else()
     FetchContent_MakeAvailable(pybind11)
 endif()
 
-# 4. OpenMP opzionale
+# 5. CONFIGURAZIONE TEST (GTest)
+if(BUILD_TESTS)
+    if(VERBOSE_OUTPUT)
+        message(STATUS "🧪 Configurazione Google Test...")
+    endif()
+
+    # Prova a cercarlo nel sistema (Rocky Linux)
+    find_package(GTest QUIET)
+
+    if(NOT GTEST_FOUND)
+        if(VERBOSE_OUTPUT)
+            message(STATUS "📦 GTest non trovato nel sistema, scaricamento tramite FetchContent...")
+        endif()
+        include(FetchContent)
+        FetchContent_Declare(
+          googletest
+          URL https://github.com
+        )
+        # Per evitare problemi su alcune distribuzioni
+        set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+        FetchContent_MakeAvailable(googletest)
+    else()
+        if(VERBOSE_OUTPUT)
+            message(STATUS "✅ GTest trovato nel sistema")
+        endif()
+    endif()
+endif()
+
+
+
+# 6. OpenMP opzionale
 if(USE_OPENMP)
     find_package(OpenMP)
     if(OpenMP_FOUND)

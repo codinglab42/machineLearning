@@ -35,7 +35,10 @@ namespace models {
                                        double threshold = 0.5) const;
         
         // Getters
-        const Eigen::VectorXd& coefficients() const { return theta_; }
+        Eigen::VectorXd coefficients() const { 
+            if (theta_.size() <= 1) return Eigen::VectorXd::Zero(0);
+            return theta_.tail(theta_.size() - 1);  // Restituisce SOLO i coefficienti, NON l'intercetta
+        }
         double intercept() const { return (theta_.size() > 0) ? theta_(0) : 0.0; }
         const std::vector<double>& cost_history() const { return cost_history_; }
         const std::vector<double>& accuracy_history() const { return accuracy_history_; }
@@ -57,16 +60,6 @@ namespace models {
         int n_features_;
         int n_iter_;
         std::vector<double> cost_history_, accuracy_history_;
-    
-        /*
-        struct Scaler {
-            Eigen::VectorXd mean, std;
-            bool fit = false;
-            
-            void serialize(std::ostream& out) const;
-            void deserialize(std::istream& in);
-        } scaler_;
-        */
 
         double compute_cost(const Eigen::MatrixXd& X, const Eigen::VectorXd& y) const;
         double compute_accuracy(const Eigen::MatrixXd& X, const Eigen::VectorXd& y) const;
@@ -76,6 +69,13 @@ namespace models {
         // Metodi di training
         void gradient_descent(const Eigen::MatrixXd& X, const Eigen::VectorXd& y);
         void newton_method(const Eigen::MatrixXd& X, const Eigen::VectorXd& y);
+
+         // Metodi interni che lavorano con X che ha GIA' il bias
+        Eigen::VectorXd predict_from_features(const Eigen::MatrixXd& X_with_bias) const;
+        Eigen::VectorXi predict_class_from_features(const Eigen::MatrixXd& X_with_bias, double threshold) const;
+        Eigen::MatrixXd confusion_matrix_from_features(const Eigen::MatrixXd& X_with_bias, 
+                                                 const Eigen::VectorXd& y, 
+                                                 double threshold) const;
     };
 }
 

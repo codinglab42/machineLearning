@@ -111,26 +111,7 @@ PYBIND11_MODULE(machine_learning_module, m) {
                .export_values();
     
     // Bind Estimator base class
-    py::class_<models::Estimator, std::shared_ptr<models::Estimator>>(m, "Estimator")
-        .def("fit", &models::Estimator::fit,
-             py::arg("X"), py::arg("y"),
-             "Fit the model to the data")
-        .def("predict", &models::Estimator::predict,
-             py::arg("X"),
-             "Make predictions")
-        .def("score", &models::Estimator::score,
-             py::arg("X"), py::arg("y"),
-             "Compute model score")
-        .def("save", &models::Estimator::save,
-             py::arg("filename"),
-             "Save model to file")
-        .def("load", &models::Estimator::load,
-             py::arg("filename"),
-             "Load model from file")
-        .def("to_string", &models::Estimator::to_string,
-             "String representation of the model")
-        .def("__repr__", &models::Estimator::to_string)
-        .def("__str__", &models::Estimator::to_string);
+    py::class_<models::Estimator, std::shared_ptr<models::Estimator>>(m, "Estimator");
     
     // Bind LinearRegression
     py::class_<models::LinearRegression, models::Estimator, 
