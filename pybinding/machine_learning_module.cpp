@@ -19,24 +19,59 @@
 
 namespace py = pybind11;
 
-// Convertitore per eccezioni C++ → Python
-// void translate_exception(const std::exception& e) {
-//     // Controlla se è un'eccezione ML specifica
-//     try {
-//         throw;
-//     } catch (const ml_exception::MLException& ml_e) {
-//         // Usa il messaggio già formattato
-//         PyErr_SetString(PyExc_RuntimeError, ml_e.what());
-//     } catch (const std::invalid_argument& e) {
-//         PyErr_SetString(PyExc_ValueError, e.what());
-//     } catch (const std::runtime_error& e) {
-//         PyErr_SetString(PyExc_RuntimeError, e.what());
-//     } catch (const std::exception& e) {
-//         PyErr_SetString(PyExc_Exception, e.what());
-//     } catch (...) {
-//         PyErr_SetString(PyExc_Exception, "Unknown C++ exception");
-//     }
-// }
+
+template<typename Model>
+void add_fit_wrapper(py::class_<Model, models::Estimator, std::shared_ptr<Model>>& cls) {
+    cls.def("fit", 
+        [](Model& model, const Eigen::MatrixXd& X, const Eigen::MatrixXd& y) -> void {
+            std::cout << "\n*** DEBUG: fit_wrapper ATTIVATO ***" << std::endl;
+            std::cout << "*** Type: " << typeid(Model).name() << std::endl;
+            std::cout << "*** X: " << X.rows() << "x" << X.cols() << std::endl;
+            std::cout << "*** y: " << y.rows() << "x" << y.cols() << std::endl;
+            
+            // Verifica che y sia (4,1) o (1,4)
+            if (y.cols() == 1) {
+                std::cout << "*** Rilevato y come colonna (n,1) = " << y.rows() << "x1" << std::endl;
+                
+                // Costruisci VectorXd esplicitamente
+                Eigen::VectorXd y_vec(y.rows());
+                for (int i = 0; i < y.rows(); ++i) {
+                    y_vec(i) = y(i, 0);
+                    std::cout << "*** y_vec[" << i << "] = " << y_vec(i) << std::endl;
+                }
+                
+                std::cout << "*** Chiamata a model.fit con X:" << X.rows() << "x" << X.cols() 
+                          << ", y_vec:" << y_vec.size() << std::endl;
+                
+                model.fit(X, y_vec);
+                std::cout << "*** fit completato con successo!" << std::endl;
+            }
+            else if (y.rows() == 1) {
+                std::cout << "*** Rilevato y come riga (1,n) = 1x" << y.cols() << std::endl;
+                
+                Eigen::VectorXd y_vec(y.cols());
+                for (int i = 0; i < y.cols(); ++i) {
+                    y_vec(i) = y(0, i);
+                    std::cout << "*** y_vec[" << i << "] = " << y_vec(i) << std::endl;
+                }
+                
+                std::cout << "*** Chiamata a model.fit..." << std::endl;
+                model.fit(X, y_vec);
+                std::cout << "*** fit completato con successo!" << std::endl;
+            }
+            else {
+                std::cout << "*** ERRORE: y ha dimensioni non supportate!" << std::endl;
+                throw std::runtime_error(
+                    "y must be 1-dimensional. Got shape (" + 
+                    std::to_string(y.rows()) + ", " + 
+                    std::to_string(y.cols()) + ")"
+                );
+            }
+            std::cout << "*** DEBUG: fine wrapper ***\n" << std::endl;
+        },
+        py::arg("X"), py::arg("y"),
+        "Fit the model. y can be (n,), (n,1), or (1,n)");
+}
 
 PYBIND11_MODULE(machine_learning_module, m) {
     m.doc() = R"pbdoc(
@@ -115,18 +150,23 @@ PYBIND11_MODULE(machine_learning_module, m) {
     
     // Bind LinearRegression
     py::class_<models::LinearRegression, models::Estimator, 
-               std::shared_ptr<models::LinearRegression>>(m, "LinearRegression")
+           std::shared_ptr<models::LinearRegression>> lr_cls(m, "LinearRegression");     
+    lr_cls 
         .def(py::init<>())
         .def(py::init<double, int, double, models::LinearRegression::Solver>(),
              py::arg("learning_rate") = 0.01,
              py::arg("max_iter") = 1000,
              py::arg("lambda") = 0.0,
              py::arg("solver") = models::LinearRegression::Solver::GRADIENT_DESCENT)
-        
-        .def("fit", &models::LinearRegression::fit,
+
+        .def("fit", 
+             py::overload_cast<const Eigen::MatrixXd&, const Eigen::VectorXd&>(
+             &models::LinearRegression::fit),
              py::arg("X"), py::arg("y"),
-             "Fit the linear regression model")
-        
+             "Fit the linear regression model with 1D target vector y");
+
+     add_fit_wrapper(lr_cls);  // Aggiunge il wrapper per matrice         
+     lr_cls
         .def("predict", py::overload_cast<const Eigen::MatrixXd&>(&models::LinearRegression::predict, py::const_),
              py::arg("X"),
              "Predict using the linear model")
@@ -193,9 +233,11 @@ PYBIND11_MODULE(machine_learning_module, m) {
         .def("__repr__", &models::LinearRegression::to_string)
         .def("__str__", &models::LinearRegression::to_string);
     
+    
     // Bind LogisticRegression
     py::class_<models::LogisticRegression, models::Estimator,
-               std::shared_ptr<models::LogisticRegression>>(m, "LogisticRegression")
+           std::shared_ptr<models::LogisticRegression>> log_cls(m, "LogisticRegression");
+    log_cls
         .def(py::init<>())
         .def(py::init<double, int, double, double, bool>(),
              py::arg("learning_rate") = 0.1,
@@ -203,11 +245,14 @@ PYBIND11_MODULE(machine_learning_module, m) {
              py::arg("lambda") = 0.0,
              py::arg("tolerance") = 1e-4,
              py::arg("verbose") = false)
-        
-        .def("fit", &models::LogisticRegression::fit,
-             py::arg("X"), py::arg("y"),
-             "Fit the logistic regression model")
-        
+
+        .def("fit", 
+              py::overload_cast<const Eigen::MatrixXd&, const Eigen::VectorXd&>(
+              &models::LogisticRegression::fit),
+              py::arg("X"), py::arg("y"),
+              "Fit the logistic regression model with 1D target vector y");
+    add_fit_wrapper(log_cls);  // Aggiunge il wrapper per matrice  
+    log_cls
         .def("predict", &models::LogisticRegression::predict,
              py::arg("X"),
              "Predict probabilities")
@@ -275,9 +320,11 @@ PYBIND11_MODULE(machine_learning_module, m) {
         .def("__repr__", &models::LogisticRegression::to_string)
         .def("__str__", &models::LogisticRegression::to_string);
     
+    
     // Bind NeuralNetwork
     py::class_<models::NeuralNetwork, models::Estimator,
-               std::shared_ptr<models::NeuralNetwork>>(m, "NeuralNetwork")
+           std::shared_ptr<models::NeuralNetwork>> nn_cls(m, "NeuralNetwork");
+    nn_cls
         .def(py::init<>())
         .def(py::init<const std::vector<int>&, const std::string&, const std::string&>(),
              py::arg("layer_sizes"),
@@ -285,10 +332,13 @@ PYBIND11_MODULE(machine_learning_module, m) {
              py::arg("output_activation") = "sigmoid",
              "Create a neural network with specified architecture")
         
-        .def("fit", &models::NeuralNetwork::fit,
-             py::arg("X"), py::arg("y"),
-             "Fit the neural network")
-        
+        .def("fit", 
+              py::overload_cast<const Eigen::MatrixXd&, const Eigen::VectorXd&>(
+              &models::NeuralNetwork::fit),
+              py::arg("X"), py::arg("y"),
+              "Fit the neural network with 1D target vector y");
+    add_fit_wrapper(nn_cls);  // Aggiunge il wrapper per matrice        
+    nn_cls    
         .def("predict", &models::NeuralNetwork::predict,
              py::arg("X"),
              "Make predictions")
@@ -354,6 +404,7 @@ PYBIND11_MODULE(machine_learning_module, m) {
         
         .def("__repr__", &models::NeuralNetwork::to_string)
         .def("__str__", &models::NeuralNetwork::to_string);
+    
     
     // Classe base Scaler
     py::class_<ml::Scaler, std::shared_ptr<ml::Scaler>> scaler(m, "Scaler");

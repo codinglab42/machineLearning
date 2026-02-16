@@ -150,8 +150,7 @@ namespace utils {
             
             ML_CHECK_NOT_EMPTY(X, "X", model_type);
             ML_CHECK_NOT_EMPTY(y, "y", model_type);
-            ML_CHECK_DIMENSIONS(X.rows(), y.size(), X.cols(), 1, 
-                              "X and y rows", model_type);
+            ML_CHECK_XY_SIZE(X.rows(), y.size(), model_type);
             ML_CHECK_PARAM(test_size > 0 && test_size < 1, "test_size", 
                           "must be between 0 and 1", model_type);
             

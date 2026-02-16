@@ -149,7 +149,7 @@ fi
 
 # Install
 echo "📦 Installing to ${INSTALL_DIR}..."
-make install
+# make install
 
 echo ""
 echo "🎉 Build completed successfully!"
