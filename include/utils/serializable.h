@@ -41,9 +41,10 @@ namespace utils {
             
             try {
                 // Scrive header con versione e tipo modello
-                const char magic[] = "MLMOD";
-                file.write(magic, sizeof(magic));
-                
+                // Magic number come uint32_t
+                uint32_t magic = 0x4C4D4F44;  // "MLOD" in hex
+                file.write(reinterpret_cast<const char*>(&magic), sizeof(magic));
+
                 uint32_t version = 1;
                 file.write(reinterpret_cast<const char*>(&version), sizeof(version));
                 
@@ -68,14 +69,15 @@ namespace utils {
             
             try {
                 // Legge e verifica header
-                char magic[6];
-                file.read(magic, sizeof(magic));
+                // Leggi magic number
+                uint32_t magic;
+                file.read(reinterpret_cast<char*>(&magic), sizeof(magic));
                 
-                if (std::string(magic, sizeof(magic)) != "MLMOD") {
+                if (magic != 0x4C4D4F44) {  // "MLOD"
                     throw ml_exception::DeserializationException(
-                        filename, "invalid file format", model.get_model_type());
+                        filename, "invalid file format (wrong magic number)", 
+                        model.get_model_type());
                 }
-                
                 uint32_t version;
                 file.read(reinterpret_cast<char*>(&version), sizeof(version));
                 
