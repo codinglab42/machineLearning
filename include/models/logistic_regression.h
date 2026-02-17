@@ -44,7 +44,6 @@ namespace models {
         const std::vector<double>& accuracy_history() const { return accuracy_history_; }
         
         // Setters con validazione
-        void set_learning_rate(double rate);
         void set_max_iterations(int max_iter);
         void set_lambda(double lambda);
         void set_tolerance(double tolerance);

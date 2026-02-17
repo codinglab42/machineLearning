@@ -27,11 +27,6 @@ LinearRegression::LinearRegression(double learning_rate, int max_iter,
 }
 
 // Setters con validazione
-void LinearRegression::set_learning_rate(double rate) {
-    ML_CHECK_PARAM(rate > 0, "learning_rate", "must be > 0", get_model_type());
-    learning_rate_ = rate;
-}
-
 void LinearRegression::set_max_iterations(int max_iter) {
     ML_CHECK_PARAM(max_iter > 0, "max_iter", "must be > 0", get_model_type());
     max_iter_ = max_iter;

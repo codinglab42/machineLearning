@@ -46,7 +46,6 @@ namespace models {
         const std::vector<double>& cost_history() const { return cost_history_; }
         
         // Setters con validazione
-        void set_learning_rate(double rate);
         void set_max_iterations(int max_iter);
         void set_lambda(double lambda);
     
