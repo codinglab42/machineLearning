@@ -18,8 +18,7 @@ using namespace models;
 // Costruttori
 NeuralNetwork::NeuralNetwork()
     : batch_size_(32), epochs_(100), validation_split_(0.2), verbose_(false),
-      loss_function_("binary_crossentropy"),
-      optimizer_(std::make_unique<optimizers::Adam>(0.001)) {}
+      loss_function_("binary_crossentropy") {}
 
 NeuralNetwork::NeuralNetwork(const std::vector<int>& layer_sizes,
                            const std::string& activation,
@@ -27,8 +26,7 @@ NeuralNetwork::NeuralNetwork(const std::vector<int>& layer_sizes,
                            OptimizerType optimizer_type,
                            double learning_rate)
     : batch_size_(32), epochs_(100), validation_split_(0.2), verbose_(false),
-      loss_function_("binary_crossentropy"),
-      optimizer_(nullptr) {
+      loss_function_("binary_crossentropy") {
 
         std::cout << "🔍 DEBUG COSTRUTTORE: iniziato" << std::endl;
     

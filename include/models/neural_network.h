@@ -78,7 +78,6 @@ namespace models {
 			
     private:
         std::vector<std::unique_ptr<layers::Layer>> layers_;
-        std::unique_ptr<optimizers::Optimizer> optimizer_;
         std::string loss_function_;
 
         int n_input_features_ = 0;
