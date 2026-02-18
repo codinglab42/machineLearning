@@ -9,6 +9,8 @@
 #include "utils/math_utils.h"
 #include "components/layers/recurrent.h"
 #include "components/layers/convolutional.h"
+#include "components/optimizers/adam.h"
+#include "components/optimizers/sgd.h"
 
 using namespace Eigen;
 using namespace models;
@@ -16,15 +18,19 @@ using namespace models;
 // Costruttori
 NeuralNetwork::NeuralNetwork()
     : batch_size_(32), epochs_(100), validation_split_(0.2), verbose_(false),
-      loss_function_("binary_crossentropy") {
-    optimizer_ = std::make_unique<optimizers::SGD>(0.01);
-}
+      loss_function_("binary_crossentropy"),
+      optimizer_(std::make_unique<optimizers::Adam>(0.001)) {}
 
 NeuralNetwork::NeuralNetwork(const std::vector<int>& layer_sizes,
                            const std::string& activation,
-                           const std::string& output_activation)
+                           const std::string& output_activation,
+                           OptimizerType optimizer_type,
+                           double learning_rate)
     : batch_size_(32), epochs_(100), validation_split_(0.2), verbose_(false),
-      loss_function_("binary_crossentropy") {
+      loss_function_("binary_crossentropy"),
+      optimizer_(nullptr) {
+
+        std::cout << "🔍 DEBUG COSTRUTTORE: iniziato" << std::endl;
     
     ML_CHECK_PARAM(layer_sizes.size() >= 2, "layer_sizes", 
                   "must have at least 2 layers (input and output)", get_model_type());
@@ -36,7 +42,20 @@ NeuralNetwork::NeuralNetwork(const std::vector<int>& layer_sizes,
             layer_sizes[i], layer_sizes[i + 1], act));
     }
     
-    optimizer_ = std::make_unique<optimizers::SGD>(0.01);
+    // Imposta optimizer - USANDO I PARAMETRI
+    std::cout << "🔍 Creazione optimizer: type=" 
+              << (optimizer_type == OptimizerType::ADAM ? "ADAM" : "SGD")
+              << ", lr=" << learning_rate << std::endl;
+
+    set_optimizer(optimizer_type, learning_rate);
+
+    // Verifica che optimizer_ sia stato creato
+    if (!optimizer_) {
+        std::cout << "🔍 ATTENZIONE: set_optimizer non ha creato optimizer_! Creo SGD di default..." << std::endl;
+        optimizer_ = std::make_unique<optimizers::Adam>(0.001);
+    } else {
+        std::cout << "🔍 optimizer_ creato con successo, lr=" << optimizer_->get_learning_rate() << std::endl;
+    }
 }
 
 // Configurazione
@@ -54,10 +73,6 @@ void NeuralNetwork::add_layer(std::unique_ptr<layers::Layer> layer) {
         }
     }
     layers_.push_back(std::move(layer));
-}
-
-void NeuralNetwork::set_optimizer(std::unique_ptr<optimizers::Optimizer> optimizer) {
-    optimizer_ = std::move(optimizer);
 }
 
 void NeuralNetwork::set_loss_function(const std::string& loss) {
@@ -173,6 +188,15 @@ void NeuralNetwork::fit(const Eigen::MatrixXd& X, const Eigen::VectorXd& y) {
     ML_CHECK_NOT_EMPTY(X, "X", get_model_type());
     ML_CHECK_NOT_EMPTY(y, "y", get_model_type());
     ML_CHECK_XY_SIZE(X.rows(), y.size(), get_model_type());
+
+    std::cout << "🔍 DEBUG FIT: iniziato" << std::endl;
+    std::cout << "🔍 layers_.size(): " << layers_.size() << std::endl;
+    std::cout << "🔍 optimizer_ è " << (optimizer_ ? "valido" : "nullptr") << std::endl;
+    
+    if (!optimizer_) {
+        std::cout << "🔍 CRITICO: optimizer_ è nullptr! Creo SGD di default..." << std::endl;
+        optimizer_ = std::make_unique<optimizers::SGD>(0.01);
+    }
 
     // Salva il numero di futeres
     n_input_features_ = static_cast<int>(X.cols());

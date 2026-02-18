@@ -7,11 +7,10 @@ message(STATUS "📦 Configuring ML Library sources...")
 # 1. ELENCO COMPLETO DEI SORGENTI
 # ============================================================================
 set(ML_LIBRARY_SOURCES
-    # Regressione
+    # Models
+    models/estimator.cpp
     models/linear_regression.cpp
     models/logistic_regression.cpp
-    
-    # Neural Network
     models/neural_network.cpp
     
     # Layers

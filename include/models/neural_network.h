@@ -21,11 +21,12 @@ namespace models {
         // Costruttore con architettura
         NeuralNetwork(const std::vector<int>& layer_sizes,
                      const std::string& activation = "relu",
-                     const std::string& output_activation = "sigmoid");
+                     const std::string& output_activation = "sigmoid",
+                     OptimizerType optimizer_type = OptimizerType::ADAM,
+                     double learning_rate = 0.01);
         
         // Configurazione
         void add_layer(std::unique_ptr<layers::Layer> layer);
-        void set_optimizer(std::unique_ptr<optimizers::Optimizer> optimizer);
         void set_loss_function(const std::string& loss);
 
         // Metodi per visualizzare l'architettura

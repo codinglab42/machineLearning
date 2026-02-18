@@ -73,6 +73,21 @@ void add_fit_wrapper(py::class_<Model, models::Estimator, std::shared_ptr<Model>
         "Fit the model. y can be (n,), (n,1), or (1,n)");
 }
 
+template<typename Class>
+void add_optimizer_methods(Class& cls) {
+    using ModelType = typename Class::type;
+    
+    cls
+        .def("set_learning_rate", &ModelType::set_learning_rate,
+             py::arg("learning_rate"),
+             "Set the learning rate for the optimizer")
+        .def("get_learning_rate", &ModelType::get_learning_rate,
+             "Get the current learning rate")
+        .def("set_optimizer", &ModelType::set_optimizer,
+             py::arg("type"), py::arg("learning_rate") = 0.01,
+             "Set the optimizer type and learning rate");
+}
+
 PYBIND11_MODULE(machine_learning_module, m) {
     m.doc() = R"pbdoc(
         Machine Learning Library Python Bindings
@@ -144,7 +159,13 @@ PYBIND11_MODULE(machine_learning_module, m) {
                .value("NORMAL_EQUATION", models::LinearRegression::Solver::NORMAL_EQUATION)
                .value("SVD", models::LinearRegression::Solver::SVD)
                .export_values();
-    
+
+    // Bind models::OptimizerType enum
+    py::enum_<models::OptimizerType>(m, "OptimizerType")
+        .value("SGD", models::OptimizerType::SGD)
+        .value("ADAM", models::OptimizerType::ADAM)
+        .export_values();
+
     // Bind Estimator base class
     py::class_<models::Estimator, std::shared_ptr<models::Estimator>>(m, "Estimator");
     
@@ -165,7 +186,9 @@ PYBIND11_MODULE(machine_learning_module, m) {
              py::arg("X"), py::arg("y"),
              "Fit the linear regression model with 1D target vector y");
 
-     add_fit_wrapper(lr_cls);  // Aggiunge il wrapper per matrice         
+     add_fit_wrapper(lr_cls);  // Aggiunge il wrapper per matrice    
+     add_optimizer_methods(lr_cls);   // Per LinearRegression
+   
      lr_cls
         .def("predict", py::overload_cast<const Eigen::MatrixXd&>(&models::LinearRegression::predict, py::const_),
              py::arg("X"),
@@ -252,6 +275,8 @@ PYBIND11_MODULE(machine_learning_module, m) {
               py::arg("X"), py::arg("y"),
               "Fit the logistic regression model with 1D target vector y");
     add_fit_wrapper(log_cls);  // Aggiunge il wrapper per matrice  
+    add_optimizer_methods(log_cls);   // Per LogisticRegression
+
     log_cls
         .def("predict", &models::LogisticRegression::predict,
              py::arg("X"),
@@ -326,10 +351,13 @@ PYBIND11_MODULE(machine_learning_module, m) {
            std::shared_ptr<models::NeuralNetwork>> nn_cls(m, "NeuralNetwork");
     nn_cls
         .def(py::init<>())
-        .def(py::init<const std::vector<int>&, const std::string&, const std::string&>(),
+        .def(py::init<const std::vector<int>&, const std::string&, const std::string&,
+                      models::OptimizerType, double>(),
              py::arg("layer_sizes"),
              py::arg("activation") = "relu",
              py::arg("output_activation") = "sigmoid",
+             py::arg("optimizer_type") = models::OptimizerType::ADAM,
+             py::arg("learning_rate") = 0.001,
              "Create a neural network with specified architecture")
         
         .def("fit", 
@@ -337,7 +365,9 @@ PYBIND11_MODULE(machine_learning_module, m) {
               &models::NeuralNetwork::fit),
               py::arg("X"), py::arg("y"),
               "Fit the neural network with 1D target vector y");
-    add_fit_wrapper(nn_cls);  // Aggiunge il wrapper per matrice        
+    add_fit_wrapper(nn_cls);  // Aggiunge il wrapper per matrice
+    add_optimizer_methods(nn_cls);    // Per NeuralNetwork  
+ 
     nn_cls    
         .def("predict", &models::NeuralNetwork::predict,
              py::arg("X"),

@@ -20,7 +20,7 @@ def test_nn_fit_xor():
     
     nn.set_validation_split(0.0)
     nn.set_epochs(5000)
-    # nn.set_learning_rate(0.1)
+    nn.set_learning_rate(0.1)
     nn.set_batch_size(4)
     nn.set_verbose(True)
 
