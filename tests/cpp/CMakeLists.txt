@@ -21,18 +21,18 @@ endfunction()
 # --- Definizione dei Test ---
 
 # Test Atomici sui Layer (Gradient Checking, Forward/Backward)
-add_ml_test(test_layers unit/test_layers.cpp) 
+add_ml_test(test_dense unit/layers/test_dense.cpp) 
 
 #c# Test per Math Utils
 #add_ml_test(test_math unit/test_math.cpp)
 
 # Test per Linear Regression
-add_ml_test(test_linear unit/test_linear.cpp)
+add_ml_test(test_linear unit/models/test_linear.cpp)
 
 # Test per Logistic Regression
-add_ml_test(test_logistic unit/test_logistic.cpp)
+add_ml_test(test_logistic unit/models/test_logistic.cpp)
 
 # Test per Neural Network
-add_ml_test(test_neural unit/test_neural.cpp)
+add_ml_test(test_neural unit/models/test_neural.cpp)
 
 message(STATUS "✅ C++ tests configured")
