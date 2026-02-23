@@ -23,6 +23,14 @@ namespace activation {
     std::unique_ptr<Activation> create_activation(const std::string& type);
     
     // Funzioni disponibili
+    class Linear : public Activation {
+	public:
+		Eigen::MatrixXd forward(const Eigen::MatrixXd& z) override { return z; }
+		Eigen::MatrixXd backward(const Eigen::MatrixXd& dA, const Eigen::MatrixXd& z) override { return dA; }
+		std::string get_type() const override { return "linear"; }
+		Linear* clone() const override { return new Linear(*this); }
+	};
+
     class ReLU : public Activation {
     public:
         Eigen::MatrixXd forward(const Eigen::MatrixXd& z) override;

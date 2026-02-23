@@ -20,7 +20,10 @@ endfunction()
 
 # --- Definizione dei Test ---
 
-# Test per Math Utils
+# Test Atomici sui Layer (Gradient Checking, Forward/Backward)
+add_ml_test(test_layers unit/test_layers.cpp) 
+
+#c# Test per Math Utils
 #add_ml_test(test_math unit/test_math.cpp)
 
 # Test per Linear Regression

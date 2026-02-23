@@ -19,14 +19,6 @@ std::unique_ptr<Activation> activation::create_activation(const std::string& typ
     } else if (type == "leaky_relu") {
         return std::make_unique<LeakyReLU>();
     } else if (type == "linear" || type == "identity") {
-        // Implementazione lineare (identità)
-        class Linear : public Activation {
-        public:
-            MatrixXd forward(const MatrixXd& z) override { return z; }
-            MatrixXd backward(const MatrixXd& dA, const MatrixXd& z) override { return dA; }
-            std::string get_type() const override { return "linear"; }
-            Linear* clone() const override { return new Linear(*this); }
-        };
         return std::make_unique<Linear>();
     }
     return nullptr;
@@ -38,7 +30,11 @@ MatrixXd ReLU::forward(const MatrixXd& z) {
 }
 
 MatrixXd ReLU::backward(const MatrixXd& dA, const MatrixXd& z) {
-    MatrixXd dZ = z.unaryExpr([](double v) { return (v > 0) ? 1.0 : 0.0; });
+    // Usa una piccola epsilon per gestire casi vicino a zero
+    const double eps = 1e-12;
+    MatrixXd dZ = z.unaryExpr([eps](double v) { 
+        return (v > eps) ? 1.0 : 0.0; 
+    });
     return dA.array() * dZ.array();
 }
 

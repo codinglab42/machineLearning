@@ -96,8 +96,8 @@ if(BUILD_TESTS)
         endif()
         include(FetchContent)
         FetchContent_Declare(
-          googletest
-          URL https://github.com
+          ggoogletest
+          URL https://github.com/google/googletest/archive/refs/tags/v1.14.0.tar.gz
         )
         # Per evitare problemi su alcune distribuzioni
         set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)

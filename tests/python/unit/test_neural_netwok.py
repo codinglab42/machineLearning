@@ -14,50 +14,31 @@ def test_nn_initialization():
 
 def test_nn_fit_xor():
     """Test classico: la rete deve imparare la funzione XOR."""
-    # Dati XOR
-    X = np.array([[0, 0], [0, 1], [1, 0], [1, 1]], dtype=np.float64)
-    y = np.array([0, 1, 1, 0], dtype=np.float64)
+    X = np.ascontiguousarray([[0, 0], [0, 1], [1, 0], [1, 1]], dtype=np.float64)
+    y = np.ascontiguousarray([[0], [1], [1], [0]], dtype=np.float64) # Già shape (4,1)
     
-    # ✅ CORRETTO: y come (4, 1)
-    y = y.reshape(-1, 1)
-    
-    # Assicura che gli array siano contigui
-    X = np.ascontiguousarray(X, dtype=np.float64)
-    y = np.ascontiguousarray(y, dtype=np.float64)
-    
-    print(f"\nX shape: {X.shape}, dtype: {X.dtype}")
-    print(f"y shape: {y.shape}, dtype: {y.dtype}")
-    
-    # Crea la rete
-    nn = ml.NeuralNetwork([2, 8, 1], "relu", "sigmoid")
+    # Crea la rete con Tanh (più stabile per XOR) o ReLU
+    nn = ml.NeuralNetwork([2, 8, 1], "tanh", "sigmoid")
     
     # Configura training
-    nn.set_validation_split(0.0)
-    nn.set_epochs(1000)
-    nn.set_batch_size(4)
-    nn.set_verbose(True)  # Metti True per vedere cosa succede
+    nn.set_epochs(2000)      # Aumentiamo per sicurezza finché l'optimizer non è perfetto
+    nn.set_batch_size(1)     # Fondamentale per evitare plateau
+    nn.set_learning_rate(0.1) # LR più alto per SGD/Adam su problemi piccoli
+    nn.set_verbose(True)
     
-    try:
-        # Fit
-        nn.fit(X, y)
-        print("✓ Fit completato!")
-    except Exception as e:
-        print(f"✗ Fit fallito: {e}")
-        raise
+    nn.fit(X, y)
     
-    # Predici
     predictions = nn.predict(X)
-    print(f"Predictions shape: {predictions.shape}")
-    print(f"Predictions: {predictions.flatten()}")
+    # Arrotondiamo per il confronto
+    final_preds = (predictions > 0.5).astype(float).flatten()
+    target_y = y.flatten()
     
-    final_preds = (predictions > 0.5).astype(float)
-    accuracy = np.mean(final_preds == y)
-    
+    accuracy = np.mean(final_preds == target_y)
+    print(f"\nPredizioni: {predictions.flatten()}")
     print(f"Accuracy: {accuracy:.4f}")
     
-    assert accuracy >= 0.75, f"XOR accuracy troppo bassa: {accuracy}"
-    assert len(nn.loss_history) > 0
-
+    # Ora puntiamo al 100%!
+    assert accuracy == 1.0, f"XOR deve essere imparato perfettamente. Acc: {accuracy}"
 
 @pytest.mark.skip(reason="Serializzazione: stesso problema di Linear/Logistic")
 def test_nn_serialization(tmp_path):
@@ -107,3 +88,4 @@ def test_standard_scaler_integration():
     # Media di ogni feature dovrebbe essere ~0
     for i in range(X_scaled.shape[1]):
         assert X_scaled[:, i].mean() == pytest.approx(0.0, abs=1e-7)
+

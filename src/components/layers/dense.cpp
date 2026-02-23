@@ -10,32 +10,36 @@ using namespace Eigen;
 namespace layers {
 
     // Costruttore
-    Dense::Dense(int input_size, int output_size, 
-                const std::string& activation,
-                const std::string& weight_initializer,
-                const std::string& bias_initializer)
-        : input_size_(input_size), output_size_(output_size),
-        l1_lambda_(0.0), l2_lambda_(0.0) {
-        
-        if (input_size <= 0 || output_size <= 0) {
-            throw ml_exception::InvalidParameterException(
-                "layer dimensions", "must be > 0", "Dense");
+    Dense::Dense(int input_size, int output_size,
+         const std::string& activation,
+         double l1_lambda,
+         double l2_lambda,
+         const std::string& weight_initializer,
+         const std::string& bias_initializer)
+        : input_size_(input_size), 
+        output_size_(output_size),
+        l1_lambda_(l1_lambda),
+        l2_lambda_(l2_lambda) {
+
+            ML_CHECK_PARAM(input_size > 0, "input_size", "must be positive", "Dense");
+            ML_CHECK_PARAM(output_size > 0, "output_size", "must be positive", "Dense");
+            ML_CHECK_PARAM(l1_lambda >= 0, "l1_lambda", "must be non-negative", "Dense");
+            ML_CHECK_PARAM(l2_lambda >= 0, "l2_lambda", "must be non-negative", "Dense");
+            
+            // Inizializza pesi e bias con gli initializer specificati
+            weights_.resize(output_size, input_size);
+            biases_.resize(output_size);
+            
+            initialize_weights(weight_initializer);
+            initialize_biases(bias_initializer);
+            
+            // Inizializza gradienti a zero
+            grad_weights_ = Eigen::MatrixXd::Zero(output_size, input_size);
+            grad_biases_ = Eigen::VectorXd::Zero(output_size);
+            
+            // Crea attivazione
+            activation_ = activation::create_activation(activation);
         }
-        
-        weights_.resize(output_size, input_size);
-        biases_.resize(output_size);
-        
-        initialize_weights(weight_initializer);
-        initialize_biases(bias_initializer);
-        
-        activation_ = activation::create_activation(activation);
-        if (!activation_) {
-            throw ml_exception::InvalidParameterException(
-                "activation", "unknown activation function: " + activation, "Dense");
-        }
-        
-        clear_cache();
-    }
 
     // Inizializzazione pesi
     void Dense::initialize_weights(const std::string& initializer) {
@@ -132,36 +136,37 @@ namespace layers {
         // Gradiente rispetto a z
         MatrixXd dZ = activation_->backward(gradient, cache_.z);
         
-        // Gradiente rispetto ai pesi e bias
-        MatrixXd dW = dZ.transpose() * cache_.input;
-        VectorXd db = dZ.colwise().sum();
-        
-        // Aggiungi regolarizzazione se specificata
-        if (l1_lambda_ > 0) {
-            dW += l1_regularization_gradient();
-        }
-        if (l2_lambda_ > 0) {
-            dW += l2_regularization_gradient();
-        }
+        // Calcola gradienti rispetto ai pesi e bias
+        grad_weights_ = dZ.transpose() * cache_.input;  // [output_size x input_size]
+        grad_biases_ = dZ.colwise().sum();               // [output_size]
         
         // Normalizza per batch size
-        double batch_size = cache_.input.rows();
-        dW /= batch_size;
-        db /= batch_size;
+        double batch_size = static_cast<double>(cache_.input.rows());
+        grad_weights_ /= batch_size;
+        grad_biases_ /= batch_size;
+        
+        // Aggiungi regolarizzazione
+        if (l1_lambda_ > 0) {
+            grad_weights_ += l1_regularization_gradient();
+        }
+        if (l2_lambda_ > 0) {
+            grad_weights_ += l2_regularization_gradient();
+        }
+        
+        // SALVA i pesi originali prima di aggiornarli
+        MatrixXd original_weights = weights_;
         
         // Aggiorna pesi e bias
-        weights_ -= learning_rate * dW;
-        biases_ -= learning_rate * db;
+        weights_ -= learning_rate * grad_weights_;
+        biases_ -= learning_rate * grad_biases_;
         
-        // Gradiente rispetto all'input (per propagare al layer precedente)
-        MatrixXd dA_prev = dZ * weights_;
-        
-        // Pulisci cache (opzionale, per risparmiare memoria)
-        // clear_cache();
+        // Gradiente rispetto all'input - usa i pesi ORIGINALI!
+        MatrixXd dA_prev = dZ * original_weights;
         
         return dA_prev;
     }
 
+    
     // Gradienti di regolarizzazione
     MatrixXd Dense::l1_regularization_gradient() const {
         MatrixXd grad = weights_.unaryExpr([](double w) {
@@ -184,7 +189,9 @@ namespace layers {
                 "Dense");
         }
         weights_ = weights;
+        clear_gradients();  // Questa chiamata è corretta
     }
+
 
     void Dense::set_biases(const VectorXd& biases) {
         if (biases.size() != output_size_) {
