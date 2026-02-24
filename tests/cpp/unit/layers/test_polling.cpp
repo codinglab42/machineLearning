@@ -81,9 +81,14 @@ TEST_F(PoolingLayerTest, BackwardMaxPooling) {
 TEST_F(PoolingLayerTest, InvalidInputDimensions) {
     Pooling pool(2, 2, Pooling::MAX, 1);
     
-    // Input che non permette una radice quadrata intera rispetto ai canali
+    // Caso 1: dimensioni non impostate
     MatrixXd bad_input(1, 10); 
-    EXPECT_THROW(pool.forward(bad_input), ml_exception::DimensionMismatchException);
+    EXPECT_THROW(pool.forward(bad_input), std::runtime_error);
+    
+    // Caso 2: dimensioni impostate ma errate
+    pool.set_input_shape(4, 4);  // Si aspetta 16 elementi
+    MatrixXd wrong_size(1, 10);
+    EXPECT_THROW(pool.forward(wrong_size), ml_exception::DimensionMismatchException);
 }
 
 //5. Test Serializzazione
