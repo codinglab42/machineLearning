@@ -22,6 +22,11 @@ endfunction()
 
 # Test Atomici sui Layer (Gradient Checking, Forward/Backward)
 add_ml_test(test_dense unit/layers/test_dense.cpp) 
+add_ml_test(test_polling unit/layers/test_polling.cpp) 
+add_ml_test(test_polling_layer unit/layers/test_polling_layer.cpp)
+add_ml_test(test_polling_layer_fixture unit/layers/test_polling_fixture.cpp)
+add_ml_test(test_polling_layer_performance unit/layers/test_polling_performance.cpp) 
+
 
 #c# Test per Math Utils
 #add_ml_test(test_math unit/test_math.cpp)
