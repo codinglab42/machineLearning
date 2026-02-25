@@ -13,6 +13,11 @@ set(ML_LIBRARY_SOURCES
     models/logistic_regression.cpp
     models/neural_network.cpp
     
+    # Cache
+    components/cache/basic_cache.cpp
+    components/cache/pooling_cache.cpp
+    components/cache/weighted_cache.cpp
+
     # Layers
     components/layers/dense.cpp
     components/layers/convolutional.cpp
