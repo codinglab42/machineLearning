@@ -1,6 +1,7 @@
 #include "models/estimator.h"
-#include "components/optimizers/sgd.h"
-#include "components/optimizers/adam.h"
+#include "components/optimizers/sgd_optimizer.h"
+#include "components/optimizers/adam_optimizer.h"
+#include "components/optimizers/momentum_optimizer.h"
 #include "exceptions/exception_macros.h"
 #include <iostream>
 
@@ -16,12 +17,16 @@ void Estimator::set_optimizer(OptimizerType type, double learning_rate) {
     
     switch(type) {
         case OptimizerType::SGD:
-            optimizer_ = std::make_unique<optimizers::SGD>(learning_rate);
+            optimizer_ = std::make_unique<SGDOptimizer>(learning_rate);
             std::cout << "🔍 Creato SGD con successo" << std::endl;
             break;
         case OptimizerType::ADAM:
-            optimizer_ = std::make_unique<optimizers::Adam>(learning_rate);
+            optimizer_ = std::make_unique<AdamOptimizer>(learning_rate);
             std::cout << "🔍 Creato ADAM con successo" << std::endl;
+            break;
+        case OptimizerType::MOMENTUM:
+            optimizer_ = std::make_unique<MomentumOptimizer>(learning_rate);
+            std::cout << "🔍 Creato Momentum con successo" << std::endl;
             break;
     }
 }

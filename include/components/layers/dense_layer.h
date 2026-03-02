@@ -3,6 +3,7 @@
 
 #include "layer.h"
 #include "components/activation/activation.h"
+#include "components/cache/weighted_cache.h"
 #include <memory>
 
 namespace layers {
@@ -72,7 +73,7 @@ namespace layers {
         double l2_lambda_;
         
         // Cache
-        LayerCache cache_;
+        WeightedCache cache_;
         
         // Initialization
         void initialize_weights(const std::string& initializer);

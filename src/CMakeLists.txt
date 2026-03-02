@@ -16,21 +16,35 @@ set(ML_LIBRARY_SOURCES
     # Cache
     components/cache/basic_cache.cpp
     components/cache/pooling_cache.cpp
-    components/cache/weighted_cache.cpp
+    components/cache/weighted_cache.cpp      
+    components/cache/simple_rnn_cache.cpp     
+    components/cache/lstm_cache.cpp           
+    components/cache/gru_cache.cpp            
 
     # Layers
-    components/layers/dense.cpp
-    components/layers/convolutional.cpp
-    components/layers/pooling.cpp
-    components/layers/recurrent.cpp
+    components/layers/dense_layer.cpp
+    components/layers/convolutional_layer.cpp
+    components/layers/pooling_layer.cpp
+    components/layers/recurrent_layer.cpp     
+    components/layers/simple_rnn_layer.cpp    
+    components/layers/lstm_layer.cpp          
+    components/layers/gru_layer.cpp           
     
     # Activation
     components/activation/activation.cpp
     
     # Optimizers
-    components/optimizers/sgd.cpp
-    components/optimizers/adam.cpp
-    
+    components/optimizers/sgd_optimizer.cpp
+    components/optimizers/adam_optimizer.cpp
+    components/optimizers/momentum_optimizer.cpp
+    components/optimizers/optimizer.cpp
+
+    # Regularizers
+    components/regularizers/regularizer.cpp
+    components/regularizers/l1_regularizer.cpp
+    components/regularizers/l2_regularizer.cpp
+    components/regularizers/elastic_net_regularizer.cpp
+
     ## Serialization
     #serialization/model_serializer.cpp
 )

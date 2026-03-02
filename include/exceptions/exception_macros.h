@@ -4,6 +4,8 @@
 #include "dimension_exception.h"
 #include "fitting_exception.h"
 #include "validation_exception.h"
+#include "io_exception.h"
+#include "ml_exception.h"
 
 // Macro per controlli rapidi
 #define ML_CHECK_FITTED(condition, model_type) \
@@ -64,6 +66,7 @@
             ); \
         } \
     } while (0)
+
 #define ML_CHECK_FEATURES(actual_features, expected_features, model_type) \
     do { \
         if ((actual_features) != (expected_features)) \
@@ -86,5 +89,27 @@
 
 #define ML_THROW_IO_ERROR(filename, operation, model_type) \
     throw ml_exception::IOException(filename, operation, model_type)
+
+#define ML_THROW_DIMENSION_MISMATCH(operation, expected_rows, expected_cols, \
+                                    actual_rows, actual_cols, model_type) \
+    throw ml_exception::DimensionMismatchException( \
+        operation, expected_rows, expected_cols, \
+        actual_rows, actual_cols, model_type)
+
+#define ML_THROW_PARAMETER_ERROR(param_name, requirement, model_type) \
+    throw ml_exception::InvalidParameterException( \
+        param_name, requirement, model_type)
+
+#define ML_THROW_FITTING_ERROR(model_type, message) \
+    throw ml_exception::NotFittedException( \
+        std::string(model_type) + ": " + message)
+
+#define ML_THROW_VALIDATION_ERROR(message, model_type) \
+    throw ml_exception::ValidationException( \
+        std::string(model_type) + ": " + message)
+
+#define ML_THROW_NOT_IMPLEMENTED_ERROR(feature, model_type) \
+    throw ml_exception::MLException( \
+        std::string(model_type) + ": " + feature + " not implemented")
 
 #endif

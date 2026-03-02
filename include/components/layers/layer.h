@@ -1,22 +1,15 @@
 #ifndef LAYER_H
 #define LAYER_H
 
+#include "components/cache/layer_cache.h"
+#include "exceptions/exception_macros.h"
 #include <Eigen/Dense>
 #include <memory>
 #include <string>
-#include "exceptions/exception_macros.h"
 
 namespace layers {
 
-    struct LayerCache {
-        Eigen::MatrixXd input;    // Input al layer
-        Eigen::MatrixXd output;   // Output del layer
-        Eigen::MatrixXd z;        // Pre-attivazione (se applicabile)
-        bool has_activation;
-        
-        LayerCache() : has_activation(false) {}
-    };
-
+    
     class Layer {
     public:
         virtual ~Layer() = default;

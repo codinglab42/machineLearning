@@ -130,7 +130,7 @@ MatrixXd Convolutional::forward(const MatrixXd& input) {
     }
     
     // Salva input nella cache
-    cache_.input = input;
+    cache_.set_input(input);
     
     // Applica padding se necessario
     MatrixXd padded_input = apply_padding(input);
@@ -163,16 +163,16 @@ MatrixXd Convolutional::forward(const MatrixXd& input) {
     }
     
     // Applica attivazione
-    cache_.z = output;
-    cache_.output = activation_->forward(output);
-    cache_.has_activation = true;
+    MatrixXd final_output = activation_->forward(output);
+    cache_.set_output(activation_->forward(output));
+    cache_.set_has_activation(true);
     
-    return cache_.output;
+    return final_output;
 }
 
 // Backward pass
 MatrixXd Convolutional::backward(const MatrixXd& gradient, double learning_rate) {
-    if (!cache_.has_activation) {
+    if (!cache_.has_activation()) {
         throw ml_exception::InvalidConfigurationException(
             "Cache not initialized. Call forward() first.", "Convolutional");
     }
@@ -181,8 +181,12 @@ MatrixXd Convolutional::backward(const MatrixXd& gradient, double learning_rate)
     int output_height = calculate_output_height();
     int output_width = calculate_output_width();
     
+    const MatrixXd& cached_z = cache_.get_z();
+    const MatrixXd& cached_input = cache_.get_input();
+
+
     // Gradiente rispetto a z (pre-attivazione)
-    MatrixXd dZ = activation_->backward(gradient, cache_.z);
+    MatrixXd dZ = activation_->backward(gradient, cached_z);
     
     // Inizializza gradienti per kernels e bias
     std::vector<MatrixXd> dKernels(output_channels_);
@@ -475,10 +479,7 @@ void Convolutional::set_biases(const Eigen::VectorXd& biases) {
 
 // Cache management
 void Convolutional::clear_cache() {
-    cache_.input = MatrixXd();
-    cache_.z = MatrixXd();
-    cache_.output = MatrixXd();
-    cache_.has_activation = false;
+    cache_.clear();
     input_cols_.clear();
     output_cols_.clear();
 }

@@ -2,26 +2,63 @@
 #define OPTIMIZER_H
 
 #include <Eigen/Dense>
-#include <string>
 #include <memory>
+#include <string>
+#include <vector>
 
-namespace optimizers {
+namespace models {
 
-    class Optimizer {
-    public:
-        virtual ~Optimizer() = default;
-        
-        virtual void update(Eigen::MatrixXd& weights, const Eigen::MatrixXd& gradients) = 0;
-        virtual void update(Eigen::VectorXd& biases, const Eigen::VectorXd& gradients) = 0;
-        
-        virtual void set_learning_rate(double lr) = 0;
-        virtual double get_learning_rate() const = 0;
-        
-        virtual std::string get_type() const = 0;
-        virtual void serialize(std::ostream& out) const = 0;
-        virtual void deserialize(std::istream& in) = 0;
+    // Enum per i tipi di ottimizzatori
+    enum class OptimizerType {
+        SGD,
+        MOMENTUM,
+        ADAM,
+        RMSPROP,
+        ADAGRAD
     };
 
-} // namespace optimizers
+    // Classe base astratta per tutti gli ottimizzatori
+    class Optimizer {
+    public:
+        Optimizer(double learning_rate = 0.01, double decay = 0.0);
+        virtual ~Optimizer() = default;
+        
+        // Metodo principale: aggiorna i pesi
+        virtual void update(Eigen::MatrixXd& weights, const Eigen::MatrixXd& gradient) = 0;
+        virtual void update(Eigen::VectorXd& bias, const Eigen::VectorXd& gradient) = 0;
+        
+        // Resetta lo stato dell'ottimizzatore (per nuovo training)
+        virtual void reset() = 0;
+        
+        // Getter/Setter
+        double get_learning_rate() const { return learning_rate_; }
+        void set_learning_rate(double lr) { learning_rate_ = lr; }
+        
+        double get_decay() const { return decay_; }
+        void set_decay(double decay) { decay_ = decay; }
+        
+        int get_iterations() const { return iterations_; }
+        
+        // Restituisce il tipo di ottimizzatore
+        virtual OptimizerType get_type() const = 0;
+        virtual std::string get_type_str() const = 0;
+        
+        // Serializzazione
+        virtual void serialize(std::ostream& out) const;
+        virtual void deserialize(std::istream& in);
+        
+        // Clona l'ottimizzatore
+        virtual std::unique_ptr<Optimizer> clone() const = 0;
+        
+    protected:
+        double learning_rate_;
+        double decay_;
+        int iterations_;  // numero di iterazioni eseguite
+        
+        // Applica il decay al learning rate
+        double get_current_learning_rate() const;
+    };
+
+} // namespace models
 
 #endif

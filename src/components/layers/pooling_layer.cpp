@@ -120,25 +120,24 @@ MatrixXd Pooling::forward(const MatrixXd& input) {
     
     // Valida che le dimensioni corrispondano
     validate_input_shape(total_input_elements);
+
+    // Inizializzazione della cache
+    cache_.clear();
+    cache_.set_input(input);
+    cache_.set_input_shape(input_height_, input_width_, channels_);
     
     // Calcola dimensioni output
     int output_height = get_output_height();
     int output_width = get_output_width();
     int output_size = channels_ * output_height * output_width;
     
-    // Salva input nella cache e aggiorna shape
-    cache_.input = input;
-    cache_.has_activation = false;
+    // aggiorna shape
     input_shape_ = InputShape(batch_size, channels_, input_height_, input_width_);
     
     // Pooling
     MatrixXd output(batch_size, output_size);
-    max_indices_.clear();
-    max_indices_.resize(batch_size);
     
-    for (int b = 0; b < batch_size; ++b) {
-        max_indices_[b].resize(channels_ * output_height * output_width, -1);
-        
+    for (int b = 0; b < batch_size; ++b) {     
         for (int c = 0; c < channels_; ++c) {
             // Estrai canale corrente
             MatrixXd channel_input = extract_channel(input, b, c);
@@ -156,7 +155,7 @@ MatrixXd Pooling::forward(const MatrixXd& input) {
         }
     }
     
-    cache_.output = output;
+    cache_.set_output(output);
     return output;
 }
 
@@ -192,11 +191,7 @@ MatrixXd Pooling::pool_2d(const MatrixXd& input, int channel, int batch) {
                 output(oh, ow) = max_val;
                 
                 // Salva indice per backward
-                int output_idx = channel * output_height * output_width + oh * output_width + ow;
-                if (batch < static_cast<int>(max_indices_.size()) && 
-                    output_idx < static_cast<int>(max_indices_[batch].size())) {
-                    max_indices_[batch][output_idx] = max_idx;
-                }
+                cache_.add_max_index(PoolingCache::MaxIndex(batch, channel, oh, ow, max_idx));
             } else if (pool_type_ == AVERAGE) {
                 double sum = 0.0;
                 int count = 0;
@@ -218,27 +213,38 @@ MatrixXd Pooling::pool_2d(const MatrixXd& input, int channel, int batch) {
 
 // Backward pass
 MatrixXd Pooling::backward(const MatrixXd& gradient, double learning_rate) {
-    if (gradient.rows() != cache_.input.rows()) {
+
+    const MatrixXd& cached_input = cache_.get_input();
+
+
+    if (gradient.rows() != cached_input.rows()) {
         throw ml_exception::DimensionMismatchException(
             "gradient rows",
-            cache_.input.rows(), 1,
+            cached_input.rows(), 1,
             gradient.rows(), 1,
             "Pooling");
     }
     
+    // Altro controllo utile: il numero di colonne del gradiente 
+    // deve corrispondere alla dimensione dell'output del layer
+    if (gradient.cols() != get_output_size()) {
+        throw ml_exception::DimensionMismatchException(
+            "gradient columns (output size)",
+            get_output_size(), 1,
+            gradient.cols(), 1,
+            "Pooling");
+    }
+
     int batch_size = gradient.rows();
-    
-    // Usa le dimensioni memorizzate
     int output_height = get_output_height();
     int output_width = get_output_width();
     int total_input_elements = channels_ * input_height_ * input_width_;
     
-    // Gradiente rispetto all'input
     MatrixXd dInput = MatrixXd::Zero(batch_size, total_input_elements);
     
     for (int b = 0; b < batch_size; ++b) {
         for (int c = 0; c < channels_; ++c) {
-            // Estrai gradiente per questo canale
+            // 1. Estraiamo il gradiente 2D per questo canale e batch
             MatrixXd grad_2d(output_height, output_width);
             for (int oh = 0; oh < output_height; ++oh) {
                 for (int ow = 0; ow < output_width; ++ow) {
@@ -247,10 +253,10 @@ MatrixXd Pooling::backward(const MatrixXd& gradient, double learning_rate) {
                 }
             }
             
-            // Calcola gradiente backward
+            // 2. Calcoliamo il gradiente rispetto all'input per questo canale
             MatrixXd dInput_2d = pool_backward_2d(grad_2d, c, b);
             
-            // Inserisci nell'output
+            // 3. Lo inseriamo nella matrice flatten finale
             insert_channel(dInput, b, c, dInput_2d);
         }
     }
@@ -266,21 +272,22 @@ MatrixXd Pooling::pool_backward_2d(const MatrixXd& gradient, int channel, int ba
     MatrixXd dInput = MatrixXd::Zero(input_height_, input_width_);
     
     if (pool_type_ == MAX) {
-        for (int oh = 0; oh < output_height; ++oh) {
-            for (int ow = 0; ow < output_width; ++ow) {
-                int output_idx = channel * output_height * output_width + oh * output_width + ow;
-                
-                if (batch < static_cast<int>(max_indices_.size()) &&
-                    output_idx < static_cast<int>(max_indices_[batch].size())) {
-                    int max_idx = max_indices_[batch][output_idx];
-                    
-                    if (max_idx >= 0) {
-                        int h = max_idx / input_width_;
-                        int w = max_idx % input_width_;
-                        if (h < input_height_ && w < input_width_) {
-                            dInput(h, w) += gradient(oh, ow);
-                        }
-                    }
+
+        // Recupero tutti i max indices salvati
+        const auto& all_indices = cache_.get_max_indices();
+
+        for (const auto& mi : all_indices) {
+            // Recuperiamo tutti i max indices salvati
+            const auto& all_indices = cache_.get_max_indices();
+            
+            // Filtriamo per il batch e il canale corrente (o iteriamo su tutti se preferisci un'altra logica)
+            // Nota: Per performance, in produzione si userebbe una struttura più veloce di un vector flat,
+            // ma per ora seguiamo la tua nuova struttura.
+            for (const auto& mi : all_indices) {
+                if (mi.batch == batch && mi.channel == channel) {
+                    int h = mi.input_index / input_width_;
+                    int w = mi.input_index % input_width_;
+                    dInput(h, w) += gradient(mi.output_row, mi.output_col);
                 }
             }
         }

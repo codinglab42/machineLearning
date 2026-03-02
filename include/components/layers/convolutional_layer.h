@@ -3,6 +3,7 @@
 
 #include "layer.h"
 #include "components/activation/activation.h"
+#include "components/cache/weighted_cache.h"
 #include <vector>
 #include <memory>
 
@@ -73,7 +74,7 @@ namespace layers {
         std::unique_ptr<activation::Activation> activation_;
         
         // Cache
-        LayerCache cache_;
+        WeightedCache cache_;
         std::vector<Eigen::MatrixXd> input_cols_; // Per im2col
         std::vector<Eigen::MatrixXd> output_cols_; // Per backward
         

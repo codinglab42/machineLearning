@@ -20,8 +20,8 @@ namespace layers {
         bool has_activation() const override { return has_activation_; }
         
         // Setter per i dati (per i layer)
-        void set_input(const Eigen::MatrixXd& input) { input_ = input; }
-        void set_output(const Eigen::MatrixXd& output) { output_ = output; }
+        void set_input(const Eigen::MatrixXd& new_input) { input_ = new_input; }
+        void set_output(const Eigen::MatrixXd& new_output) { output_ = new_output; }
         void set_has_activation(bool has) { has_activation_ = has; }
         
         // Accesso modificabile (per i layer che devono popolare la cache)

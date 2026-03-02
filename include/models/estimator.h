@@ -4,20 +4,13 @@
 #include <Eigen/Dense>
 #include <string>
 #include "components/optimizers/optimizer.h"
-#include "components/optimizers/sgd.h"
-#include "components/optimizers/adam.h"
+#include "components/optimizers/sgd_optimizer.h"
+#include "components/optimizers/adam_optimizer.h"
 #include "utils/serializable.h"
 
 namespace models {
 
     
-    enum class OptimizerType {
-
-        SGD,
-        ADAM
-    };
-
-
     class Estimator : public utils::SerializableModel {
     public:
         virtual ~Estimator() = default;
@@ -44,7 +37,7 @@ namespace models {
         
 
     protected:
-        std::unique_ptr<optimizers::Optimizer> optimizer_;
+        std::unique_ptr<Optimizer> optimizer_;
     };
 
 } // namespace regression

@@ -1,4 +1,4 @@
-#include "components/layers/dense.h"
+#include "components/layers/dense_layer.h"
 #include "components/activation/activation.h"
 #include "utils/serializable.h"
 #include <cmath>
@@ -113,35 +113,36 @@ namespace layers {
         }
         
         // Salva input nella cache
-        cache_.input = input;
+        cache_.set_input(input);
         
         // Calcola z = input * weights^T + bias
-        cache_.z = input * weights_.transpose();
-        cache_.z.rowwise() += biases_.transpose();
+        MatrixXd z = input * weights_.transpose();
+        z.rowwise() += biases_.transpose();
+        cache_.set_z(z);
         
         // Applica funzione di attivazione
-        cache_.output = activation_->forward(cache_.z);
-        cache_.has_activation = true;
-        
-        return cache_.output;
+        cache_.set_output(activation_->forward(z));
+        cache_.set_has_activation(true);
+               
+        return cache_.get_output();
     }
 
     // Backward propagation
     MatrixXd Dense::backward(const MatrixXd& gradient, double learning_rate) {
-        if (!cache_.has_activation) {
+        if (!cache_.has_activation()) {
             throw ml_exception::InvalidConfigurationException(
                 "Cache not initialized. Call forward() first.", "Dense");
         }
         
         // Gradiente rispetto a z
-        MatrixXd dZ = activation_->backward(gradient, cache_.z);
+        MatrixXd dZ = activation_->backward(gradient, cache_.get_z());
         
         // Calcola gradienti rispetto ai pesi e bias
-        grad_weights_ = dZ.transpose() * cache_.input;  // [output_size x input_size]
+        grad_weights_ = dZ.transpose() * cache_.get_input();  // [output_size x input_size]
         grad_biases_ = dZ.colwise().sum();               // [output_size]
         
         // Normalizza per batch size
-        double batch_size = static_cast<double>(cache_.input.rows());
+        double batch_size = static_cast<double>(cache_.get_input().rows());
         grad_weights_ /= batch_size;
         grad_biases_ /= batch_size;
         
@@ -237,10 +238,7 @@ namespace layers {
 
     // Cache management
     void Dense::clear_cache() {
-        cache_.input = MatrixXd();
-        cache_.z = MatrixXd();
-        cache_.output = MatrixXd();
-        cache_.has_activation = false;
+        cache_.clear();
     }
 
     // Serializzazione

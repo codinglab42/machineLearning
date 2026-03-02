@@ -2,6 +2,7 @@
 #define POOLING_LAYER_H
 
 #include "layer.h"
+#include "components/cache/pooling_cache.h"
 #include "Eigen/Dense"
 #include <vector>
 #include <iostream>
@@ -91,8 +92,7 @@ namespace layers {
         InputShape input_shape_;
         
         // Cache per backward (indici per max pooling)
-        LayerCache cache_;
-        std::vector<std::vector<int>> max_indices_; // Memorizza gli indici per max pooling
+        PoolingCache cache_;
         
         // Metodi privati
         std::vector<int> calculate_output_shape(const std::vector<int>& input_shape) const;
