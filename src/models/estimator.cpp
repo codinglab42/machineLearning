@@ -1,4 +1,5 @@
 #include "models/estimator.h"
+#include "components/optimizers/optimizer_factory.h"
 #include "components/optimizers/sgd_optimizer.h"
 #include "components/optimizers/adam_optimizer.h"
 #include "components/optimizers/momentum_optimizer.h"

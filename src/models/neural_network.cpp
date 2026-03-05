@@ -10,10 +10,11 @@
 #include <numeric>
 #include <random>
 #include <fstream>
+#include <iostream>
 
 namespace models {
 
-    // Costruttori
+    // Costruttore default
     NeuralNetwork::NeuralNetwork() 
         : loss_function_("mse"),
           learning_rate_(0.01),
@@ -24,11 +25,14 @@ namespace models {
         optimizer_ = OptimizerFactory::create(OptimizerType::SGD, learning_rate_);
     }
 
+    // Costruttore con parametri - CORRETTO
     NeuralNetwork::NeuralNetwork(const std::vector<int>& layer_sizes,
                                  const std::string& activation,
                                  const std::string& output_activation,
                                  OptimizerType optimizer_type,
-                                 double learning_rate)
+                                 double learning_rate,
+                                 RegularizerType regularizer_type,
+                                 double regularizer_strength)
         : loss_function_("categorical_crossentropy"),
           learning_rate_(learning_rate),
           verbose_(false),
@@ -40,6 +44,7 @@ namespace models {
                       "must have at least input and output layer", "NeuralNetwork");
         
         optimizer_ = OptimizerFactory::create(optimizer_type, learning_rate);
+        regularizer_ = RegularizerFactory::create(regularizer_type, regularizer_strength);
         
         // Crea layer nascosti
         for (size_t i = 1; i < layer_sizes.size() - 1; ++i) {
@@ -385,18 +390,35 @@ namespace models {
         Eigen::MatrixXd activation = X;
         
         for (size_t i = 0; i < layers_.size(); ++i) {
-            activation = layers_[i]->forward(activation);
+            // I layer gestiscono autonomamente la loro cache
+            activation = layers_[i]->forward(activation, training);
+            
+            // Se vuoi salvare riferimenti alle cache:
+            forward_cache_[i] = layers_[i]->get_cache();  // Se esiste metodo get_cache()
         }
         
         return activation;
     }
 
     Eigen::VectorXd NeuralNetwork::backward_pass(const Eigen::VectorXd& y_true, 
-                                                  const Eigen::MatrixXd& y_pred) {
+                                              const Eigen::MatrixXd& y_pred) {
         Eigen::MatrixXd gradient = (y_pred - y_true).transpose();
         
-        for (int i = layers_.size() - 1; i >= 0; --i) {
-            gradient = layers_[i]->backward(gradient, learning_rate_);
+        // Raccogli gradienti da tutti i layer
+        std::vector<Eigen::MatrixXd> layer_gradients;
+        if (regularizer_) {
+            for (size_t i = 0; i < layers_.size(); ++i) {
+                if (layers_[i]->has_weights()) {
+                    Eigen::MatrixXd reg_grad = regularizer_->compute_gradient(
+                        layers_[i]->get_weights());
+                    layer_gradients.push_back(reg_grad);
+                }
+            }
+        }           
+
+        // Usa optimizer per aggiornare i pesi
+        if (optimizer_) {
+            optimizer_->update(layers_, layer_gradients);
         }
         
         return gradient;
@@ -408,8 +430,11 @@ namespace models {
     
     double NeuralNetwork::compute_loss(const Eigen::VectorXd& y_true, 
                                         const Eigen::MatrixXd& y_pred) const {
+
+        double data_loss = 0.0;
+
         if (loss_function_ == "mse") {
-            return (y_pred - y_true.transpose()).array().square().mean();
+            data_loss = (y_pred - y_true.traspose()).array().square().mean();
         } else if (loss_function_ == "binary_crossentropy") {
             Eigen::ArrayXd pred = y_pred.array();
             Eigen::ArrayXd true_val = y_true.array();
@@ -419,8 +444,19 @@ namespace models {
             Eigen::ArrayXd true_val = y_true.array();
             return -(true_val * pred.log()).sum() / y_true.size();
         }
+
+        // Aggiungi regolarizzazione
+        double reg_loss = 0.0;
+
+        if (regularizer_) {
+            for (const auto& layer : layers_) {
+                if (layer->has_weights()) {
+                    reg_loss += regularizer_->compute_loss(layer->get_weights());
+                }
+            }
+        }
         
-        return 0.0;
+        return data_loss + reg_loss;
     }
 
     //===========================================================================

@@ -1,47 +1,59 @@
 #ifndef LAYER_H
 #define LAYER_H
 
-#include "components/cache/layer_cache.h"
-#include "exceptions/exception_macros.h"
 #include <Eigen/Dense>
 #include <memory>
 #include <string>
+#include <iostream>
 
 namespace layers {
 
-    
+    class LayerCache;  // forward declaration
+
     class Layer {
     public:
         virtual ~Layer() = default;
         
-        // Forward propagation
+        // Forward pass - versione base (obbligatoria)
         virtual Eigen::MatrixXd forward(const Eigen::MatrixXd& input) = 0;
         
-        // Backward propagation
-        virtual Eigen::MatrixXd backward(const Eigen::MatrixXd& gradient,
-                                       double learning_rate) = 0;
+        // Forward con training mode (opzionale, default chiama forward base)
+        virtual Eigen::MatrixXd forward(const Eigen::MatrixXd& input, bool training) {
+            return forward(input);  // default implementation
+        }
         
-        // Per serializzazione
+        // Backward pass
+        virtual Eigen::MatrixXd backward(const Eigen::MatrixXd& gradient, double learning_rate) = 0;
+        
+        // Serializzazione
         virtual void serialize(std::ostream& out) const = 0;
         virtual void deserialize(std::istream& in) = 0;
         
-        // Informazioni
+        // Info layer
         virtual std::string get_type() const = 0;
         virtual std::string get_config() const = 0;
-        virtual int get_input_size() const = 0;
-        virtual int get_output_size() const = 0;
-        virtual int get_parameter_count() const = 0;
         
-        // Cache management
-        virtual void clear_cache() = 0;
-        virtual const LayerCache& get_cache() const = 0;
-        
-        // Utility
+        // Gestione parametri
         virtual bool has_weights() const = 0;
         virtual Eigen::MatrixXd get_weights() const = 0;
-        virtual Eigen::VectorXd get_biases() const = 0;
         virtual void set_weights(const Eigen::MatrixXd& weights) = 0;
+        virtual int get_parameter_count() const = 0;
+        
+        // Dimensioni
+        virtual int get_input_size() const = 0;
+        virtual int get_output_size() const = 0;
+        
+        // Cache management - versione con shared_ptr
+        virtual void clear_cache() = 0;
+        virtual std::shared_ptr<LayerCache> get_cache() const = 0;
+        virtual void set_cache(std::shared_ptr<LayerCache> cache) = 0;
+        
+        // Bias management
+        virtual Eigen::VectorXd get_biases() const = 0;
         virtual void set_biases(const Eigen::VectorXd& biases) = 0;
+        
+        // Input shape
+        virtual void set_input_shape(int input_size) = 0;
     };
 
 } // namespace layers

@@ -19,7 +19,11 @@ set(ML_LIBRARY_SOURCES
     components/cache/weighted_cache.cpp      
     components/cache/simple_rnn_cache.cpp     
     components/cache/lstm_cache.cpp           
-    components/cache/gru_cache.cpp            
+    components/cache/gru_cache.cpp    
+    components/cache/batchnorm_cache.cpp
+    components/cache/conv_cache.cpp
+    components/cache/dropout_cache.cpp
+    components/cache/flatten_cache.cpp          
 
     # Layers
     components/layers/dense_layer.cpp
@@ -28,7 +32,11 @@ set(ML_LIBRARY_SOURCES
     components/layers/recurrent_layer.cpp     
     components/layers/simple_rnn_layer.cpp    
     components/layers/lstm_layer.cpp          
-    components/layers/gru_layer.cpp           
+    components/layers/gru_layer.cpp
+    components/layers/batch_norm_layer.cpp
+    components/layers/conv2d_layer.cpp
+    components/layers/dropout_layer.cpp
+    components/layers/flatten_layer.cpp        
     
     # Activation
     components/activation/activation.cpp
