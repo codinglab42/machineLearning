@@ -14,7 +14,7 @@ set(ML_LIBRARY_SOURCES
     models/neural_network.cpp
     
     # Cache
-    components/cache/basic_cache.cpp
+    components/cache/rnn_cache.cpp
     components/cache/pooling_cache.cpp
     components/cache/weighted_cache.cpp      
     components/cache/simple_rnn_cache.cpp     
@@ -23,13 +23,12 @@ set(ML_LIBRARY_SOURCES
     components/cache/batchnorm_cache.cpp
     components/cache/conv_cache.cpp
     components/cache/dropout_cache.cpp
-    components/cache/flatten_cache.cpp          
+    components/cache/flatten_cache.cpp   
+    components/cache/dense_cache.cpp       
 
     # Layers
     components/layers/dense_layer.cpp
-    components/layers/convolutional_layer.cpp
-    components/layers/pooling_layer.cpp
-    components/layers/recurrent_layer.cpp     
+    components/layers/pooling_layer.cpp  
     components/layers/simple_rnn_layer.cpp    
     components/layers/lstm_layer.cpp          
     components/layers/gru_layer.cpp

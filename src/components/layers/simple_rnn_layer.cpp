@@ -1,174 +1,319 @@
 #include "components/layers/simple_rnn_layer.h"
+#include "exceptions/exception_macros.h"
+#include <sstream>
 #include <cmath>
 
 namespace layers {
 
-    SimpleRNNLayer::SimpleRNNLayer(int hidden_size, int input_size)
-        : RecurrentLayer(hidden_size, input_size) {
+    SimpleRNNLayer::SimpleRNNLayer(int units, int input_size, 
+                                   const std::string& activation,
+                                   bool use_bias)
+        : units_(units), input_size_(input_size), activation_(activation), 
+          use_bias_(use_bias) {
         
-        // Inizializza pesi (Xavier initialization)
-        double scale = std::sqrt(2.0 / (input_size + hidden_size));
-        Wx_ = Eigen::MatrixXd::Random(input_size, hidden_size) * scale;
+        ML_CHECK_PARAM(units > 0, "units", "must be > 0", "SimpleRNNLayer");
+        ML_CHECK_PARAM(input_size > 0, "input_size", "must be > 0", "SimpleRNNLayer");
         
-        scale = std::sqrt(2.0 / (hidden_size + hidden_size));
-        Wh_ = Eigen::MatrixXd::Random(hidden_size, hidden_size) * scale;
+        double scale = std::sqrt(2.0 / (input_size + units));
         
-        b_ = Eigen::VectorXd::Zero(hidden_size);
+        kernel_.resize(input_size, units);
+        recurrent_.resize(units, units);
         
-        // Crea cache specifica
-        cache_ = std::make_unique<SimpleRNNCache>();
+        std::random_device rd;
+        std::mt19937 gen(rd());
+        std::normal_distribution<double> dist(0.0, scale);
+        
+        for (int i = 0; i < kernel_.rows(); ++i) {
+            for (int j = 0; j < kernel_.cols(); ++j) {
+                kernel_(i, j) = dist(gen);
+            }
+        }
+        
+        for (int i = 0; i < recurrent_.rows(); ++i) {
+            for (int j = 0; j < recurrent_.cols(); ++j) {
+                recurrent_(i, j) = dist(gen);
+            }
+        }
+        
+        if (use_bias_) {
+            bias_.setZero(units);
+        }
+        
+        hidden_state_.resize(0, 0);
+        cache_ = nullptr;
+    }
+
+    void SimpleRNNLayer::set_input_shape(int input_size) {
+        ML_CHECK_PARAM(input_size > 0, "input_size", "must be > 0", "SimpleRNNLayer");
+        input_size_ = input_size;
+    }
+
+    void SimpleRNNLayer::reset_state() {
+        hidden_state_.resize(0, 0);
+    }
+
+    Eigen::MatrixXd SimpleRNNLayer::get_hidden_state() const {
+        return hidden_state_;
     }
 
     Eigen::MatrixXd SimpleRNNLayer::forward(const Eigen::MatrixXd& input) {
-        int batch_size = input.rows();
-        int total_steps = input.cols() / input_size_;
-        
-        set_sequence_length(total_steps);
-        
-        // Inizializza cache
-        auto* rnn_cache = static_cast<SimpleRNNCache*>(cache_.get());
-        rnn_cache->init(total_steps, batch_size, hidden_size_);
-        
-        // Stato iniziale
-        Eigen::MatrixXd h_t;
-        if (h0_.size() > 0) {
-            h_t = h0_;
-        } else {
-            h_t = Eigen::MatrixXd::Zero(batch_size, hidden_size_);
-        }
-        rnn_cache->add_state(0, h_t, Eigen::MatrixXd());
-        
-        // Forward attraverso i timestep
-        for (int t = 0; t < total_steps; ++t) {
-            Eigen::MatrixXd x_t = extract_timestep(input, t);
-            
-            // h_t = tanh(x_t * Wx + h_{t-1} * Wh + b)
-            Eigen::MatrixXd pre_act = x_t * Wx_ + h_t * Wh_;
-            pre_act.rowwise() += b_.transpose();
-            
-            h_t = pre_act.array().tanh();  // attivazione tanh
-            
-            rnn_cache->add_state(t + 1, h_t, x_t);
-        }
-        
-        // Output finale (puoi anche restituire tutti gli stati)
-        cache_->set_output(h_t);
-        return h_t;
+        return forward(input, false);
     }
 
-    Eigen::MatrixXd SimpleRNNLayer::backward(const Eigen::MatrixXd& gradient, 
-                                            double learning_rate) {
-        auto* rnn_cache = static_cast<SimpleRNNCache*>(cache_.get());
+    Eigen::MatrixXd SimpleRNNLayer::forward(const Eigen::MatrixXd& input, bool training) {
+        ML_CHECK_NOT_EMPTY(input, "input", "SimpleRNNLayer");
         
-        int seq_len = rnn_cache->get_sequence_length();
-        int batch_size = gradient.rows();
+        if (input.cols() != input_size_) {
+            ML_THROW_DIMENSION_MISMATCH("forward input",
+                input.rows(), input_size_,
+                input.rows(), input.cols(), "SimpleRNNLayer");
+        }
+        
+        if (!cache_) {
+            cache_ = std::make_shared<SimpleRNNCache>();
+        }
+        
+        int batch_size = input.rows();
+        int timesteps = 1; // Assumiamo input [batch, features]
+        
+        cache_->input_cache = input;
+        cache_->output_cache.resize(batch_size, units_);
+        cache_->timesteps = timesteps;
+        cache_->batch_size = batch_size;
+        cache_->input_size = input_size_;
+        cache_->hidden_size = units_;
+        cache_->training = training;
+        
+        if (training) {
+            cache_->hidden_states.clear();
+            cache_->pre_activations.clear();
+            cache_->z_values.clear();
+        }
+        
+        // Inizializza stato nascosto se necessario
+        if (hidden_state_.rows() != batch_size || hidden_state_.cols() != units_) {
+            hidden_state_ = Eigen::MatrixXd::Zero(batch_size, units_);
+        }
+        
+        Eigen::MatrixXd output(batch_size, units_);
+        
+        // Calcolo: h_t = activation(x_t * kernel + h_{t-1} * recurrent + bias)
+        Eigen::MatrixXd z = input * kernel_ + hidden_state_ * recurrent_;
+        
+        if (use_bias_) {
+            z.rowwise() += bias_.transpose();
+        }
+        
+        if (training) {
+            cache_->z_values.push_back(z);
+        }
+        
+        hidden_state_ = apply_activation(z);
+        output = hidden_state_;
+        
+        if (training) {
+            cache_->hidden_states.push_back(hidden_state_);
+            cache_->pre_activations.push_back(z);
+        }
+        
+        cache_->output_cache = output;
+        return output;
+    }
+
+    Eigen::MatrixXd SimpleRNNLayer::backward(const Eigen::MatrixXd& gradient, double learning_rate) {
+        if (!cache_) {
+            ML_THROW_FITTING_ERROR("SimpleRNNLayer", "cache not initialized. Call forward first.");
+        }
+        
+        ML_CHECK_PARAM(learning_rate > 0, "learning_rate", "must be > 0", "SimpleRNNLayer");
+        
+        auto rnn_cache = get_specific_cache();
+        
+        if (!rnn_cache->training) {
+            return gradient;
+        }
+        
+        int batch_size = rnn_cache->batch_size;
+        
+        if (gradient.rows() != batch_size || gradient.cols() != units_) {
+            ML_THROW_DIMENSION_MISMATCH("backward gradient",
+                batch_size, units_,
+                gradient.rows(), gradient.cols(), "SimpleRNNLayer");
+        }
+        
+        // Backpropagation through time (semplificata per 1 timestep)
+        const Eigen::MatrixXd& z = rnn_cache->z_values[0];
+        const Eigen::MatrixXd& prev_h = (rnn_cache->hidden_states.size() > 1) ? 
+                                         rnn_cache->hidden_states[0] : 
+                                         Eigen::MatrixXd::Zero(batch_size, units_);
+        
+        Eigen::MatrixXd dZ = gradient.array() * apply_activation_derivative(z).array();
         
         // Gradienti
-        Eigen::MatrixXd dWx = Eigen::MatrixXd::Zero(input_size_, hidden_size_);
-        Eigen::MatrixXd dWh = Eigen::MatrixXd::Zero(hidden_size_, hidden_size_);
-        Eigen::VectorXd db = Eigen::VectorXd::Zero(hidden_size_);
-        
-        // Gradiente rispetto all'output (già fornito)
-        Eigen::MatrixXd dh_next = gradient;
-        
-        // Backprop through time
-        for (int t = seq_len - 1; t >= 0; --t) {
-            Eigen::MatrixXd h_t = rnn_cache->get_hidden_state(t + 1);
-            Eigen::MatrixXd h_prev = rnn_cache->get_hidden_state(t);
-            Eigen::MatrixXd x_t = rnn_cache->get_all_inputs()[t];
-            
-            // Gradiente attraverso tanh
-            Eigen::MatrixXd dpre = dh_next.array() * (1 - h_t.array().square());
-            
-            // Gradienti pesi
-            dWx += x_t.transpose() * dpre;
-            dWh += h_prev.transpose() * dpre;
-            db += dpre.colwise().sum().transpose();
-            
-            // Gradiente per il prossimo timestep
-            dh_next = dpre * Wh_.transpose();
+        Eigen::MatrixXd dKernel = rnn_cache->input_cache.transpose() * dZ;
+        Eigen::MatrixXd dRecurrent = prev_h.transpose() * dZ;
+        Eigen::VectorXd dBias;
+        if (use_bias_) {
+            dBias = dZ.colwise().sum();
         }
         
-        // Aggiorna pesi con gradient descent
-        Wx_ -= learning_rate * dWx;
-        Wh_ -= learning_rate * dWh;
-        b_ -= learning_rate * db;
+        // Gradiente per l'input (da propagare indietro)
+        Eigen::MatrixXd dX = dZ * kernel_.transpose();
         
-        // Gradiente rispetto all'input (per layer precedenti)
-        return dh_next;  // oppure calcola gradiente per input
+        // Gradiente per lo stato nascosto precedente
+        Eigen::MatrixXd dPrevHidden = dZ * recurrent_.transpose();
+        
+        // Aggiorna pesi
+        kernel_ -= learning_rate * dKernel / batch_size;
+        recurrent_ -= learning_rate * dRecurrent / batch_size;
+        if (use_bias_) {
+            bias_ -= learning_rate * dBias / batch_size;
+        }
+        
+        return dX;
     }
 
-    std::string SimpleRNNLayer::get_config() const {
-        std::ostringstream oss;
-        oss << "SimpleRNN(hidden=" << hidden_size_ 
-            << ", input=" << input_size_
-            << ", seq_len=" << sequence_length_ << ")";
-        return oss.str();
+    Eigen::MatrixXd SimpleRNNLayer::apply_activation(const Eigen::MatrixXd& z) const {
+        if (activation_ == "tanh") {
+            return z.array().tanh();
+        } else if (activation_ == "relu") {
+            return z.cwiseMax(0.0);
+        } else if (activation_ == "sigmoid") {
+            return 1.0 / (1.0 + (-z).array().exp());
+        } else if (activation_ == "linear") {
+            return z;
+        }
+        return z.array().tanh(); // default tanh per RNN
     }
 
-    void SimpleRNNLayer::set_weights(const Eigen::MatrixXd& Wx, 
-                                     const Eigen::MatrixXd& Wh, 
-                                     const Eigen::VectorXd& b) {
-        ML_CHECK_DIMENSIONS(Wx.rows(), input_size_, Wx.cols(), hidden_size_,
-                           "Wx", "SimpleRNNLayer");
-        ML_CHECK_DIMENSIONS(Wh.rows(), hidden_size_, Wh.cols(), hidden_size_,
-                           "Wh", "SimpleRNNLayer");
-        ML_CHECK_DIMENSIONS(b.rows(), hidden_size_, b.cols(), 1,
-                           "b", "SimpleRNNLayer");
-        
-        Wx_ = Wx;
-        Wh_ = Wh;
-        b_ = b;
+    Eigen::MatrixXd SimpleRNNLayer::apply_activation_derivative(const Eigen::MatrixXd& z) const {
+        if (activation_ == "tanh") {
+            Eigen::MatrixXd tanh = z.array().tanh();
+            return 1.0 - tanh.array().square();
+        } else if (activation_ == "relu") {
+            return (z.array() > 0.0).cast<double>();
+        } else if (activation_ == "sigmoid") {
+            Eigen::MatrixXd sig = 1.0 / (1.0 + (-z).array().exp());
+            return sig.array() * (1.0 - sig.array());
+        } else if (activation_ == "linear") {
+            return Eigen::MatrixXd::Ones(z.rows(), z.cols());
+        }
+        return 1.0 - z.array().tanh().square();
     }
 
     Eigen::MatrixXd SimpleRNNLayer::get_weights() const {
-        // Flatten tutti i pesi in un'unica matrice
-        Eigen::MatrixXd weights(input_size_ * hidden_size_ + 
-                                hidden_size_ * hidden_size_ + 
-                                hidden_size_, 1);
+        int total_cols = kernel_.cols() + recurrent_.cols();
+        if (use_bias_) total_cols += 1;
         
-        int idx = 0;
-        // Wx
-        for (int i = 0; i < Wx_.size(); ++i) {
-            weights(idx++, 0) = Wx_(i);
-        }
-        // Wh
-        for (int i = 0; i < Wh_.size(); ++i) {
-            weights(idx++, 0) = Wh_(i);
-        }
-        // b
-        for (int i = 0; i < b_.size(); ++i) {
-            weights(idx++, 0) = b_(i);
+        Eigen::MatrixXd weights(kernel_.rows() + recurrent_.rows(), total_cols);
+        
+        weights.block(0, 0, kernel_.rows(), kernel_.cols()) = kernel_;
+        weights.block(0, kernel_.cols(), recurrent_.rows(), recurrent_.cols()) = recurrent_;
+        
+        if (use_bias_) {
+            weights.col(kernel_.cols() + recurrent_.cols()) = bias_;
         }
         
         return weights;
     }
 
     void SimpleRNNLayer::set_weights(const Eigen::MatrixXd& weights) {
-        int expected_size = input_size_ * hidden_size_ + 
-                           hidden_size_ * hidden_size_ + 
-                           hidden_size_;
-        
-        ML_CHECK_DIMENSIONS(weights.rows(), expected_size, weights.cols(), 1,
-                           "weights", "SimpleRNNLayer");
-        
-        int idx = 0;
-        // Wx
-        for (int i = 0; i < input_size_; ++i) {
-            for (int j = 0; j < hidden_size_; ++j) {
-                Wx_(i, j) = weights(idx++, 0);
-            }
+        int expected_cols = kernel_.cols() + recurrent_.cols() + (use_bias_ ? 1 : 0);
+        if (weights.cols() != expected_cols) {
+            ML_THROW_PARAMETER_ERROR("weights", "invalid dimensions", "SimpleRNNLayer");
         }
-        // Wh
-        for (int i = 0; i < hidden_size_; ++i) {
-            for (int j = 0; j < hidden_size_; ++j) {
-                Wh_(i, j) = weights(idx++, 0);
-            }
-        }
-        // b
-        for (int i = 0; i < hidden_size_; ++i) {
-            b_(i) = weights(idx++, 0);
+        
+        kernel_ = weights.block(0, 0, kernel_.rows(), kernel_.cols());
+        recurrent_ = weights.block(0, kernel_.cols(), recurrent_.rows(), recurrent_.cols());
+        
+        if (use_bias_) {
+            bias_ = weights.col(kernel_.cols() + recurrent_.cols());
         }
     }
 
+    int SimpleRNNLayer::get_parameter_count() const {
+        return kernel_.size() + recurrent_.size() + (use_bias_ ? bias_.size() : 0);
+    }
+
+    Eigen::VectorXd SimpleRNNLayer::get_biases() const {
+        return bias_;
+    }
+
+    void SimpleRNNLayer::set_biases(const Eigen::VectorXd& biases) {
+        if (biases.size() != units_) {
+            ML_THROW_PARAMETER_ERROR("biases", "size must equal units", "SimpleRNNLayer");
+        }
+        bias_ = biases;
+    }
+
+    void SimpleRNNLayer::serialize(std::ostream& out) const {
+        out << get_config() << std::endl;
+        out.write(reinterpret_cast<const char*>(&units_), sizeof(int));
+        out.write(reinterpret_cast<const char*>(&input_size_), sizeof(int));
+        
+        bool has_bias = use_bias_;
+        out.write(reinterpret_cast<const char*>(&has_bias), sizeof(bool));
+        
+        for (int i = 0; i < kernel_.rows(); ++i) {
+            for (int j = 0; j < kernel_.cols(); ++j) {
+                out.write(reinterpret_cast<const char*>(&kernel_(i, j)), sizeof(double));
+            }
+        }
+        
+        for (int i = 0; i < recurrent_.rows(); ++i) {
+            for (int j = 0; j < recurrent_.cols(); ++j) {
+                out.write(reinterpret_cast<const char*>(&recurrent_(i, j)), sizeof(double));
+            }
+        }
+        
+        if (use_bias_) {
+            for (int i = 0; i < bias_.size(); ++i) {
+                out.write(reinterpret_cast<const char*>(&bias_(i)), sizeof(double));
+            }
+        }
+    }
+
+    void SimpleRNNLayer::deserialize(std::istream& in) {
+        std::string config;
+        std::getline(in, config);
+        
+        in.read(reinterpret_cast<char*>(&units_), sizeof(int));
+        in.read(reinterpret_cast<char*>(&input_size_), sizeof(int));
+        
+        bool has_bias;
+        in.read(reinterpret_cast<char*>(&has_bias), sizeof(bool));
+        use_bias_ = has_bias;
+        
+        kernel_.resize(input_size_, units_);
+        for (int i = 0; i < kernel_.rows(); ++i) {
+            for (int j = 0; j < kernel_.cols(); ++j) {
+                in.read(reinterpret_cast<char*>(&kernel_(i, j)), sizeof(double));
+            }
+        }
+        
+        recurrent_.resize(units_, units_);
+        for (int i = 0; i < recurrent_.rows(); ++i) {
+            for (int j = 0; j < recurrent_.cols(); ++j) {
+                in.read(reinterpret_cast<char*>(&recurrent_(i, j)), sizeof(double));
+            }
+        }
+        
+        if (use_bias_) {
+            bias_.resize(units_);
+            for (int i = 0; i < bias_.size(); ++i) {
+                in.read(reinterpret_cast<char*>(&bias_(i)), sizeof(double));
+            }
+        }
+    }
+
+    std::string SimpleRNNLayer::get_config() const {
+        std::ostringstream oss;
+        oss << "SimpleRNNLayer(units=" << units_
+            << ", input_size=" << input_size_
+            << ", activation=" << activation_
+            << ", use_bias=" << (use_bias_ ? "true" : "false") << ")";
+        return oss.str();
+    }
+
 } // namespace layers
+

@@ -1,415 +1,456 @@
 #include "components/layers/lstm_layer.h"
-#include "utils/serializable.h"
+#include "exceptions/exception_macros.h"
+#include <sstream>
 #include <cmath>
-#include <stdexcept>
 
 namespace layers {
 
-    // Costruttore
-    LSTMLayer::LSTMLayer(int hidden_size, int input_size)
-        : RecurrentLayer(hidden_size, input_size) {
+    LSTMLayer::LSTMLayer(int units, int input_size, 
+                         const std::string& activation,
+                         const std::string& recurrent_activation,
+                         bool use_bias)
+        : units_(units), input_size_(input_size), activation_(activation),
+          recurrent_activation_(recurrent_activation), use_bias_(use_bias) {
         
-        // Xavier initialization per i pesi
-        double scale_wx = std::sqrt(2.0 / (input_size + hidden_size));
-        double scale_wh = std::sqrt(2.0 / (hidden_size + hidden_size));
+        ML_CHECK_PARAM(units > 0, "units", "must be > 0", "LSTMLayer");
+        ML_CHECK_PARAM(input_size > 0, "input_size", "must be > 0", "LSTMLayer");
         
-        // 4 gates: input (i), forget (f), cell (g), output (o)
-        // Wx: [input_size, 4*hidden_size]
-        Wx_ = Eigen::MatrixXd::Random(input_size, 4 * hidden_size) * scale_wx;
+        double scale = std::sqrt(2.0 / (input_size + units));
         
-        // Wh: [hidden_size, 4*hidden_size]
-        Wh_ = Eigen::MatrixXd::Random(hidden_size, 4 * hidden_size) * scale_wh;
+        // Inizializza pesi per i 4 gate
+        kernel_i.resize(input_size, units);
+        kernel_f.resize(input_size, units);
+        kernel_c.resize(input_size, units);
+        kernel_o.resize(input_size, units);
         
-        // Bias: [4*hidden_size]
-        b_ = Eigen::VectorXd::Zero(4 * hidden_size);
+        recurrent_i.resize(units, units);
+        recurrent_f.resize(units, units);
+        recurrent_c.resize(units, units);
+        recurrent_o.resize(units, units);
         
-        // Inizializza bias per forget gate a 1 (per non dimenticare all'inizio)
-        for (int i = hidden_size; i < 2 * hidden_size; ++i) {
-            b_(i) = 1.0;
+        std::random_device rd;
+        std::mt19937 gen(rd());
+        std::normal_distribution<double> dist(0.0, scale);
+        
+        auto initialize_matrix = [&](Eigen::MatrixXd& mat) {
+            for (int i = 0; i < mat.rows(); ++i) {
+                for (int j = 0; j < mat.cols(); ++j) {
+                    mat(i, j) = dist(gen);
+                }
+            }
+        };
+        
+        initialize_matrix(kernel_i);
+        initialize_matrix(kernel_f);
+        initialize_matrix(kernel_c);
+        initialize_matrix(kernel_o);
+        
+        initialize_matrix(recurrent_i);
+        initialize_matrix(recurrent_f);
+        initialize_matrix(recurrent_c);
+        initialize_matrix(recurrent_o);
+        
+        if (use_bias_) {
+            // Bias per forget gate inizializzato a 1 (meglio per LSTM)
+            bias_i.setZero(units);
+            bias_f = Eigen::VectorXd::Ones(units);
+            bias_c.setZero(units);
+            bias_o.setZero(units);
         }
         
-        // Crea cache specifica LSTM
-        cache_ = std::make_unique<LSTMCache>();
+        hidden_state_.resize(0, 0);
+        cell_state_.resize(0, 0);
+        cache_ = nullptr;
     }
 
-    // Forward pass
+    void LSTMLayer::set_input_shape(int input_size) {
+        ML_CHECK_PARAM(input_size > 0, "input_size", "must be > 0", "LSTMLayer");
+        input_size_ = input_size;
+    }
+
+    void LSTMLayer::reset_state() {
+        hidden_state_.resize(0, 0);
+        cell_state_.resize(0, 0);
+    }
+
+    Eigen::MatrixXd LSTMLayer::get_hidden_state() const {
+        return hidden_state_;
+    }
+
+    Eigen::MatrixXd LSTMLayer::sigmoid(const Eigen::MatrixXd& x) const {
+        return 1.0 / (1.0 + (-x).array().exp());
+    }
+
+    Eigen::MatrixXd LSTMLayer::sigmoid_derivative(const Eigen::MatrixXd& x) const {
+        Eigen::MatrixXd sig = sigmoid(x);
+        return sig.array() * (1.0 - sig.array());
+    }
+
+    Eigen::MatrixXd LSTMLayer::tanh(const Eigen::MatrixXd& x) const {
+        return x.array().tanh();
+    }
+
+    Eigen::MatrixXd LSTMLayer::tanh_derivative(const Eigen::MatrixXd& x) const {
+        Eigen::MatrixXd t = tanh(x);
+        return 1.0 - t.array().square();
+    }
+
     Eigen::MatrixXd LSTMLayer::forward(const Eigen::MatrixXd& input) {
-        // Verifica dimensioni input
+        return forward(input, false);
+    }
+
+    Eigen::MatrixXd LSTMLayer::forward(const Eigen::MatrixXd& input, bool training) {
+        ML_CHECK_NOT_EMPTY(input, "input", "LSTMLayer");
+        
+        if (input.cols() != input_size_) {
+            ML_THROW_DIMENSION_MISMATCH("forward input",
+                input.rows(), input_size_,
+                input.rows(), input.cols(), "LSTMLayer");
+        }
+        
+        if (!cache_) {
+            cache_ = std::make_shared<LSTMCache>();
+        }
+        
         int batch_size = input.rows();
-        int total_elements = input.cols();
+        int timesteps = 1;
         
-        // Calcola numero di timestep
-        if (total_elements % input_size_ != 0) {
-            throw ml_exception::DimensionMismatchException(
-                "input columns", input_size_, total_elements / batch_size,
-                total_elements, batch_size, "LSTMLayer");
+        cache_->input_cache = input;
+        cache_->output_cache.resize(batch_size, units_);
+        cache_->timesteps = timesteps;
+        cache_->batch_size = batch_size;
+        cache_->input_size = input_size_;
+        cache_->hidden_size = units_;
+        cache_->training = training;
+        
+        if (training) {
+            cache_->hidden_states.clear();
+            cache_->cell_states.clear();
+            cache_->input_gates.clear();
+            cache_->forget_gates.clear();
+            cache_->output_gates.clear();
+            cache_->cell_candidates.clear();
+            cache_->z_i.clear();
+            cache_->z_f.clear();
+            cache_->z_o.clear();
+            cache_->z_c.clear();
         }
         
-        int total_steps = total_elements / input_size_;
-        set_sequence_length(total_steps);
-        
-        // Ottieni cache specifica
-        auto* lstm_cache = static_cast<LSTMCache*>(cache_.get());
-        lstm_cache->init(total_steps, batch_size, hidden_size_);
-        
-        // Stati iniziali
-        Eigen::MatrixXd h_t, c_t;
-        if (h0_.size() > 0) {
-            // Usa stato iniziale fornito
-            h_t = h0_;
-            c_t = Eigen::MatrixXd::Zero(batch_size, hidden_size_);
-        } else {
-            // Stato iniziale zero
-            h_t = Eigen::MatrixXd::Zero(batch_size, hidden_size_);
-            c_t = Eigen::MatrixXd::Zero(batch_size, hidden_size_);
+        if (hidden_state_.rows() != batch_size || hidden_state_.cols() != units_) {
+            hidden_state_ = Eigen::MatrixXd::Zero(batch_size, units_);
+            cell_state_ = Eigen::MatrixXd::Zero(batch_size, units_);
         }
         
-        // Salva stato iniziale nella cache
-        lstm_cache->add_lstm_state(0, h_t, c_t, Eigen::MatrixXd(),
-                                   Eigen::MatrixXd(), Eigen::MatrixXd(),
-                                   Eigen::MatrixXd(), Eigen::MatrixXd());
+        // Calcolo dei gate LSTM
+        Eigen::MatrixXd z_i = input * kernel_i + hidden_state_ * recurrent_i;
+        Eigen::MatrixXd z_f = input * kernel_f + hidden_state_ * recurrent_f;
+        Eigen::MatrixXd z_c = input * kernel_c + hidden_state_ * recurrent_c;
+        Eigen::MatrixXd z_o = input * kernel_o + hidden_state_ * recurrent_o;
         
-        // Forward attraverso i timestep
-        for (int t = 0; t < total_steps; ++t) {
-            // Estrai input per questo timestep
-            Eigen::MatrixXd x_t = input.block(0, t * input_size_, 
-                                              batch_size, input_size_);
-            
-            // Calcolo pre-attivazione gates
-            // gates = x_t * Wx + h_t * Wh + b
-            Eigen::MatrixXd gates = x_t * Wx_ + h_t * Wh_;
-            gates.rowwise() += b_.transpose();
-            
-            // Split gates nei 4 componenti
-            Eigen::MatrixXd i_gate = gates.block(0, 0, batch_size, hidden_size_);
-            Eigen::MatrixXd f_gate = gates.block(0, hidden_size_, batch_size, hidden_size_);
-            Eigen::MatrixXd g_gate = gates.block(0, 2 * hidden_size_, batch_size, hidden_size_);
-            Eigen::MatrixXd o_gate = gates.block(0, 3 * hidden_size_, batch_size, hidden_size_);
-            
-            // Attivazioni
-            // i = sigmoid(i_gate)
-            i_gate = (1.0 / (1.0 + (-i_gate).array().exp()));
-            
-            // f = sigmoid(f_gate)
-            f_gate = (1.0 / (1.0 + (-f_gate).array().exp()));
-            
-            // g = tanh(g_gate)
-            g_gate = g_gate.array().tanh();
-            
-            // o = sigmoid(o_gate)
-            o_gate = (1.0 / (1.0 + (-o_gate).array().exp()));
-            
-            // Nuovo stato cella: c_t = f * c_{t-1} + i * g
-            c_t = (f_gate.array() * c_t.array()) + (i_gate.array() * g_gate.array());
-            
-            // Nuovo stato hidden: h_t = o * tanh(c_t)
-            h_t = o_gate.array() * c_t.array().tanh();
-            
-            // Salva nella cache
-            lstm_cache->add_lstm_state(t + 1, h_t, c_t, x_t,
-                                      i_gate, f_gate, o_gate, g_gate);
+        if (use_bias_) {
+            z_i.rowwise() += bias_i.transpose();
+            z_f.rowwise() += bias_f.transpose();
+            z_c.rowwise() += bias_c.transpose();
+            z_o.rowwise() += bias_o.transpose();
         }
         
-        // Salva output finale nella cache base
-        cache_->set_output(h_t);
-        cache_->set_input(input);
+        Eigen::MatrixXd i_t = sigmoid(z_i);  // Input gate
+        Eigen::MatrixXd f_t = sigmoid(z_f);  // Forget gate
+        Eigen::MatrixXd c_tilde = tanh(z_c); // Cell candidate
+        Eigen::MatrixXd o_t = sigmoid(z_o);  // Output gate
         
+        // Aggiornamento stato cella e stato nascosto
+        Eigen::MatrixXd c_t = f_t.array() * cell_state_.array() + 
+                              i_t.array() * c_tilde.array();
+        Eigen::MatrixXd h_t = o_t.array() * tanh(c_t).array();
+        
+        if (training) {
+            cache_->hidden_states.push_back(h_t);
+            cache_->cell_states.push_back(c_t);
+            cache_->input_gates.push_back(i_t);
+            cache_->forget_gates.push_back(f_t);
+            cache_->output_gates.push_back(o_t);
+            cache_->cell_candidates.push_back(c_tilde);
+            cache_->z_i.push_back(z_i);
+            cache_->z_f.push_back(z_f);
+            cache_->z_c.push_back(z_c);
+            cache_->z_o.push_back(z_o);
+        }
+        
+        hidden_state_ = h_t;
+        cell_state_ = c_t;
+        
+        cache_->output_cache = h_t;
         return h_t;
     }
 
-    // Backward pass
-    Eigen::MatrixXd LSTMLayer::backward(const Eigen::MatrixXd& gradient, 
-                                        double learning_rate) {
-        auto* lstm_cache = static_cast<LSTMCache*>(cache_.get());
-        
-        if (!lstm_cache->is_valid()) {
-            throw std::runtime_error("LSTMLayer: cache not valid for backward");
+    Eigen::MatrixXd LSTMLayer::backward(const Eigen::MatrixXd& gradient, double learning_rate) {
+        if (!cache_) {
+            ML_THROW_FITTING_ERROR("LSTMLayer", "cache not initialized. Call forward first.");
         }
         
-        int seq_len = lstm_cache->get_sequence_length();
-        int batch_size = gradient.rows();
+        ML_CHECK_PARAM(learning_rate > 0, "learning_rate", "must be > 0", "LSTMLayer");
         
-        // Verifica dimensioni gradiente
-        if (gradient.cols() != hidden_size_) {
-            throw ml_exception::DimensionMismatchException(
-                "gradient cols", hidden_size_, 1,
-                gradient.cols(), 1, "LSTMLayer");
+        auto lstm_cache = get_specific_cache();
+        
+        if (!lstm_cache->training) {
+            return gradient;
         }
         
-        // Inizializza gradienti pesi
-        Eigen::MatrixXd dWx = Eigen::MatrixXd::Zero(input_size_, 4 * hidden_size_);
-        Eigen::MatrixXd dWh = Eigen::MatrixXd::Zero(hidden_size_, 4 * hidden_size_);
-        Eigen::VectorXd db = Eigen::VectorXd::Zero(4 * hidden_size_);
+        int batch_size = lstm_cache->batch_size;
         
-        // Gradienti rispetto agli stati
-        Eigen::MatrixXd dh_next = gradient;  // gradiente da loss
-        Eigen::MatrixXd dc_next = Eigen::MatrixXd::Zero(batch_size, hidden_size_);
-        
-        // Backpropagation through time
-        for (int t = seq_len; t >= 1; --t) {
-            // Recupera stati e gates dalla cache
-            const auto& step = lstm_cache->get_step(t);
-            const auto& step_prev = lstm_cache->get_step(t - 1);
-            
-            Eigen::MatrixXd h_t = step.h;
-            Eigen::MatrixXd c_t = step.c;
-            Eigen::MatrixXd c_prev = step_prev.c;
-            Eigen::MatrixXd x_t = step.x;
-            
-            Eigen::MatrixXd i_t = step.i;
-            Eigen::MatrixXd f_t = step.f;
-            Eigen::MatrixXd o_t = step.o;
-            Eigen::MatrixXd g_t = step.g;
-            
-            // Gradiente rispetto a output gate
-            // dh_next = grad da loss + grad da timestep successivo
-            
-            // Gradiente rispetto a tanh(c_t)
-            Eigen::MatrixXd dtanh_c = dh_next.array() * o_t.array();
-            
-            // Gradiente rispetto a c_t
-            Eigen::MatrixXd dc_t = dtanh_c.array() * (1 - c_t.array().square());
-            dc_t += dc_next;  // aggiungi gradiente da timestep successivo
-            
-            // Gradienti rispetto ai gates
-            Eigen::MatrixXd di_t = dc_t.array() * g_t.array();
-            Eigen::MatrixXd df_t = dc_t.array() * c_prev.array();
-            Eigen::MatrixXd dg_t = dc_t.array() * i_t.array();
-            Eigen::MatrixXd do_t = dh_next.array() * c_t.array().tanh();
-            
-            // Gradienti rispetto alle pre-attivazioni (considerando derivate delle attivazioni)
-            // i = sigmoid(i_gate) -> di/da = i * (1 - i)
-            Eigen::MatrixXd di_pre = di_t.array() * i_t.array() * (1 - i_t.array());
-            
-            // f = sigmoid(f_gate)
-            Eigen::MatrixXd df_pre = df_t.array() * f_t.array() * (1 - f_t.array());
-            
-            // g = tanh(g_gate) -> dg/da = 1 - g^2
-            Eigen::MatrixXd dg_pre = dg_t.array() * (1 - g_t.array().square());
-            
-            // o = sigmoid(o_gate)
-            Eigen::MatrixXd do_pre = do_t.array() * o_t.array() * (1 - o_t.array());
-            
-            // Concatena gradienti dei gates
-            Eigen::MatrixXd dgates(batch_size, 4 * hidden_size_);
-            dgates.block(0, 0, batch_size, hidden_size_) = di_pre;
-            dgates.block(0, hidden_size_, batch_size, hidden_size_) = df_pre;
-            dgates.block(0, 2 * hidden_size_, batch_size, hidden_size_) = dg_pre;
-            dgates.block(0, 3 * hidden_size_, batch_size, hidden_size_) = do_pre;
-            
-            // Gradienti pesi
-            dWx += x_t.transpose() * dgates;
-            dWh += h_t.transpose() * dgates;
-            db += dgates.colwise().sum().transpose();
-            
-            // Gradiente per il prossimo timestep (h_prev)
-            dh_next = dgates * Wh_.transpose();
-            
-            // Gradiente per c_next
-            dc_next = dc_t.array() * f_t.array();
+        if (gradient.rows() != batch_size || gradient.cols() != units_) {
+            ML_THROW_DIMENSION_MISMATCH("backward gradient",
+                batch_size, units_,
+                gradient.rows(), gradient.cols(), "LSTMLayer");
         }
         
-        // Applica gradient clipping per evitare exploding gradients
-        double clip_value = 5.0;
-        dWx = dWx.array().min(clip_value).max(-clip_value);
-        dWh = dWh.array().min(clip_value).max(-clip_value);
-        db = db.array().min(clip_value).max(-clip_value);
+        // Recupera dati dalla cache
+        const Eigen::MatrixXd& h_t = lstm_cache->hidden_states[0];
+        const Eigen::MatrixXd& c_t = lstm_cache->cell_states[0];
+        const Eigen::MatrixXd& i_t = lstm_cache->input_gates[0];
+        const Eigen::MatrixXd& f_t = lstm_cache->forget_gates[0];
+        const Eigen::MatrixXd& o_t = lstm_cache->output_gates[0];
+        const Eigen::MatrixXd& c_tilde = lstm_cache->cell_candidates[0];
+        const Eigen::MatrixXd& z_i = lstm_cache->z_i[0];
+        const Eigen::MatrixXd& z_f = lstm_cache->z_f[0];
+        const Eigen::MatrixXd& z_c = lstm_cache->z_c[0];
+        const Eigen::MatrixXd& z_o = lstm_cache->z_o[0];
         
-        // Aggiorna pesi con gradient descent
-        Wx_ -= learning_rate * dWx;
-        Wh_ -= learning_rate * dWh;
-        b_ -= learning_rate * db;
+        const Eigen::MatrixXd& prev_c = (lstm_cache->cell_states.size() > 1) ? 
+                                        lstm_cache->cell_states[0] : 
+                                        Eigen::MatrixXd::Zero(batch_size, units_);
         
-        // Calcola gradiente rispetto all'input (per layer precedenti)
-        // Questo è approssimato - in realtà dovresti propagare attraverso tutti i timestep
-        Eigen::MatrixXd dInput = Eigen::MatrixXd::Zero(batch_size, seq_len * input_size_);
-        for (int t = 0; t < seq_len; ++t) {
-            const auto& step = lstm_cache->get_step(t + 1);
-            Eigen::MatrixXd x_t = step.x;
-            
-            // Calcola gradiente per questo timestep
-            Eigen::MatrixXd dgates_t = ...;  // dovresti ricalcolare o salvare
-            
-            dInput.block(0, t * input_size_, batch_size, input_size_) = 
-                dgates_t * Wx_.transpose();
+        // Gradiente rispetto a h_t (dato)
+        Eigen::MatrixXd dH = gradient;
+        
+        // Gradiente rispetto a c_t
+        Eigen::MatrixXd dC = dH.array() * o_t.array() * tanh_derivative(c_t).array();
+        
+        // Gradienti per i gate
+        Eigen::MatrixXd dO = dH.array() * tanh(c_t).array() * sigmoid_derivative(z_o).array();
+        Eigen::MatrixXd dI = dC.array() * c_tilde.array() * sigmoid_derivative(z_i).array();
+        Eigen::MatrixXd dF = dC.array() * prev_c.array() * sigmoid_derivative(z_f).array();
+        Eigen::MatrixXd dC_tilde = dC.array() * i_t.array() * tanh_derivative(z_c).array();
+        
+        // Gradienti per i pesi
+        const Eigen::MatrixXd& input = lstm_cache->input_cache;
+        const Eigen::MatrixXd& prev_h = (lstm_cache->hidden_states.size() > 1) ? 
+                                        lstm_cache->hidden_states[0] : 
+                                        Eigen::MatrixXd::Zero(batch_size, units_);
+        
+        Eigen::MatrixXd dKernel_i = input.transpose() * dI;
+        Eigen::MatrixXd dKernel_f = input.transpose() * dF;
+        Eigen::MatrixXd dKernel_c = input.transpose() * dC_tilde;
+        Eigen::MatrixXd dKernel_o = input.transpose() * dO;
+        
+        Eigen::MatrixXd dRecurrent_i = prev_h.transpose() * dI;
+        Eigen::MatrixXd dRecurrent_f = prev_h.transpose() * dF;
+        Eigen::MatrixXd dRecurrent_c = prev_h.transpose() * dC_tilde;
+        Eigen::MatrixXd dRecurrent_o = prev_h.transpose() * dO;
+        
+        Eigen::VectorXd dBias_i, dBias_f, dBias_c, dBias_o;
+        if (use_bias_) {
+            dBias_i = dI.colwise().sum();
+            dBias_f = dF.colwise().sum();
+            dBias_c = dC_tilde.colwise().sum();
+            dBias_o = dO.colwise().sum();
         }
         
-        return dInput;
+        // Gradiente per l'input
+        Eigen::MatrixXd dX = dI * kernel_i.transpose() + 
+                            dF * kernel_f.transpose() + 
+                            dC_tilde * kernel_c.transpose() + 
+                            dO * kernel_o.transpose();
+        
+        // Aggiorna pesi
+        kernel_i -= learning_rate * dKernel_i / batch_size;
+        kernel_f -= learning_rate * dKernel_f / batch_size;
+        kernel_c -= learning_rate * dKernel_c / batch_size;
+        kernel_o -= learning_rate * dKernel_o / batch_size;
+        
+        recurrent_i -= learning_rate * dRecurrent_i / batch_size;
+        recurrent_f -= learning_rate * dRecurrent_f / batch_size;
+        recurrent_c -= learning_rate * dRecurrent_c / batch_size;
+        recurrent_o -= learning_rate * dRecurrent_o / batch_size;
+        
+        if (use_bias_) {
+            bias_i -= learning_rate * dBias_i / batch_size;
+            bias_f -= learning_rate * dBias_f / batch_size;
+            bias_c -= learning_rate * dBias_c / batch_size;
+            bias_o -= learning_rate * dBias_o / batch_size;
+        }
+        
+        return dX;
     }
 
-    // Get config
-    std::string LSTMLayer::get_config() const {
-        std::ostringstream oss;
-        oss << "LSTM(hidden=" << hidden_size_ 
-            << ", input=" << input_size_
-            << ", seq_len=" << sequence_length_
-            << ", params=" << get_parameter_count() << ")";
-        return oss.str();
-    }
-
-    // Set pesi (versione separata)
-    void LSTMLayer::set_weights(const Eigen::MatrixXd& Wx, 
-                                const Eigen::MatrixXd& Wh, 
-                                const Eigen::VectorXd& b) {
-        // Verifica dimensioni
-        if (Wx.rows() != input_size_ || Wx.cols() != 4 * hidden_size_) {
-            throw ml_exception::DimensionMismatchException(
-                "Wx dimensions", input_size_, 4 * hidden_size_,
-                Wx.rows(), Wx.cols(), "LSTMLayer");
-        }
+    Eigen::MatrixXd LSTMLayer::get_weights() const {
+        int total_rows = kernel_i.rows() + recurrent_i.rows();
+        int total_cols = 4 * units_ + (use_bias_ ? 4 : 0);
         
-        if (Wh.rows() != hidden_size_ || Wh.cols() != 4 * hidden_size_) {
-            throw ml_exception::DimensionMismatchException(
-                "Wh dimensions", hidden_size_, 4 * hidden_size_,
-                Wh.rows(), Wh.cols(), "LSTMLayer");
-        }
+        Eigen::MatrixXd weights(total_rows, total_cols);
         
-        if (b.size() != 4 * hidden_size_) {
-            throw ml_exception::DimensionMismatchException(
-                "b size", 4 * hidden_size_, 1,
-                b.size(), 1, "LSTMLayer");
-        }
+        // Kernel weights
+        weights.block(0, 0, kernel_i.rows(), units_) = kernel_i;
+        weights.block(0, units_, kernel_f.rows(), units_) = kernel_f;
+        weights.block(0, 2*units_, kernel_c.rows(), units_) = kernel_c;
+        weights.block(0, 3*units_, kernel_o.rows(), units_) = kernel_o;
         
-        Wx_ = Wx;
-        Wh_ = Wh;
-        b_ = b;
-    }
-
-    // Get pesi (formato flatten)
-    Eigen::MatrixXd LSTMLayer::get_weights() const override {
-        int total_size = input_size_ * 4 * hidden_size_ + 
-                        hidden_size_ * 4 * hidden_size_ + 
-                        4 * hidden_size_;
+        // Recurrent weights
+        weights.block(kernel_i.rows(), 0, recurrent_i.rows(), units_) = recurrent_i;
+        weights.block(kernel_i.rows(), units_, recurrent_f.rows(), units_) = recurrent_f;
+        weights.block(kernel_i.rows(), 2*units_, recurrent_c.rows(), units_) = recurrent_c;
+        weights.block(kernel_i.rows(), 3*units_, recurrent_o.rows(), units_) = recurrent_o;
         
-        Eigen::MatrixXd weights(total_size, 1);
-        
-        int idx = 0;
-        
-        // Wx
-        for (int i = 0; i < Wx_.size(); ++i) {
-            weights(idx++, 0) = Wx_(i);
-        }
-        
-        // Wh
-        for (int i = 0; i < Wh_.size(); ++i) {
-            weights(idx++, 0) = Wh_(i);
-        }
-        
-        // b
-        for (int i = 0; i < b_.size(); ++i) {
-            weights(idx++, 0) = b_(i);
+        if (use_bias_) {
+            weights.col(4*units_) = bias_i;
+            weights.col(4*units_ + 1) = bias_f;
+            weights.col(4*units_ + 2) = bias_c;
+            weights.col(4*units_ + 3) = bias_o;
         }
         
         return weights;
     }
 
-    // Set pesi (formato flatten)
-    void LSTMLayer::set_weights(const Eigen::MatrixXd& weights) override {
-        int expected_size = input_size_ * 4 * hidden_size_ + 
-                           hidden_size_ * 4 * hidden_size_ + 
-                           4 * hidden_size_;
-        
-        if (weights.rows() != expected_size || weights.cols() != 1) {
-            throw ml_exception::DimensionMismatchException(
-                "weights", expected_size, 1,
-                weights.rows(), weights.cols(), "LSTMLayer");
+    void LSTMLayer::set_weights(const Eigen::MatrixXd& weights) {
+        int expected_cols = 4 * units_ + (use_bias_ ? 4 : 0);
+        if (weights.cols() != expected_cols) {
+            ML_THROW_PARAMETER_ERROR("weights", "invalid dimensions", "LSTMLayer");
         }
         
-        int idx = 0;
+        kernel_i = weights.block(0, 0, input_size_, units_);
+        kernel_f = weights.block(0, units_, input_size_, units_);
+        kernel_c = weights.block(0, 2*units_, input_size_, units_);
+        kernel_o = weights.block(0, 3*units_, input_size_, units_);
         
-        // Wx
-        for (int i = 0; i < input_size_; ++i) {
-            for (int j = 0; j < 4 * hidden_size_; ++j) {
-                Wx_(i, j) = weights(idx++, 0);
+        recurrent_i = weights.block(input_size_, 0, units_, units_);
+        recurrent_f = weights.block(input_size_, units_, units_, units_);
+        recurrent_c = weights.block(input_size_, 2*units_, units_, units_);
+        recurrent_o = weights.block(input_size_, 3*units_, units_, units_);
+        
+        if (use_bias_) {
+            bias_i = weights.col(4*units_);
+            bias_f = weights.col(4*units_ + 1);
+            bias_c = weights.col(4*units_ + 2);
+            bias_o = weights.col(4*units_ + 3);
+        }
+    }
+
+    int LSTMLayer::get_parameter_count() const {
+        return kernel_i.size() + kernel_f.size() + kernel_c.size() + kernel_o.size() +
+               recurrent_i.size() + recurrent_f.size() + recurrent_c.size() + recurrent_o.size() +
+               (use_bias_ ? bias_i.size() + bias_f.size() + bias_c.size() + bias_o.size() : 0);
+    }
+
+    Eigen::VectorXd LSTMLayer::get_biases() const {
+        if (!use_bias_) return Eigen::VectorXd();
+        
+        Eigen::VectorXd all_biases(4 * units_);
+        all_biases.segment(0, units_) = bias_i;
+        all_biases.segment(units_, units_) = bias_f;
+        all_biases.segment(2*units_, units_) = bias_c;
+        all_biases.segment(3*units_, units_) = bias_o;
+        return all_biases;
+    }
+
+    void LSTMLayer::set_biases(const Eigen::VectorXd& biases) {
+        if (!use_bias_) return;
+        
+        if (biases.size() != 4 * units_) {
+            ML_THROW_PARAMETER_ERROR("biases", "size must be 4*units", "LSTMLayer");
+        }
+        
+        bias_i = biases.segment(0, units_);
+        bias_f = biases.segment(units_, units_);
+        bias_c = biases.segment(2*units_, units_);
+        bias_o = biases.segment(3*units_, units_);
+    }
+
+    void LSTMLayer::serialize(std::ostream& out) const {
+        out << get_config() << std::endl;
+        out.write(reinterpret_cast<const char*>(&units_), sizeof(int));
+        out.write(reinterpret_cast<const char*>(&input_size_), sizeof(int));
+        
+        bool has_bias = use_bias_;
+        out.write(reinterpret_cast<const char*>(&has_bias), sizeof(bool));
+        
+        auto serialize_matrix = [&](const Eigen::MatrixXd& mat) {
+            for (int i = 0; i < mat.rows(); ++i) {
+                for (int j = 0; j < mat.cols(); ++j) {
+                    out.write(reinterpret_cast<const char*>(&mat(i, j)), sizeof(double));
+                }
             }
-        }
+        };
         
-        // Wh
-        for (int i = 0; i < hidden_size_; ++i) {
-            for (int j = 0; j < 4 * hidden_size_; ++j) {
-                Wh_(i, j) = weights(idx++, 0);
+        serialize_matrix(kernel_i);
+        serialize_matrix(kernel_f);
+        serialize_matrix(kernel_c);
+        serialize_matrix(kernel_o);
+        
+        serialize_matrix(recurrent_i);
+        serialize_matrix(recurrent_f);
+        serialize_matrix(recurrent_c);
+        serialize_matrix(recurrent_o);
+        
+        if (use_bias_) {
+            for (int i = 0; i < bias_i.size(); ++i) out.write(reinterpret_cast<const char*>(&bias_i(i)), sizeof(double));
+            for (int i = 0; i < bias_f.size(); ++i) out.write(reinterpret_cast<const char*>(&bias_f(i)), sizeof(double));
+            for (int i = 0; i < bias_c.size(); ++i) out.write(reinterpret_cast<const char*>(&bias_c(i)), sizeof(double));
+            for (int i = 0; i < bias_o.size(); ++i) out.write(reinterpret_cast<const char*>(&bias_o(i)), sizeof(double));
+        }
+    }
+
+    void LSTMLayer::deserialize(std::istream& in) {
+        std::string config;
+        std::getline(in, config);
+        
+        in.read(reinterpret_cast<char*>(&units_), sizeof(int));
+        in.read(reinterpret_cast<char*>(&input_size_), sizeof(int));
+        
+        bool has_bias;
+        in.read(reinterpret_cast<char*>(&has_bias), sizeof(bool));
+        use_bias_ = has_bias;
+        
+        auto deserialize_matrix = [&](Eigen::MatrixXd& mat, int rows, int cols) {
+            mat.resize(rows, cols);
+            for (int i = 0; i < mat.rows(); ++i) {
+                for (int j = 0; j < mat.cols(); ++j) {
+                    in.read(reinterpret_cast<char*>(&mat(i, j)), sizeof(double));
+                }
             }
-        }
+        };
         
-        // b
-        for (int i = 0; i < 4 * hidden_size_; ++i) {
-            b_(i) = weights(idx++, 0);
-        }
-    }
-
-    // Serializzazione
-    void LSTMLayer::serialize(std::ostream& out) const override {
-        // Prima serializza i parametri della classe base
-        RecurrentLayer::serialize(out);
+        deserialize_matrix(kernel_i, input_size_, units_);
+        deserialize_matrix(kernel_f, input_size_, units_);
+        deserialize_matrix(kernel_c, input_size_, units_);
+        deserialize_matrix(kernel_o, input_size_, units_);
         
-        // Poi serializza i pesi specifici LSTM
-        utils::serialize_matrix(out, Wx_);
-        utils::serialize_matrix(out, Wh_);
-        utils::serialize_vector(out, b_);
-    }
-
-    void LSTMLayer::deserialize(std::istream& in) override {
-        // Deserializza parametri base
-        RecurrentLayer::deserialize(in);
+        deserialize_matrix(recurrent_i, units_, units_);
+        deserialize_matrix(recurrent_f, units_, units_);
+        deserialize_matrix(recurrent_c, units_, units_);
+        deserialize_matrix(recurrent_o, units_, units_);
         
-        // Deserializza pesi
-        Wx_ = utils::deserialize_matrix(in);
-        Wh_ = utils::deserialize_matrix(in);
-        b_ = utils::deserialize_vector(in);
-        
-        clear_cache();
-    }
-
-    // Inizializzazione pesi (utile per restart)
-    void LSTMLayer::initialize_weights() {
-        double scale_wx = std::sqrt(2.0 / (input_size_ + hidden_size_));
-        double scale_wh = std::sqrt(2.0 / (hidden_size_ + hidden_size_));
-        
-        Wx_ = Eigen::MatrixXd::Random(input_size_, 4 * hidden_size_) * scale_wx;
-        Wh_ = Eigen::MatrixXd::Random(hidden_size_, 4 * hidden_size_) * scale_wh;
-        b_ = Eigen::VectorXd::Zero(4 * hidden_size_);
-        
-        // Re-inizializza bias forget gate
-        for (int i = hidden_size_; i < 2 * hidden_size_; ++i) {
-            b_(i) = 1.0;
+        if (use_bias_) {
+            bias_i.resize(units_);
+            bias_f.resize(units_);
+            bias_c.resize(units_);
+            bias_o.resize(units_);
+            
+            for (int i = 0; i < units_; ++i) in.read(reinterpret_cast<char*>(&bias_i(i)), sizeof(double));
+            for (int i = 0; i < units_; ++i) in.read(reinterpret_cast<char*>(&bias_f(i)), sizeof(double));
+            for (int i = 0; i < units_; ++i) in.read(reinterpret_cast<char*>(&bias_c(i)), sizeof(double));
+            for (int i = 0; i < units_; ++i) in.read(reinterpret_cast<char*>(&bias_o(i)), sizeof(double));
         }
     }
 
-    // Reset stati (per nuovo batch)
-    void LSTMLayer::reset_states() {
-        h0_ = Eigen::MatrixXd();
-        clear_cache();
-    }
-
-    // Getter per i gate (utile per debug/analisi)
-    LSTMLayer::GateValues LSTMLayer::get_gates(int timestep) const {
-        auto* lstm_cache = static_cast<LSTMCache*>(cache_.get());
-        
-        if (!lstm_cache || timestep < 1 || timestep > lstm_cache->get_sequence_length()) {
-            throw std::out_of_range("LSTMLayer: timestep out of range");
-        }
-        
-        const auto& step = lstm_cache->get_step(timestep);
-        
-        GateValues gates;
-        gates.input = step.i;
-        gates.forget = step.f;
-        gates.output = step.o;
-        gates.cell = step.g;
-        gates.hidden = step.h;
-        gates.cell_state = step.c;
-        
-        return gates;
-    }
-
-    // Calcolo numero parametri
-    int LSTMLayer::get_parameter_count() const override {
-        // Wx: input_size * 4 * hidden_size
-        // Wh: hidden_size * 4 * hidden_size
-        // b: 4 * hidden_size
-        return (input_size_ * 4 * hidden_size_) + 
-               (hidden_size_ * 4 * hidden_size_) + 
-               (4 * hidden_size_);
+    std::string LSTMLayer::get_config() const {
+        std::ostringstream oss;
+        oss << "LSTMLayer(units=" << units_
+            << ", input_size=" << input_size_
+            << ", activation=" << activation_
+            << ", recurrent_activation=" << recurrent_activation_
+            << ", use_bias=" << (use_bias_ ? "true" : "false") << ")";
+        return oss.str();
     }
 
 } // namespace layers

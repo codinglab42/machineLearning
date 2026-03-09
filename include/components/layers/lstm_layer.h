@@ -3,72 +3,90 @@
 
 #include "recurrent_layer.h"
 #include "components/cache/lstm_cache.h"
+#include <Eigen/Dense>
+#include <random>
+#include <string>
 
 namespace layers {
 
     class LSTMLayer : public RecurrentLayer {
     public:
-        // Struttura per analisi gates
-        struct GateValues {
-            Eigen::MatrixXd input;      // input gate
-            Eigen::MatrixXd forget;     // forget gate
-            Eigen::MatrixXd output;     // output gate
-            Eigen::MatrixXd cell;       // candidate gate
-            Eigen::MatrixXd hidden;     // hidden state
-            Eigen::MatrixXd cell_state; // cell state
-        };
-        
-        LSTMLayer(int hidden_size, int input_size);
+        LSTMLayer(int units, int input_size, 
+                 const std::string& activation = "tanh",
+                 const std::string& recurrent_activation = "sigmoid",
+                 bool use_bias = true);
         ~LSTMLayer() override = default;
-        
-        // Layer interface
+
         Eigen::MatrixXd forward(const Eigen::MatrixXd& input) override;
-        Eigen::MatrixXd backward(const Eigen::MatrixXd& gradient,
-                               double learning_rate) override;
+        Eigen::MatrixXd forward(const Eigen::MatrixXd& input, bool training) override;
+        Eigen::MatrixXd backward(const Eigen::MatrixXd& gradient, double learning_rate) override;
+        
+        void serialize(std::ostream& out) const override;
+        void deserialize(std::istream& in) override;
         
         std::string get_type() const override { return "LSTMLayer"; }
         std::string get_config() const override;
-        int get_parameter_count() const override;
-        
-        // Gestione pesi
-        void set_weights(const Eigen::MatrixXd& Wx, 
-                        const Eigen::MatrixXd& Wh, 
-                        const Eigen::VectorXd& b);
         
         bool has_weights() const override { return true; }
         Eigen::MatrixXd get_weights() const override;
         void set_weights(const Eigen::MatrixXd& weights) override;
+        int get_parameter_count() const override;
         
-        // Serializzazione
-        void serialize(std::ostream& out) const override;
-        void deserialize(std::istream& in) override;
+        int get_input_size() const override { return input_size_; }
+        int get_output_size() const override { return units_; }
         
-        // Utility
-        void initialize_weights();
-        void reset_states();
+        void clear_cache() override { if (cache_) cache_->clear(); }
+        std::shared_ptr<LayerCache> get_cache() const override { return cache_; }
+        void set_cache(std::shared_ptr<LayerCache> cache) override { 
+            cache_ = std::dynamic_pointer_cast<LSTMCache>(cache);
+        }
         
-        // Analisi gates
-        GateValues get_gates(int timestep) const;
+        Eigen::VectorXd get_biases() const override;
+        void set_biases(const Eigen::VectorXd& biases) override;
+        void set_input_shape(int input_size) override;
         
-        // Getter pesi
-        const Eigen::MatrixXd& get_kernel() const { return Wx_; }
-        const Eigen::MatrixXd& get_recurrent_kernel() const { return Wh_; }
-        const Eigen::VectorXd& get_bias() const { return b_; }
-        
+        void reset_state() override;
+        Eigen::MatrixXd get_hidden_state() const override;
+
     private:
-        Eigen::MatrixXd Wx_;  // [input_size, 4*hidden_size]
-        Eigen::MatrixXd Wh_;  // [hidden_size, 4*hidden_size]
-        Eigen::VectorXd b_;   // [4*hidden_size]
+        Eigen::MatrixXd sigmoid(const Eigen::MatrixXd& x) const;
+        Eigen::MatrixXd sigmoid_derivative(const Eigen::MatrixXd& x) const;
+        Eigen::MatrixXd tanh(const Eigen::MatrixXd& x) const;
+        Eigen::MatrixXd tanh_derivative(const Eigen::MatrixXd& x) const;
         
-        // Accesso cache specifica
-        LSTMCache* get_specific_cache() {
-            return static_cast<LSTMCache*>(cache_.get());
+        std::shared_ptr<LSTMCache> get_specific_cache() const {
+            return std::dynamic_pointer_cast<LSTMCache>(cache_);
         }
-        const LSTMCache* get_specific_cache() const {
-            return static_cast<const LSTMCache*>(cache_.get());
-        }
+        
+        int units_;
+        int input_size_;
+        std::string activation_;
+        std::string recurrent_activation_;
+        bool use_bias_;
+        
+        // Pesi per i 4 gate: input, forget, cell, output
+        Eigen::MatrixXd kernel_i;      // Pesi input gate [input_size, units]
+        Eigen::MatrixXd kernel_f;      // Pesi forget gate [input_size, units]
+        Eigen::MatrixXd kernel_c;      // Pesi cell candidate [input_size, units]
+        Eigen::MatrixXd kernel_o;      // Pesi output gate [input_size, units]
+        
+        Eigen::MatrixXd recurrent_i;   // Pesi ricorrenti input gate [units, units]
+        Eigen::MatrixXd recurrent_f;   // Pesi ricorrenti forget gate [units, units]
+        Eigen::MatrixXd recurrent_c;   // Pesi ricorrenti cell candidate [units, units]
+        Eigen::MatrixXd recurrent_o;   // Pesi ricorrenti output gate [units, units]
+        
+        Eigen::VectorXd bias_i;        // Bias input gate [units]
+        Eigen::VectorXd bias_f;        // Bias forget gate [units]
+        Eigen::VectorXd bias_c;        // Bias cell candidate [units]
+        Eigen::VectorXd bias_o;        // Bias output gate [units]
+        
+        Eigen::MatrixXd hidden_state_;  // Stato nascosto corrente [batch, units]
+        Eigen::MatrixXd cell_state_;    // Stato cella corrente [batch, units]
+        
+        std::shared_ptr<LSTMCache> cache_;
     };
 
 } // namespace layers
 
 #endif
+

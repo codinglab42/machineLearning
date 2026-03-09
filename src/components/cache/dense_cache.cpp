@@ -1,33 +1,36 @@
-#include "components/cache/flatten_cache.h"
+#include "components/cache/dense_cache.h"
 #include "exceptions/exception_macros.h"
 
 namespace layers {
 
-    FlattenCache::FlattenCache() {
+    DenseCache::DenseCache() {
         input_cache.resize(0, 0);
+        z_cache.resize(0, 0);
         output_cache.resize(0, 0);
-        original_shape.clear();
     }
 
-    void FlattenCache::clear() {
+    void DenseCache::clear() {
         input_cache.resize(0, 0);
+        z_cache.resize(0, 0);
         output_cache.resize(0, 0);
-        original_shape.clear();
     }
 
-    bool FlattenCache::is_valid() const {
+    bool DenseCache::is_valid() const {
         if (input_cache.size() == 0 || output_cache.size() == 0) {
             return false;
         }
         return validate_dimensions();
     }
 
-    bool FlattenCache::validate_dimensions() const {
-        if (input_cache.rows() != output_cache.rows() || 
-            input_cache.cols() != output_cache.cols()) {
+    bool DenseCache::validate_dimensions() const {
+        if (input_cache.rows() != output_cache.rows()) {
+            return false;
+        }
+        if (z_cache.rows() != output_cache.rows() || z_cache.cols() != output_cache.cols()) {
             return false;
         }
         return true;
     }
 
 } // namespace layers
+

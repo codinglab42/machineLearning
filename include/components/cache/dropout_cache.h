@@ -11,7 +11,6 @@ namespace layers {
         DropoutCache();
         ~DropoutCache() override = default;
         
-        // Implementazione interfaccia
         void clear() override;
         bool is_valid() const override;
         std::string get_type() const override { return "DropoutCache"; }
@@ -20,14 +19,12 @@ namespace layers {
         const Eigen::MatrixXd& get_output() const override { return output_cache; }
         bool has_activation() const override { return false; }
         
-        // Dati specifici del dropout
-        Eigen::MatrixXd input_cache;       // Input originale
-        Eigen::MatrixXd output_cache;       // Output dopo dropout
-        Eigen::MatrixXd mask;                // Maschera di dropout
+        Eigen::MatrixXd input_cache;
+        Eigen::MatrixXd output_cache;
+        Eigen::MatrixXd mask;
         
-        bool training;                       // Modalità training/inference
+        bool training;
         
-        // Accesso modificabile
         Eigen::MatrixXd& mutable_input() { return input_cache; }
         Eigen::MatrixXd& mutable_output() { return output_cache; }
         Eigen::MatrixXd& mutable_mask() { return mask; }
@@ -39,3 +36,4 @@ namespace layers {
 } // namespace layers
 
 #endif
+

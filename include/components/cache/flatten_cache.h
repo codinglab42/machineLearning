@@ -12,7 +12,6 @@ namespace layers {
         FlattenCache();
         ~FlattenCache() override = default;
         
-        // Implementazione interfaccia
         void clear() override;
         bool is_valid() const override;
         std::string get_type() const override { return "FlattenCache"; }
@@ -21,12 +20,10 @@ namespace layers {
         const Eigen::MatrixXd& get_output() const override { return output_cache; }
         bool has_activation() const override { return false; }
         
-        // Dati specifici del flatten
-        Eigen::MatrixXd input_cache;       // Input originale
-        Eigen::MatrixXd output_cache;       // Output flattened
-        std::vector<int> original_shape;    // Shape originale [batch, features]
+        Eigen::MatrixXd input_cache;
+        Eigen::MatrixXd output_cache;
+        std::vector<int> original_shape;
         
-        // Accesso modificabile
         Eigen::MatrixXd& mutable_input() { return input_cache; }
         Eigen::MatrixXd& mutable_output() { return output_cache; }
         std::vector<int>& mutable_shape() { return original_shape; }

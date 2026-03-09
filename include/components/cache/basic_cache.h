@@ -1,39 +1,26 @@
-#ifndef BASIC_CACHE_H
-#define BASIC_CACHE_H
+#ifndef LAYER_CACHE_H
+#define LAYER_CACHE_H
 
-#include "layer_cache.h"
+#include <Eigen/Dense>
+#include <string>
+#include <memory>
 
 namespace layers {
 
-    class BasicCache : public LayerCache {
+    class LayerCache {
     public:
-        BasicCache();
-        ~BasicCache() override = default;
+        virtual ~LayerCache() = default;
         
-        // Implementazione interfaccia
-        void clear() override;
-        bool is_valid() const override;
-        std::string get_type() const override { return "BasicCache"; }
+        virtual void clear() = 0;
+        virtual bool is_valid() const = 0;
+        virtual std::string get_type() const = 0;
         
-        const Eigen::MatrixXd& get_input() const override { return input_; }
-        const Eigen::MatrixXd& get_output() const override { return output_; }
-        bool has_activation() const override { return has_activation_; }
-        
-        // Setter per i dati (per i layer)
-        void set_input(const Eigen::MatrixXd& new_input) { input_ = new_input; }
-        void set_output(const Eigen::MatrixXd& new_output) { output_ = new_output; }
-        void set_has_activation(bool has) { has_activation_ = has; }
-        
-        // Accesso modificabile (per i layer che devono popolare la cache)
-        Eigen::MatrixXd& mutable_input() { return input_; }
-        Eigen::MatrixXd& mutable_output() { return output_; }
-
-    protected:
-        Eigen::MatrixXd input_;
-        Eigen::MatrixXd output_;
-        bool has_activation_;
+        virtual const Eigen::MatrixXd& get_input() const = 0;
+        virtual const Eigen::MatrixXd& get_output() const = 0;
+        virtual bool has_activation() const = 0;
     };
 
 } // namespace layers
 
 #endif
+

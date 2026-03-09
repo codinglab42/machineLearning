@@ -5,21 +5,20 @@
 #include <memory>
 #include <string>
 #include <iostream>
+#include "exceptions/exception_macros.h"
 
 namespace layers {
 
-    class LayerCache;  // forward declaration
+    class LayerCache;
 
     class Layer {
     public:
         virtual ~Layer() = default;
         
-        // Forward pass - versione base (obbligatoria)
+        // Forward pass
         virtual Eigen::MatrixXd forward(const Eigen::MatrixXd& input) = 0;
-        
-        // Forward con training mode (opzionale, default chiama forward base)
         virtual Eigen::MatrixXd forward(const Eigen::MatrixXd& input, bool training) {
-            return forward(input);  // default implementation
+            return forward(input);
         }
         
         // Backward pass
@@ -43,7 +42,7 @@ namespace layers {
         virtual int get_input_size() const = 0;
         virtual int get_output_size() const = 0;
         
-        // Cache management - versione con shared_ptr
+        // Cache management
         virtual void clear_cache() = 0;
         virtual std::shared_ptr<LayerCache> get_cache() const = 0;
         virtual void set_cache(std::shared_ptr<LayerCache> cache) = 0;
@@ -59,3 +58,4 @@ namespace layers {
 } // namespace layers
 
 #endif
+

@@ -5,15 +5,19 @@
 #include "exceptions/validation_exception.h"
 #include "exceptions/exception_macros.h"
 #include "utils/serializable.h"
-#include "components/optimizers/optimizer_factory.h"
 #include <algorithm>
 #include <numeric>
 #include <random>
 #include <fstream>
 #include <iostream>
+#include <stdexcept>
 
 namespace models {
 
+    //===========================================================================
+    // COSTRUTTORI
+    //===========================================================================
+    
     // Costruttore default
     NeuralNetwork::NeuralNetwork() 
         : loss_function_("mse"),
@@ -25,7 +29,7 @@ namespace models {
         optimizer_ = OptimizerFactory::create(OptimizerType::SGD, learning_rate_);
     }
 
-    // Costruttore con parametri - CORRETTO
+    // Costruttore con parametri
     NeuralNetwork::NeuralNetwork(const std::vector<int>& layer_sizes,
                                  const std::string& activation,
                                  const std::string& output_activation,
@@ -63,12 +67,12 @@ namespace models {
         if (!layers_.empty()) {
             int prev_output = layers_.back()->get_output_size();
             
-            if (auto* recurrent = dynamic_cast<layers::RecurrentLayer*>(layer.get())) {
-                recurrent->set_input_shape(prev_output);
-            }
+            // Imposta input shape per il nuovo layer
+            layer->set_input_shape(prev_output);
         }
         
         layers_.push_back(std::move(layer));
+        forward_cache_.resize(layers_.size());
     }
 
     void NeuralNetwork::add_layer(LayerType type, 
@@ -218,11 +222,11 @@ namespace models {
     std::unique_ptr<layers::Layer> NeuralNetwork::create_pooling_layer(
         int pool_size, int strides, const std::string& pool_type) {
         
-        layers::Pooling::PoolType type = (pool_type == "max") ? 
-            layers::Pooling::MAX : layers::Pooling::AVERAGE;
+        layers::PoolingLayer::PoolType type = (pool_type == "max") ? 
+            layers::PoolingLayer::MAX : layers::PoolingLayer::AVG;
         
-        int channels = 1;
-        return std::make_unique<layers::Pooling>(pool_size, strides, type, channels);
+        int channels = 1; // Da calcolare in base all'input
+        return std::make_unique<layers::PoolingLayer>(pool_size, strides, type, channels);
     }
 
     std::unique_ptr<layers::Layer> NeuralNetwork::create_recurrent_layer(
@@ -232,7 +236,7 @@ namespace models {
         int input_size = layers_.empty() ? n_features_ : layers_.back()->get_output_size();
         ML_CHECK_PARAM(input_size > 0, "input_size", "must be > 0", "NeuralNetwork");
         
-        std::unique_ptr<layers::RecurrentLayer> layer;
+        std::unique_ptr<layers::Layer> layer;
         
         switch (type) {
             case RecurrentType::SIMPLE_RNN:
@@ -250,7 +254,19 @@ namespace models {
     }
 
     //===========================================================================
-    // TRAINING
+    // TRAINING - OVERRIDE METHODS
+    //===========================================================================
+    
+    void NeuralNetwork::fit(const Eigen::MatrixXd& X, const Eigen::VectorXd& y) {
+        fit(X, y, 100, 32, true);
+    }
+
+    void NeuralNetwork::fit(const Eigen::MatrixXd& X, const Eigen::MatrixXd& y) {
+        fit(X, y, 100, 32, true);
+    }
+
+    //===========================================================================
+    // TRAINING - METODI CON PARAMETRI
     //===========================================================================
     
     void NeuralNetwork::fit(const Eigen::MatrixXd& X, const Eigen::VectorXd& y,
@@ -298,7 +314,10 @@ namespace models {
                 
                 double batch_loss = 0.0;
                 for (int k = 0; k < current_batch_size; ++k) {
-                    batch_loss += compute_loss(y_batch(k), y_pred.row(k));
+                    // Crea un vettore temporaneo per il singolo valore
+                    Eigen::VectorXd y_true_single(1);
+                    y_true_single(0) = y_batch(k);
+                    batch_loss += compute_loss(y_true_single, y_pred.row(k));
                 }
                 batch_loss /= current_batch_size;
                 epoch_loss += batch_loss * current_batch_size;
@@ -361,13 +380,16 @@ namespace models {
                 
                 double batch_loss = 0.0;
                 for (int k = 0; k < current_batch_size; ++k) {
-                    batch_loss += compute_loss(y_batch.row(k), y_pred.row(k));
+                    // Converti esplicitamente le righe in Eigen::VectorXd per disambiguare
+                    Eigen::VectorXd y_true_row = y_batch.row(k);
+                    Eigen::VectorXd y_pred_row = y_pred.row(k);
+                    batch_loss += compute_loss(y_true_row, y_pred_row);
                 }
                 batch_loss /= current_batch_size;
                 epoch_loss += batch_loss * current_batch_size;
                 
                 Eigen::MatrixXd gradient = (y_pred - y_batch) / current_batch_size;
-                for (int j = layers_.size() - 1; j >= 0; --j) {
+                for (int j = static_cast<int>(layers_.size()) - 1; j >= 0; --j) {
                     gradient = layers_[j]->backward(gradient, learning_rate_);
                 }
             }
@@ -390,11 +412,12 @@ namespace models {
         Eigen::MatrixXd activation = X;
         
         for (size_t i = 0; i < layers_.size(); ++i) {
-            // I layer gestiscono autonomamente la loro cache
             activation = layers_[i]->forward(activation, training);
             
-            // Se vuoi salvare riferimenti alle cache:
-            forward_cache_[i] = layers_[i]->get_cache();  // Se esiste metodo get_cache()
+            // Salva riferimento alla cache (opzionale)
+            if (i < forward_cache_.size()) {
+                forward_cache_[i] = layers_[i]->get_cache();
+            }
         }
         
         return activation;
@@ -402,23 +425,21 @@ namespace models {
 
     Eigen::VectorXd NeuralNetwork::backward_pass(const Eigen::VectorXd& y_true, 
                                               const Eigen::MatrixXd& y_pred) {
-        Eigen::MatrixXd gradient = (y_pred - y_true).transpose();
+        // Calcola gradiente iniziale
+        Eigen::MatrixXd gradient;
         
-        // Raccogli gradienti da tutti i layer
-        std::vector<Eigen::MatrixXd> layer_gradients;
-        if (regularizer_) {
-            for (size_t i = 0; i < layers_.size(); ++i) {
-                if (layers_[i]->has_weights()) {
-                    Eigen::MatrixXd reg_grad = regularizer_->compute_gradient(
-                        layers_[i]->get_weights());
-                    layer_gradients.push_back(reg_grad);
-                }
-            }
-        }           
-
-        // Usa optimizer per aggiornare i pesi
-        if (optimizer_) {
-            optimizer_->update(layers_, layer_gradients);
+        if (loss_function_ == "mse") {
+            gradient = 2.0 * (y_pred - y_true.transpose()) / y_true.size();
+        } else if (loss_function_ == "binary_crossentropy") {
+            gradient = (y_pred - y_true.transpose()).array() / 
+                      (y_pred.array() * (1.0 - y_pred.array()) + 1e-7);
+        } else {
+            gradient = y_pred - y_true.transpose();
+        }
+        
+        // Backpropagation attraverso i layer
+        for (int i = static_cast<int>(layers_.size()) - 1; i >= 0; --i) {
+            gradient = layers_[i]->backward(gradient, learning_rate_);
         }
         
         return gradient;
@@ -430,24 +451,26 @@ namespace models {
     
     double NeuralNetwork::compute_loss(const Eigen::VectorXd& y_true, 
                                         const Eigen::MatrixXd& y_pred) const {
-
         double data_loss = 0.0;
 
         if (loss_function_ == "mse") {
-            data_loss = (y_pred - y_true.traspose()).array().square().mean();
+            data_loss = (y_pred - y_true.transpose()).array().square().mean();
         } else if (loss_function_ == "binary_crossentropy") {
             Eigen::ArrayXd pred = y_pred.array();
             Eigen::ArrayXd true_val = y_true.array();
-            return -((true_val * pred.log() + (1 - true_val) * (1 - pred).log())).mean();
+            // Aggiungi epsilon per evitare log(0)
+            pred = pred.max(1e-7).min(1.0 - 1e-7);
+            data_loss = -((true_val * pred.log() + (1 - true_val) * (1 - pred).log())).mean();
         } else if (loss_function_ == "categorical_crossentropy") {
             Eigen::ArrayXd pred = y_pred.array();
             Eigen::ArrayXd true_val = y_true.array();
-            return -(true_val * pred.log()).sum() / y_true.size();
+            // Aggiungi epsilon per evitare log(0)
+            pred = pred.max(1e-7);
+            data_loss = -(true_val * pred.log()).sum() / y_true.size();
         }
 
         // Aggiungi regolarizzazione
         double reg_loss = 0.0;
-
         if (regularizer_) {
             for (const auto& layer : layers_) {
                 if (layer->has_weights()) {
@@ -457,6 +480,42 @@ namespace models {
         }
         
         return data_loss + reg_loss;
+    }
+
+    double NeuralNetwork::compute_loss(const Eigen::MatrixXd& y_true, 
+                                        const Eigen::MatrixXd& y_pred) const {
+        double data_loss = 0.0;
+
+        if (loss_function_ == "mse") {
+            data_loss = (y_pred - y_true).array().square().mean();
+        } else if (loss_function_ == "categorical_crossentropy") {
+            Eigen::ArrayXXd pred = y_pred.array().max(1e-7);
+            data_loss = -(y_true.array() * pred.log()).rowwise().sum().mean();
+        }
+
+        // Aggiungi regolarizzazione
+        double reg_loss = 0.0;
+        if (regularizer_) {
+            for (const auto& layer : layers_) {
+                if (layer->has_weights()) {
+                    reg_loss += regularizer_->compute_loss(layer->get_weights());
+                }
+            }
+        }
+        
+        return data_loss + reg_loss;
+    }
+
+    Eigen::MatrixXd NeuralNetwork::compute_loss_gradient(const Eigen::VectorXd& y_true, 
+                                                           const Eigen::MatrixXd& y_pred) const {
+        if (loss_function_ == "mse") {
+            return 2.0 * (y_pred - y_true.transpose()) / y_true.size();
+        } else if (loss_function_ == "binary_crossentropy") {
+            return (y_pred - y_true.transpose()).array() / 
+                   (y_pred.array() * (1.0 - y_pred.array()) + 1e-7);
+        } else {
+            return y_pred - y_true.transpose();
+        }
     }
 
     //===========================================================================
@@ -476,7 +535,7 @@ namespace models {
             for (int i = 0; i < X.rows(); ++i) {
                 Eigen::Index max_idx;
                 output.row(i).maxCoeff(&max_idx);
-                predictions(i) = max_idx;
+                predictions(i) = static_cast<double>(max_idx);
             }
             return predictions;
         }
@@ -489,6 +548,10 @@ namespace models {
         return forward_pass(X, false);
     }
 
+    //===========================================================================
+    // SCORE
+    //===========================================================================
+    
     double NeuralNetwork::score(const Eigen::MatrixXd& X, const Eigen::VectorXd& y) const {
         ML_CHECK_FITTED(fitted_, "NeuralNetwork");
         ML_CHECK_FEATURE_DIMENSIONS(X.cols(), n_features_, "NeuralNetwork");
@@ -497,11 +560,13 @@ namespace models {
         Eigen::VectorXd y_pred = predict(X);
         
         if (n_classes_ == 1) {
+            // R^2 score per regressione
             double y_mean = y.mean();
             double ss_tot = (y.array() - y_mean).square().sum();
             double ss_res = (y.array() - y_pred.array()).square().sum();
-            return 1.0 - (ss_res / ss_tot);
+            return 1.0 - (ss_res / (ss_tot + 1e-7));
         } else {
+            // Accuratezza per classificazione
             int correct = 0;
             for (int i = 0; i < y.size(); ++i) {
                 if (std::abs(y_pred(i) - y(i)) < 1e-6) correct++;
@@ -519,17 +584,7 @@ namespace models {
         if (!file.is_open()) {
             ML_THROW_IO_ERROR(filename, "save", "NeuralNetwork");
         }
-        
-        file.write(reinterpret_cast<const char*>(&n_features_), sizeof(int));
-        file.write(reinterpret_cast<const char*>(&n_classes_), sizeof(int));
-        file.write(reinterpret_cast<const char*>(&fitted_), sizeof(bool));
-        
-        size_t num_layers = layers_.size();
-        file.write(reinterpret_cast<const char*>(&num_layers), sizeof(size_t));
-        
-        for (const auto& layer : layers_) {
-            layer->serialize(file);
-        }
+        serialize_binary(file);
     }
 
     void NeuralNetwork::load(const std::string& filename) {
@@ -537,23 +592,76 @@ namespace models {
         if (!file.is_open()) {
             ML_THROW_IO_ERROR(filename, "load", "NeuralNetwork");
         }
+        deserialize_binary(file);
+    }
+
+    std::string NeuralNetwork::to_string() const {
+        std::string result = "NeuralNetwork(\n";
+        for (size_t i = 0; i < layers_.size(); ++i) {
+            result += "  Layer " + std::to_string(i) + ": " + 
+                      layers_[i]->get_config() + "\n";
+        }
+        result += ")";
+        return result;
+    }
+
+    void NeuralNetwork::serialize_binary(std::ostream& out) const {
+        out.write(reinterpret_cast<const char*>(&n_features_), sizeof(int));
+        out.write(reinterpret_cast<const char*>(&n_classes_), sizeof(int));
+        out.write(reinterpret_cast<const char*>(&fitted_), sizeof(bool));
         
-        file.read(reinterpret_cast<char*>(&n_features_), sizeof(int));
-        file.read(reinterpret_cast<char*>(&n_classes_), sizeof(int));
-        file.read(reinterpret_cast<char*>(&fitted_), sizeof(bool));
+        size_t num_layers = layers_.size();
+        out.write(reinterpret_cast<const char*>(&num_layers), sizeof(size_t));
+        
+        for (const auto& layer : layers_) {
+            std::string type = layer->get_type();
+            size_t type_len = type.size();
+            out.write(reinterpret_cast<const char*>(&type_len), sizeof(size_t));
+            out.write(type.c_str(), type_len);
+            layer->serialize(out);
+        }
+    }
+
+    void NeuralNetwork::deserialize_binary(std::istream& in) {
+        in.read(reinterpret_cast<char*>(&n_features_), sizeof(int));
+        in.read(reinterpret_cast<char*>(&n_classes_), sizeof(int));
+        in.read(reinterpret_cast<char*>(&fitted_), sizeof(bool));
         
         size_t num_layers;
-        file.read(reinterpret_cast<char*>(&num_layers), sizeof(size_t));
+        in.read(reinterpret_cast<char*>(&num_layers), sizeof(size_t));
         
         layers_.clear();
-        // Nota: qui dovresti implementare la deserializzazione dei layer
-        // in base al tipo salvato
+        for (size_t i = 0; i < num_layers; ++i) {
+            size_t type_len;
+            in.read(reinterpret_cast<char*>(&type_len), sizeof(size_t));
+            
+            std::string type(type_len, ' ');
+            in.read(&type[0], type_len);
+            
+            // Qui dovresti creare il layer in base al tipo
+            // Questo è un esempio semplificato
+            if (type == "Dense") {
+                auto layer = std::make_unique<layers::DenseLayer>(1, "relu", true);
+                layer->deserialize(in);
+                layers_.push_back(std::move(layer));
+            }
+            // Aggiungi altri tipi di layer...
+        }
+    }
+
+    std::string NeuralNetwork::get_model_type() const {
+        return "NeuralNetwork";
     }
 
     //===========================================================================
     // UTILITY
     //===========================================================================
     
+    void NeuralNetwork::set_regularizer(RegularizerType type, double strength,
+                                        const std::unordered_map<std::string, double>& params) {
+        regularizer_ = RegularizerFactory::create(type, strength, params);
+    }
+
     void NeuralNetwork::set_optimizer(OptimizerType type, double learning_rate) {
         learning_rate_ = learning_rate;
         optimizer_ = OptimizerFactory::create(type, learning_rate);

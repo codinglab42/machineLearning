@@ -1,19 +1,12 @@
 #include "components/cache/conv_cache.h"
-#include <stdexcept>
+#include "exceptions/exception_macros.h"
 
 namespace layers {
 
     ConvCache::ConvCache()
-        : input_height(0),
-          input_width(0),
-          input_channels(0),
-          output_height(0),
-          output_width(0),
-          filters(0),
-          batch_size(0),
-          kernel_size(0),
-          strides(1),
-          padding("valid") {
+        : input_height(0), input_width(0), input_channels(0),
+          output_height(0), output_width(0), filters(0),
+          batch_size(0), kernel_size(0), strides(1), padding("valid") {
         
         input_cache.resize(0, 0);
         z_cache.resize(0, 0);
@@ -43,24 +36,10 @@ namespace layers {
         if (input_cache.size() == 0 || output_cache.size() == 0) {
             return false;
         }
-        
-        if (input_height <= 0 || input_width <= 0 || input_channels <= 0) {
-            return false;
-        }
-        
-        if (output_height <= 0 || output_width <= 0 || filters <= 0) {
-            return false;
-        }
-        
-        if (batch_size <= 0) {
-            return false;
-        }
-        
         return validate_dimensions();
     }
 
     bool ConvCache::validate_dimensions() const {
-        // Verifica che le dimensioni siano coerenti
         int expected_input_size = batch_size * input_height * input_width * input_channels;
         if (input_cache.rows() != expected_input_size || input_cache.cols() != 1) {
             return false;
@@ -108,3 +87,4 @@ namespace layers {
     }
 
 } // namespace layers
+

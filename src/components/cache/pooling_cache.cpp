@@ -2,39 +2,36 @@
 
 namespace layers {
 
-    // MaxIndex implementation
-    PoolingCache::MaxIndex::MaxIndex() 
-        : batch(0), channel(0), output_row(0), output_col(0), input_index(-1) {}
-
-    PoolingCache::MaxIndex::MaxIndex(int b, int c, int orow, int ocol, int idx) 
-        : batch(b), channel(c), output_row(orow), output_col(ocol), input_index(idx) {}
-
-    // PoolingCache implementation
     PoolingCache::PoolingCache() 
-        : BasicCache(), input_height_(0), input_width_(0), channels_(0) {}
+        : training_(false), input_height(0), input_width(0), channels(0) {
+        input.resize(0, 0);
+        output.resize(0, 0);
+        max_indices_.clear();
+    }
 
     void PoolingCache::clear() {
-        BasicCache::clear();
+        input.resize(0, 0);
+        output.resize(0, 0);
         max_indices_.clear();
-        input_height_ = 0;
-        input_width_ = 0;
-        channels_ = 0;
+        training_ = false;
+        input_height = 0;
+        input_width = 0;
+        channels = 0;
     }
 
-    void PoolingCache::set_input_shape(int height, int width, int channels) {
-        input_height_ = height;
-        input_width_ = width;
-        channels_ = channels;
+    bool PoolingCache::is_valid() const {
+        if (input.size() == 0 || output.size() == 0) {
+            return false;
+        }
+        return validate_dimensions();
     }
 
-    void PoolingCache::add_max_index(const MaxIndex& index) {
-        max_indices_.push_back(index);
-    }
-
-    int PoolingCache::calculate_input_index(int batch, int channel, int h, int w) const {
-        return batch * (channels_ * input_height_ * input_width_) 
-            + channel * (input_height_ * input_width_) 
-            + h * input_width_ + w;
+    bool PoolingCache::validate_dimensions() const {
+        if (input.rows() <= 0 || input.cols() <= 0) return false;
+        if (output.rows() <= 0 || output.cols() <= 0) return false;
+        if (input.rows() != output.rows()) return false;
+        return true;
     }
 
 } // namespace layers
+

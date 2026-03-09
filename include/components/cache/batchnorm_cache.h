@@ -1,5 +1,5 @@
-#ifndef BATCHNORM_CACHE_H
-#define BATCHNORM_CACHE_H
+#ifndef BATCH_NORM_CACHE_H
+#define BATCH_NORM_CACHE_H
 
 #include "layer_cache.h"
 #include <Eigen/Dense>
@@ -11,7 +11,6 @@ namespace layers {
         BatchNormCache();
         ~BatchNormCache() override = default;
         
-        // Implementazione interfaccia
         void clear() override;
         bool is_valid() const override;
         std::string get_type() const override { return "BatchNormCache"; }
@@ -20,21 +19,15 @@ namespace layers {
         const Eigen::MatrixXd& get_output() const override { return output_cache; }
         bool has_activation() const override { return false; }
         
-        // Dati specifici batch normalization
-        Eigen::MatrixXd input_cache;       // Input originale
-        Eigen::MatrixXd output_cache;       // Output normalizzato
+        Eigen::MatrixXd input_cache;
+        Eigen::MatrixXd output_cache;
+        Eigen::MatrixXd x_centered;
+        Eigen::MatrixXd x_norm;
+        Eigen::VectorXd batch_mean;
+        Eigen::VectorXd batch_var;
+        Eigen::VectorXd inv_std;
+        bool training;
         
-        // Dati per backward pass
-        Eigen::MatrixXd x_centered;         // Input centrato (x - mean)
-        Eigen::MatrixXd x_norm;              // Input normalizzato
-        
-        Eigen::VectorXd batch_mean;          // Media del batch
-        Eigen::VectorXd batch_var;            // Varianza del batch
-        Eigen::VectorXd inv_std;              // 1 / sqrt(var + eps)
-        
-        bool training;                        // Modalità training/inference
-        
-        // Accesso modificabile
         Eigen::MatrixXd& mutable_input() { return input_cache; }
         Eigen::MatrixXd& mutable_output() { return output_cache; }
         Eigen::MatrixXd& mutable_x_centered() { return x_centered; }
@@ -50,3 +43,4 @@ namespace layers {
 } // namespace layers
 
 #endif
+

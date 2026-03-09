@@ -5,6 +5,7 @@
 #include <memory>
 #include <string>
 #include <random>
+#include <unordered_map>
 #include <Eigen/Dense>
 #include "estimator.h"
 #include "components/optimizers/optimizer.h"
@@ -22,8 +23,7 @@
 #include "components/layers/simple_rnn_layer.h"
 #include "components/layers/lstm_layer.h"
 #include "components/layers/gru_layer.h"
-#include "components/optimizers/optimizer.h"
-//#include "components/regularizers/regularizer.h"
+#include "components/cache/basic_cache.h"
 #include "exceptions/exception_macros.h"
 
 namespace models {
@@ -61,7 +61,7 @@ namespace models {
                      RegularizerType regularizer_type = RegularizerType::NONE,
                      double regularizer_strength = 0.01);
         
-        virtual ~NeuralNetwork() = default;
+        virtual ~NeuralNetwork() override = default;
 
         // Set regularizer
         void set_regularizer(RegularizerType type, double strength = 0.01,
@@ -93,16 +93,11 @@ namespace models {
                                 bool return_sequences = false,
                                 const std::string& activation = "tanh");
         
-        // Training - OVERRIDE CORRETTI (senza parametri di default)
-        void fit(const Eigen::MatrixXd& X, const Eigen::VectorXd& y) override {
-            fit(X, y, 100, 32, true);
-        }
+        // Training - NON usare override per metodi con parametri diversi
+        void fit(const Eigen::MatrixXd& X, const Eigen::VectorXd& y);
+        void fit(const Eigen::MatrixXd& X, const Eigen::MatrixXd& y);
         
-        void fit(const Eigen::MatrixXd& X, const Eigen::MatrixXd& y) override {
-            fit(X, y, 100, 32, true);
-        }
-        
-        // Metodi con parametri aggiuntivi (NON override)
+        // Metodi con parametri aggiuntivi
         void fit(const Eigen::MatrixXd& X, const Eigen::VectorXd& y,
                  int epochs, int batch_size, bool verbose);
         void fit(const Eigen::MatrixXd& X, const Eigen::MatrixXd& y,
@@ -110,16 +105,20 @@ namespace models {
     
         // PREDICT - const corretto
         Eigen::VectorXd predict(const Eigen::MatrixXd& X) const override;
-        
-        // predict_proba NON è virtuale in Estimator, quindi NON mettere override
         Eigen::MatrixXd predict_proba(const Eigen::MatrixXd& X) const;
     
         // SCORE
         double score(const Eigen::MatrixXd& X, const Eigen::VectorXd& y) const override;
     
         // Serialization
-        void save(const std::string& filename) const;
-        void load(const std::string& filename);
+        void save(const std::string& filename) const override;
+        void load(const std::string& filename) override;
+        
+        // Metodi ereditati da SerializableModel
+        std::string to_string() const override;
+        void serialize_binary(std::ostream& out) const override;
+        void deserialize_binary(std::istream& in) override;
+        std::string get_model_type() const override;
         
         // Getters
         int get_input_size() const { return n_features_; }
@@ -136,8 +135,8 @@ namespace models {
         void reset();
 
     protected:
-        // Forward/backward passes - RIMOSSO const da forward_pass
-        Eigen::MatrixXd forward_pass(const Eigen::MatrixXd& X, bool training = false);
+        // Forward/backward passes - forward_pass DICHIARATA const
+        Eigen::MatrixXd forward_pass(const Eigen::MatrixXd& X, bool training = false) const;
         Eigen::VectorXd backward_pass(const Eigen::VectorXd& y_true, const Eigen::MatrixXd& y_pred);
         
         // Loss functions
@@ -154,8 +153,8 @@ namespace models {
         std::unique_ptr<Optimizer> optimizer_;
         std::unique_ptr<Regularizer> regularizer_;
         
-        // Cache per forward/backward
-        std::vector<std::unique_ptr<layers::BasicCache>> forward_cache_;
+        // Cache per forward/backward (opzionale)
+        mutable std::vector<std::shared_ptr<layers::LayerCache>> forward_cache_;
             
         std::string loss_function_;
         double learning_rate_;
