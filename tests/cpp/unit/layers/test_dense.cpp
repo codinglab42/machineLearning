@@ -3,7 +3,7 @@
 #include <iostream>
 #include <iomanip>
 #include <memory>
-#include "components/layers/dense.h"
+#include "components/layers/dense_layer.h"
 
 using namespace Eigen;
 using namespace std;
@@ -25,7 +25,7 @@ protected:
     }
     
     // Calcolo gradiente numerico con finite differences
-    double numerical_gradient(layers::Dense& layer, 
+    double numerical_gradient(layers::DenseLayer& layer, 
                               const MatrixXd& X, 
                               const MatrixXd& target,
                               int weight_row, int weight_col,
@@ -57,7 +57,7 @@ TEST_F(DenseLayerTest, ConstructorAndDimensions) {
     int in_size = 5;
     int out_size = 3;
     
-    layers::Dense layer(in_size, out_size, "relu", 0.01, 0.001);
+    layers::DenseLayer layer(in_size, out_size, "relu", 0.01, 0.001);
     
     EXPECT_EQ(layer.get_input_size(), in_size);
     EXPECT_EQ(layer.get_output_size(), out_size);
@@ -76,7 +76,7 @@ TEST_F(DenseLayerTest, ForwardDimensions) {
     int out_size = 2;
     int batch_size = 4;
     
-    layers::Dense layer(in_size, out_size, "identity");
+    layers::DenseLayer layer(in_size, out_size, "identity");
     
     MatrixXd X = MatrixXd::Random(batch_size, in_size);
     MatrixXd output = layer.forward(X);
@@ -92,7 +92,7 @@ TEST_F(DenseLayerTest, ForwardComputation) {
     int in_size = 2;
     int out_size = 2;
     
-    layers::Dense layer(in_size, out_size, "identity");
+    layers::DenseLayer layer(in_size, out_size, "identity");
     
     // Set weights noti
     MatrixXd test_weights(out_size, in_size);
@@ -122,7 +122,7 @@ TEST_F(DenseLayerTest, ForwardReLU) {
     int in_size = 2;
     int out_size = 2;
     
-    layers::Dense layer(in_size, out_size, "relu");
+    layers::DenseLayer layer(in_size, out_size, "relu");
     
     // Pesci che possono dare output negativi
     MatrixXd test_weights(out_size, in_size);
@@ -145,7 +145,7 @@ TEST_F(DenseLayerTest, ForwardSigmoid) {
     int in_size = 2;
     int out_size = 2;
     
-    layers::Dense layer(in_size, out_size, "sigmoid");
+    layers::DenseLayer layer(in_size, out_size, "sigmoid");
     
     MatrixXd X = MatrixXd::Random(3, in_size);
     MatrixXd output = layer.forward(X);
@@ -157,7 +157,7 @@ TEST_F(DenseLayerTest, ForwardSigmoid) {
 
 // TEST 6: Gradient storage - verifica che i gradienti vengano calcolati
 TEST_F(DenseLayerTest, GradientStorage) {
-    layers::Dense layer(3, 2, "identity");
+    layers::DenseLayer layer(3, 2, "identity");
     
     MatrixXd X = MatrixXd::Random(2, 3);
     MatrixXd target = MatrixXd::Random(2, 2);
@@ -187,7 +187,7 @@ TEST_F(DenseLayerTest, GradientCheckIdentity) {
     double epsilon = 1e-5;
     double tolerance = 1e-4;
     
-    layers::Dense layer(in_size, out_size, "identity");
+    layers::DenseLayer layer(in_size, out_size, "identity");
     
     MatrixXd X = MatrixXd::Random(batch_size, in_size);
     MatrixXd target = MatrixXd::Random(batch_size, out_size);
@@ -243,7 +243,7 @@ TEST_F(DenseLayerTest, GradientCheckReLU) {
     double epsilon = 1e-5;
     double tolerance = 1e-3;
     
-    layers::Dense layer(in_size, out_size, "relu");
+    layers::DenseLayer layer(in_size, out_size, "relu");
     
     MatrixXd X = MatrixXd::Random(batch_size, in_size);
     MatrixXd target = MatrixXd::Random(batch_size, out_size);
@@ -294,7 +294,7 @@ TEST_F(DenseLayerTest, BatchGradient) {
     int out_size = 2;
     int batch_size = 3;
     
-    layers::Dense layer(in_size, out_size, "identity");
+    layers::DenseLayer layer(in_size, out_size, "identity");
     
     // Pesi fissi per test
     MatrixXd test_weights(out_size, in_size);
@@ -333,7 +333,7 @@ TEST_F(DenseLayerTest, L2Regularization) {
     double lambda = 0.1;
     
     // Layer con regolarizzazione L2
-    layers::Dense layer(in_size, out_size, "identity", 0.0, lambda);
+    layers::DenseLayer layer(in_size, out_size, "identity", 0.0, lambda);
     
     MatrixXd test_weights(out_size, in_size);
     test_weights << 1, 2,
@@ -364,7 +364,7 @@ TEST_F(DenseLayerTest, L1Regularization) {
     double lambda = 0.1;
     
     // Layer con regolarizzazione L1
-    layers::Dense layer(in_size, out_size, "identity", lambda, 0.0);
+    layers::DenseLayer layer(in_size, out_size, "identity", lambda, 0.0);
     
     MatrixXd test_weights(out_size, in_size);
     test_weights << 1, -2,
@@ -395,7 +395,7 @@ TEST_F(DenseLayerTest, L1Regularization) {
 
 // TEST 12: Clear gradients
 TEST_F(DenseLayerTest, ClearGradients) {
-    layers::Dense layer(3, 2, "identity");
+    layers::DenseLayer layer(3, 2, "identity");
     
     MatrixXd X = MatrixXd::Random(2, 3);
     MatrixXd target = MatrixXd::Random(2, 2);
@@ -420,7 +420,7 @@ TEST_F(DenseLayerTest, ClearGradients) {
 
 // TEST 13: Set weights resetta gradienti
 TEST_F(DenseLayerTest, SetWeightsResetsGradients) {
-    layers::Dense layer(3, 2, "identity");
+    layers::DenseLayer layer(3, 2, "identity");
     
     // Calcola gradienti
     MatrixXd X = MatrixXd::Random(2, 3);
@@ -448,7 +448,7 @@ TEST_F(DenseLayerTest, GradientPropagation) {
     int in_size = 3;
     int out_size = 2;
     
-    layers::Dense layer(in_size, out_size, "identity");
+    layers::DenseLayer layer(in_size, out_size, "identity");
     
     MatrixXd X = MatrixXd::Random(1, in_size);
     MatrixXd target = MatrixXd::Random(1, out_size);
@@ -470,7 +470,7 @@ TEST_F(DenseLayerTest, WeightUpdate) {
     int out_size = 2;
     double lr = 0.01;
     
-    layers::Dense layer(in_size, out_size, "identity");
+    layers::DenseLayer layer(in_size, out_size, "identity");
     
     MatrixXd weights_before = layer.get_weights();
     VectorXd biases_before = layer.get_biases();
@@ -494,7 +494,7 @@ TEST_F(DenseLayerTest, WeightUpdate) {
 
 // TEST 16: Serializzazione (test base)
 TEST_F(DenseLayerTest, Serialization) {
-    layers::Dense layer1(3, 2, "relu", 0.01, 0.001);
+    layers::DenseLayer layer1(3, 2, "relu", 0.01, 0.001);
     
     // Imposta pesi noti per test
     MatrixXd test_weights(2, 3);
@@ -511,7 +511,7 @@ TEST_F(DenseLayerTest, Serialization) {
     layer1.serialize(ss);
     
     // Deserializza in nuovo layer
-    layers::Dense layer2(1, 1, "identity");  // costruttore dummy
+    layers::DenseLayer layer2(1, 1, "identity");  // costruttore dummy
     layer2.deserialize(ss);
     
     // Verifica che i pesi siano uguali
@@ -524,7 +524,7 @@ TEST_F(DenseLayerTest, Serialization) {
 
 // TEST 17: Eccezioni - input dimensioni errate
 TEST_F(DenseLayerTest, InvalidInputDimensions) {
-    layers::Dense layer(3, 2, "identity");
+    layers::DenseLayer layer(3, 2, "identity");
     
     MatrixXd X_wrong = MatrixXd::Random(1, 4);  // 4 features invece di 3
     
@@ -534,7 +534,7 @@ TEST_F(DenseLayerTest, InvalidInputDimensions) {
 
 // TEST 18: Eccezioni - cache non inizializzata
 TEST_F(DenseLayerTest, UninitializedCache) {
-    layers::Dense layer(3, 2, "identity");
+    layers::DenseLayer layer(3, 2, "identity");
     
     MatrixXd dummy_grad = MatrixXd::Random(1, 2);
     

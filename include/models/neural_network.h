@@ -23,7 +23,7 @@
 #include "components/layers/simple_rnn_layer.h"
 #include "components/layers/lstm_layer.h"
 #include "components/layers/gru_layer.h"
-#include "components/cache/basic_cache.h"
+#include "components/cache/layer_cache.h"
 #include "exceptions/exception_macros.h"
 
 namespace models {
@@ -110,6 +110,30 @@ namespace models {
         // SCORE
         double score(const Eigen::MatrixXd& X, const Eigen::VectorXd& y) const override;
     
+        
+        // Training parameters
+        void set_batch_size(int batch_size) { batch_size_ = batch_size; }
+        void set_epochs(int epochs) { epochs_ = epochs; }
+        void set_validation_split(double split) { 
+            ML_CHECK_PARAM(split >= 0.0 && split < 1.0, "validation_split", 
+                        "must be in [0, 1)", "NeuralNetwork");
+            validation_split_ = split; 
+        }
+
+        // History getters
+        const std::vector<double>& get_loss_history() const { return loss_history_; }
+        const std::vector<double>& get_val_loss_history() const { return val_loss_history_; }
+        const std::vector<double>& get_accuracy_history() const { return accuracy_history_; }
+        std::tuple<std::vector<double>, std::vector<double>, std::vector<double>> get_training_history() const;
+
+
+        // Network info
+        void summary() const;
+        int get_num_layers() const { return layers_.size(); }
+        int get_num_parameters() const;
+
+
+
         // Serialization
         void save(const std::string& filename) const override;
         void load(const std::string& filename) override;
@@ -133,6 +157,7 @@ namespace models {
         
         // Reset
         void reset();
+        void reset_history() ;
 
     protected:
         // Forward/backward passes - forward_pass DICHIARATA const
@@ -152,6 +177,13 @@ namespace models {
         std::vector<std::unique_ptr<layers::Layer>> layers_;
         std::unique_ptr<Optimizer> optimizer_;
         std::unique_ptr<Regularizer> regularizer_;
+
+        std::vector<double> loss_history_;
+        std::vector<double> val_loss_history_;
+        std::vector<double> accuracy_history_;
+        int batch_size_;
+        int epochs_;
+        double validation_split_;
         
         // Cache per forward/backward (opzionale)
         mutable std::vector<std::shared_ptr<layers::LayerCache>> forward_cache_;

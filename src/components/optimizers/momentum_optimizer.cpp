@@ -1,5 +1,6 @@
 #include "components/optimizers/momentum_optimizer.h"
 #include "utils/serializable.h"
+#include <cmath>
 
 namespace models {
 
@@ -27,18 +28,18 @@ namespace models {
         double lr = get_current_learning_rate();
         initialize_if_needed(weights.rows(), weights.cols());
         
+        iterations_++;
+        
         // Aggiorna velocità
         velocity_w_ = momentum_ * velocity_w_ - lr * gradient;
         
         if (nesterov_) {
-            // Nesterov: anticipa la correzione
+            // Nesterov momentum
             weights += momentum_ * velocity_w_ - lr * gradient;
         } else {
-            // Momentum standard
+            // Standard momentum
             weights += velocity_w_;
         }
-        
-        iterations_++;
     }
 
     void MomentumOptimizer::update(Eigen::VectorXd& bias, const Eigen::VectorXd& gradient) {
@@ -63,30 +64,35 @@ namespace models {
     void MomentumOptimizer::serialize(std::ostream& out) const {
         Optimizer::serialize(out);
         
-        using namespace utils;
         out.write(reinterpret_cast<const char*>(&momentum_), sizeof(double));
-        out.write(reinterpret_cast<const char*>(&nesterov_), sizeof(bool));
         
-        serialize_matrix(out, velocity_w_);
-        serialize_vector(out, velocity_b_);
+        bool nesterov = nesterov_;
+        out.write(reinterpret_cast<const char*>(&nesterov), sizeof(bool));
+        
+        utils::eigen_utils::serialize_eigen(velocity_w_, out);
+        utils::eigen_utils::serialize_eigen_vector(velocity_b_, out);
     }
 
     void MomentumOptimizer::deserialize(std::istream& in) {
         Optimizer::deserialize(in);
         
-        using namespace utils;
         in.read(reinterpret_cast<char*>(&momentum_), sizeof(double));
-        in.read(reinterpret_cast<char*>(&nesterov_), sizeof(bool));
         
-        velocity_w_ = deserialize_matrix(in);
-        velocity_b_ = deserialize_vector(in);
+        bool nesterov;
+        in.read(reinterpret_cast<char*>(&nesterov), sizeof(bool));
+        nesterov_ = nesterov;
+        
+        utils::eigen_utils::deserialize_eigen(velocity_w_, in);
+        utils::eigen_utils::deserialize_eigen_vector(velocity_b_, in);
     }
 
     std::unique_ptr<Optimizer> MomentumOptimizer::clone() const {
         auto clone = std::make_unique<MomentumOptimizer>(learning_rate_, momentum_, decay_, nesterov_);
         clone->velocity_w_ = velocity_w_;
         clone->velocity_b_ = velocity_b_;
+        clone->iterations_ = iterations_;
         return clone;
     }
 
 } // namespace models
+

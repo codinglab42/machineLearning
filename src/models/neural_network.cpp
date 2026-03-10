@@ -25,7 +25,10 @@ namespace models {
           verbose_(false),
           n_features_(0),
           n_classes_(0),
-          fitted_(false) {
+          fitted_(false),
+          batch_size_(32),
+          epochs_(100),
+          validation_split_(0.0) {
         optimizer_ = OptimizerFactory::create(OptimizerType::SGD, learning_rate_);
     }
 
@@ -326,9 +329,21 @@ namespace models {
             }
             
             epoch_loss /= n_samples;
+        
+            // REGISTRA LA HISTORY
+            loss_history_.push_back(epoch_loss);
+            
+            if (validation_split_ > 0.0) {
+                // Calcola validation loss se necessario
+                // val_loss_history_.push_back(val_loss);
+            }
             
             if (verbose_ && epoch % 10 == 0) {
-                std::cout << "Epoch " << epoch << ", Loss: " << epoch_loss << std::endl;
+                std::cout << "Epoch " << epoch << ", Loss: " << epoch_loss;
+                if (!val_loss_history_.empty() && epoch < val_loss_history_.size()) {
+                    std::cout << ", Val Loss: " << val_loss_history_[epoch];
+                }
+                std::cout << std::endl;
             }
         }
         
@@ -395,9 +410,38 @@ namespace models {
             }
             
             epoch_loss /= n_samples;
+        
+            // REGISTRA LA HISTORY
+            loss_history_.push_back(epoch_loss);
+            
+            // Calcola accuracy se è un problema di classificazione
+            if (n_classes_ > 1) {
+                int correct = 0;
+                Eigen::MatrixXd predictions = forward_pass(X, false);
+                for (int i = 0; i < X.rows(); ++i) {
+                    Eigen::Index pred_idx, true_idx;
+                    predictions.row(i).maxCoeff(&pred_idx);
+                    y.row(i).maxCoeff(&true_idx);
+                    if (pred_idx == true_idx) correct++;
+                }
+                double accuracy = static_cast<double>(correct) / X.rows();
+                accuracy_history_.push_back(accuracy);
+            }
+            
+            if (validation_split_ > 0.0) {
+                // Calcola validation loss se necessario
+                // val_loss_history_.push_back(val_loss);
+            }
             
             if (verbose_ && epoch % 10 == 0) {
-                std::cout << "Epoch " << epoch << ", Loss: " << epoch_loss << std::endl;
+                std::cout << "Epoch " << epoch << ", Loss: " << epoch_loss;
+                if (!val_loss_history_.empty() && epoch < val_loss_history_.size()) {
+                    std::cout << ", Val Loss: " << val_loss_history_[epoch];
+                }
+                if (!accuracy_history_.empty() && epoch < accuracy_history_.size()) {
+                    std::cout << ", Acc: " << accuracy_history_[epoch];
+                }
+                std::cout << std::endl;
             }
         }
         
@@ -677,6 +721,63 @@ namespace models {
         layers_.clear();
         forward_cache_.clear();
         fitted_ = false;
+    }
+
+    void NeuralNetwork::reset_history() {
+        loss_history_.clear();
+        val_loss_history_.clear();
+        accuracy_history_.clear();
+    }
+
+    std::tuple<std::vector<double>, std::vector<double>, std::vector<double>> 
+    NeuralNetwork::get_training_history() const {
+        return std::make_tuple(loss_history_, val_loss_history_, accuracy_history_);
+    }
+
+    void NeuralNetwork::summary() const {
+        std::cout << "\n" << std::string(50, '=') << std::endl;
+        std::cout << "              NEURAL NETWORK SUMMARY" << std::endl;
+        std::cout << std::string(50, '=') << std::endl;
+        
+        std::cout << "Input size:          " << n_features_ << std::endl;
+        std::cout << "Output size:         " << n_classes_ << std::endl;
+        std::cout << "Number of layers:    " << layers_.size() << std::endl;
+        std::cout << "Total parameters:    " << get_num_parameters() << std::endl;
+        std::cout << "Loss function:       " << loss_function_ << std::endl;
+        std::cout << "Optimizer:           " << (optimizer_ ? optimizer_->get_type_str() : "none") << std::endl;
+        std::cout << "Learning rate:       " << learning_rate_ << std::endl;
+        std::cout << "Fitted:              " << (fitted_ ? "yes" : "no") << std::endl;
+        
+        if (batch_size_ > 0) {
+            std::cout << "Batch size:          " << batch_size_ << std::endl;
+        }
+        if (epochs_ > 0) {
+            std::cout << "Epochs:              " << epochs_ << std::endl;
+        }
+        if (validation_split_ > 0) {
+            std::cout << "Validation split:    " << validation_split_ << std::endl;
+        }
+        
+        std::cout << std::string(50, '-') << std::endl;
+        std::cout << "LAYER DETAILS:" << std::endl;
+        std::cout << std::string(50, '-') << std::endl;
+        
+        for (size_t i = 0; i < layers_.size(); ++i) {
+            std::cout << "Layer " << i << ": " << layers_[i]->get_config() << std::endl;
+            if (layers_[i]->has_weights()) {
+                std::cout << "  Parameters: " << layers_[i]->get_parameter_count() << std::endl;
+            }
+        }
+        
+        std::cout << std::string(50, '=') << "\n" << std::endl;
+    }
+
+    int NeuralNetwork::get_num_parameters() const {
+        int total = 0;
+        for (const auto& layer : layers_) {
+            total += layer->get_parameter_count();
+        }
+        return total;
     }
 
 } // namespace models

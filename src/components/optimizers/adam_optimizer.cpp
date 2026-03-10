@@ -42,11 +42,12 @@ namespace models {
         double m_correction = 1.0 / (1.0 - std::pow(beta1_, iterations_));
         double v_correction = 1.0 / (1.0 - std::pow(beta2_, iterations_));
         
-        // Aggiorna pesi
-        Eigen::MatrixXd denom = (v_w_.array().sqrt() / std::sqrt(v_correction)).matrix();
-        denom.array() += epsilon_;
+        // Aggiorna pesi - usando array() per operazioni elemento-per-elemento
+        Eigen::ArrayXXd m_corrected = m_w_.array() * m_correction;
+        Eigen::ArrayXXd v_corrected = v_w_.array() * v_correction;
+        Eigen::ArrayXXd denom = v_corrected.sqrt() + epsilon_;
         
-        weights -= lr * (m_w_ * m_correction).array() / denom.array();
+        weights -= lr * (m_corrected / denom).matrix();
     }
 
     void AdamOptimizer::update(Eigen::VectorXd& bias, const Eigen::VectorXd& gradient) {
@@ -59,10 +60,11 @@ namespace models {
         double m_correction = 1.0 / (1.0 - std::pow(beta1_, iterations_));
         double v_correction = 1.0 / (1.0 - std::pow(beta2_, iterations_));
         
-        Eigen::VectorXd denom = (v_b_.array().sqrt() / std::sqrt(v_correction)).matrix();
-        denom.array() += epsilon_;
+        Eigen::ArrayXd m_corrected = m_b_.array() * m_correction;
+        Eigen::ArrayXd v_corrected = v_b_.array() * v_correction;
+        Eigen::ArrayXd denom = v_corrected.sqrt() + epsilon_;
         
-        bias -= lr * (m_b_ * m_correction).array() / denom.array();
+        bias -= lr * (m_corrected / denom).matrix();
     }
 
     void AdamOptimizer::reset() {
@@ -76,29 +78,29 @@ namespace models {
     void AdamOptimizer::serialize(std::ostream& out) const {
         Optimizer::serialize(out);
         
-        using namespace utils;
         out.write(reinterpret_cast<const char*>(&beta1_), sizeof(double));
         out.write(reinterpret_cast<const char*>(&beta2_), sizeof(double));
         out.write(reinterpret_cast<const char*>(&epsilon_), sizeof(double));
         
-        serialize_matrix(out, m_w_);
-        serialize_matrix(out, v_w_);
-        serialize_vector(out, m_b_);
-        serialize_vector(out, v_b_);
+        // Usa le funzioni di eigen_utils
+        utils::eigen_utils::serialize_eigen(m_w_, out);
+        utils::eigen_utils::serialize_eigen(v_w_, out);
+        utils::eigen_utils::serialize_eigen_vector(m_b_, out);
+        utils::eigen_utils::serialize_eigen_vector(v_b_, out);
     }
 
     void AdamOptimizer::deserialize(std::istream& in) {
         Optimizer::deserialize(in);
         
-        using namespace utils;
         in.read(reinterpret_cast<char*>(&beta1_), sizeof(double));
         in.read(reinterpret_cast<char*>(&beta2_), sizeof(double));
         in.read(reinterpret_cast<char*>(&epsilon_), sizeof(double));
         
-        m_w_ = deserialize_matrix(in);
-        v_w_ = deserialize_matrix(in);
-        m_b_ = deserialize_vector(in);
-        v_b_ = deserialize_vector(in);
+        // Usa le funzioni di eigen_utils
+        utils::eigen_utils::deserialize_eigen(m_w_, in);
+        utils::eigen_utils::deserialize_eigen(v_w_, in);
+        utils::eigen_utils::deserialize_eigen_vector(m_b_, in);
+        utils::eigen_utils::deserialize_eigen_vector(v_b_, in);
     }
 
     std::unique_ptr<Optimizer> AdamOptimizer::clone() const {
@@ -107,6 +109,7 @@ namespace models {
         clone->v_w_ = v_w_;
         clone->m_b_ = m_b_;
         clone->v_b_ = v_b_;
+        clone->iterations_ = iterations_;
         return clone;
     }
 

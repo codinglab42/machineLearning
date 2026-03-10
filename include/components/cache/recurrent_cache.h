@@ -1,13 +1,13 @@
 #ifndef RECURRENT_CACHE_H
 #define RECURRENT_CACHE_H
 
-#include "basic_cache.h"
+#include "layer_cache.h"
 #include <vector>
 #include <Eigen/Dense>
 
 namespace layers {
 
-    class RecurrentCache : public BasicCache {
+    class RecurrentCache : public LayerCache {
     public:
         ~RecurrentCache() override = default;
         

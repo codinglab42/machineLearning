@@ -379,6 +379,9 @@ PYBIND11_MODULE(machine_learning_module, m) {
 
         .def("summary", &models::NeuralNetwork::summary, 
           "Print a summary of the network architecture")
+
+        .def("get_training_history", &models::NeuralNetwork::get_training_history,
+          "Returns tuple of (loss_history, val_loss_history, accuracy_history)")  
         
         .def("score", &models::NeuralNetwork::score,
              py::arg("X"), py::arg("y"),
