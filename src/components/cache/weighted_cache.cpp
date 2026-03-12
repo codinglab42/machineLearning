@@ -129,5 +129,20 @@ namespace layers {
         checkpoints_.clear();
     }
 
+
+    // Gestione pesi
+    void WeightedCache::set_weights(const Eigen::MatrixXd& w) { 
+        weights_ = w; 
+        // Ridimensiona tutti gli stati degli ottimizzatori
+        for (auto& pair : optimizer_states_) {
+            auto& state = pair.second;
+            state.momentum = Eigen::MatrixXd::Zero(weights_.rows(), weights_.cols());
+            state.first_moment = Eigen::MatrixXd::Zero(weights_.rows(), weights_.cols());
+            state.second_moment = Eigen::MatrixXd::Zero(weights_.rows(), weights_.cols());
+        }
+    }
+
+
+
 } // namespace layers
 

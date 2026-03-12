@@ -61,7 +61,7 @@ namespace layers {
         const Eigen::MatrixXd& get_z() const { return z_cache; }
         
         // Gestione pesi
-        void set_weights(const Eigen::MatrixXd& w) { weights_ = w; }
+        void set_weights(const Eigen::MatrixXd& w);
         void set_biases(const Eigen::VectorXd& b) { biases_ = b; }
         
         const Eigen::MatrixXd& get_weights() const { return weights_; }
