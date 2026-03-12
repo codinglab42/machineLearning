@@ -25,11 +25,8 @@ add_ml_test(test_cache_deep unit/cache/test_cache_deep.cpp)
 add_ml_test(test_cache_gemini unit/cache/test_cache_gemini.cpp)
 
 # Test Atomici sui Layer (Gradient Checking, Forward/Backward)
-add_ml_test(test_dense unit/layers/test_dense.cpp) 
-add_ml_test(test_polling unit/layers/test_polling.cpp) 
-add_ml_test(test_polling_layer unit/layers/test_polling_layer.cpp)
-add_ml_test(test_polling_layer_fixture unit/layers/test_polling_fixture.cpp)
-add_ml_test(test_polling_layer_performance unit/layers/test_polling_performance.cpp) 
+add_ml_test(test_layers_deep unit/layers/test_layers_deep.cpp)
+add_ml_test(test_layers_gemini unit/layers/test_layers_gemini.cpp)
 
 
 #c# Test per Math Utils
