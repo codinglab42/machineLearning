@@ -14,6 +14,8 @@ function(add_ml_test TEST_NAME SOURCES)
             ML::Library        # La tua libreria (usando l'alias)
             GTest::gtest_main  # Include il main() di GTest automaticamente
             GTest::gtest
+            GTest::gmock
+            GTest::gmock_main
     )
     add_test(NAME ${TEST_NAME} COMMAND ${TEST_NAME})
 endfunction()
@@ -25,7 +27,16 @@ add_ml_test(test_cache_deep unit/cache/test_cache_deep.cpp)
 add_ml_test(test_cache_gemini unit/cache/test_cache_gemini.cpp)
 
 # Test Atomici sui Layer (Gradient Checking, Forward/Backward)
-add_ml_test(test_layers_deep unit/layers/test_layers_deep.cpp)
+add_ml_test(test_layer_interface_deep unit/layers/test_layer_interface_deep.cpp)
+add_ml_test(test_batch_norm_layer_deep unit/layers/test_batch_norm_layer_deep.cpp)
+add_ml_test(test_dense_layer_deep unit/layers/test_dense_layer_deep.cpp)
+add_ml_test(test_conv2d_layer_deep unit/layers/test_conv2d_layer_deep.cpp)
+add_ml_test(test_dropout_layer_deep unit/layers/test_dropout_layer_deep.cpp)
+add_ml_test(test_flatten_layer_deep unit/layers/test_flatten_layer_deep.cpp)
+add_ml_test(test_pooling_layer_deep unit/layers/test_pooling_layer_deep.cpp)
+add_ml_test(test_simple_rnn_layer_deep unit/layers/test_simple_rnn_layer_deep.cpp)
+add_ml_test(test_gru_layer_deep unit/layers/test_gru_layer_deep.cpp)
+add_ml_test(test_lstm_layer_deep unit/layers/test_lstm_layer_deep.cpp)
 add_ml_test(test_layers_gemini unit/layers/test_layers_gemini.cpp)
 
 
