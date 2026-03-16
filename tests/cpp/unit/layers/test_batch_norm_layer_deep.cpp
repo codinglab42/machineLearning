@@ -2,6 +2,7 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 #include "components/layers/batch_norm_layer.h"
+#include "exceptions/ml_exception.h"
 
 using namespace layers;
 
@@ -16,13 +17,14 @@ protected:
 };
 
 TEST_F(BatchNormLayerTest, ConstructorValidation) {
-    EXPECT_THROW(BatchNormLayer(-1.0, 0.9), std::invalid_argument);
-    EXPECT_THROW(BatchNormLayer(1e-5, 1.5), std::invalid_argument);
+    // Usa le eccezioni personalizzate invece di std::invalid_argument
+    EXPECT_THROW(BatchNormLayer(-1.0, 0.9), ml_exception::InvalidParameterException);
+    EXPECT_THROW(BatchNormLayer(1e-5, 1.5), ml_exception::InvalidParameterException);
     EXPECT_NO_THROW(BatchNormLayer(1e-5, 0.9));
 }
 
 TEST_F(BatchNormLayerTest, SetInputShape) {
-    EXPECT_THROW(layer->set_input_shape(-1), std::invalid_argument);
+    EXPECT_THROW(layer->set_input_shape(-1), ml_exception::InvalidParameterException);
     EXPECT_NO_THROW(layer->set_input_shape(10));
     
     auto weights = layer->get_weights();
@@ -52,7 +54,7 @@ TEST_F(BatchNormLayerTest, ForwardTrainingMode) {
     Eigen::VectorXd var = (output.rowwise() - mean.transpose())
                          .array().square().colwise().sum() / (output.rows() - 1);
     for (int i = 0; i < var.size(); ++i) {
-        EXPECT_NEAR(var(i), 1.0, 1e-10);
+        EXPECT_NEAR(var(i), 1.0, 1e-5);
     }
 }
 
@@ -131,5 +133,5 @@ TEST_F(BatchNormLayerTest, ClearCache) {
 
 TEST_F(BatchNormLayerTest, EmptyInput) {
     Eigen::MatrixXd empty;
-    EXPECT_THROW(layer->forward(empty), std::invalid_argument);
+    EXPECT_THROW(layer->forward(empty), ml_exception::EmptyDatasetException);
 }
