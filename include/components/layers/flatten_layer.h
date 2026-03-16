@@ -30,7 +30,7 @@ namespace layers {
         int get_input_size() const override { return input_size_; }
         int get_output_size() const override { return input_size_; }
         
-        void clear_cache() override { if (cache_) cache_->clear(); }
+        void clear_cache() override { if (cache_) cache_.reset(); }
         std::shared_ptr<LayerCache> get_cache() const override { return cache_; }
         void set_cache(std::shared_ptr<LayerCache> cache) override { 
             cache_ = std::dynamic_pointer_cast<FlattenCache>(cache);
