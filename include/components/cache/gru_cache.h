@@ -14,6 +14,8 @@ namespace layers {
         
         std::string get_type() const override { return "GRUCache"; }
         
+        void clear() override;
+
         // Dati specifici GRU
         std::vector<Eigen::MatrixXd> reset_gates;   // Gate di reset
         std::vector<Eigen::MatrixXd> update_gates;  // Gate di update

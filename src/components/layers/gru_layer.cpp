@@ -258,11 +258,41 @@ namespace layers {
         return dX;
     }
 
+    void GRULayer::set_weights(const Eigen::MatrixXd& weights) {
+        int expected_cols = 3 * units_ + (use_bias_ ? 3 : 0);
+        if (weights.cols() != expected_cols) {
+            ML_THROW_PARAMETER_ERROR("weights", "invalid dimensions", "GRULayer");
+        }
+        
+        // Estrai kernel weights
+        kernel_r = weights.block(0, 0, input_size_, units_);
+        kernel_z = weights.block(0, units_, input_size_, units_);
+        kernel_h = weights.block(0, 2*units_, input_size_, units_);
+        
+        // Estrai recurrent weights
+        recurrent_r = weights.block(input_size_, 0, units_, units_);
+        recurrent_z = weights.block(input_size_, units_, units_, units_);
+        recurrent_h = weights.block(input_size_, 2*units_, units_, units_);
+        
+        if (use_bias_) {
+            // Estrai bias - assicurati che siano vettori colonna
+            bias_r = weights.col(3*units_);
+            bias_z = weights.col(3*units_ + 1);
+            bias_h = weights.col(3*units_ + 2);
+            
+            // Verifica che non ci siano NaN o Inf
+            if (bias_r.hasNaN() || bias_z.hasNaN() || bias_h.hasNaN()) {
+                ML_THROW_PARAMETER_ERROR("weights", "bias contains NaN", "GRULayer");
+            }
+        }
+    }
+
     Eigen::MatrixXd GRULayer::get_weights() const {
         int total_rows = kernel_r.rows() + recurrent_r.rows();
         int total_cols = 3 * units_ + (use_bias_ ? 3 : 0);
         
-        Eigen::MatrixXd weights(total_rows, total_cols);
+        // IMPORTANTE: Inizializza TUTTA la matrice a zero
+        Eigen::MatrixXd weights = Eigen::MatrixXd::Zero(total_rows, total_cols);
         
         // Kernel weights
         weights.block(0, 0, kernel_r.rows(), units_) = kernel_r;
@@ -275,33 +305,15 @@ namespace layers {
         weights.block(kernel_r.rows(), 2*units_, recurrent_h.rows(), units_) = recurrent_h;
         
         if (use_bias_) {
-            weights.col(3*units_) = bias_r;
-            weights.col(3*units_ + 1) = bias_z;
-            weights.col(3*units_ + 2) = bias_h;
+            // Verifica che le dimensioni siano corrette
+            if (weights.cols() >= 3*units_ + 3) {
+                weights.col(3*units_) = bias_r;
+                weights.col(3*units_ + 1) = bias_z;
+                weights.col(3*units_ + 2) = bias_h;
+            }
         }
         
         return weights;
-    }
-
-    void GRULayer::set_weights(const Eigen::MatrixXd& weights) {
-        int expected_cols = 3 * units_ + (use_bias_ ? 3 : 0);
-        if (weights.cols() != expected_cols) {
-            ML_THROW_PARAMETER_ERROR("weights", "invalid dimensions", "GRULayer");
-        }
-        
-        kernel_r = weights.block(0, 0, input_size_, units_);
-        kernel_z = weights.block(0, units_, input_size_, units_);
-        kernel_h = weights.block(0, 2*units_, input_size_, units_);
-        
-        recurrent_r = weights.block(input_size_, 0, units_, units_);
-        recurrent_z = weights.block(input_size_, units_, units_, units_);
-        recurrent_h = weights.block(input_size_, 2*units_, units_, units_);
-        
-        if (use_bias_) {
-            bias_r = weights.col(3*units_);
-            bias_z = weights.col(3*units_ + 1);
-            bias_h = weights.col(3*units_ + 2);
-        }
     }
 
     int GRULayer::get_parameter_count() const {
@@ -333,40 +345,48 @@ namespace layers {
     }
 
     void GRULayer::serialize(std::ostream& out) const {
-        out << get_config() << std::endl;
+        // Scrivi configurazione
+        std::string config = get_config();
+        size_t config_len = config.size() + 1;
+        out.write(reinterpret_cast<const char*>(&config_len), sizeof(size_t));
+        out.write(config.c_str(), config_len);
+        
+        // Scrivi parametri
         out.write(reinterpret_cast<const char*>(&units_), sizeof(int));
         out.write(reinterpret_cast<const char*>(&input_size_), sizeof(int));
         
         bool has_bias = use_bias_;
         out.write(reinterpret_cast<const char*>(&has_bias), sizeof(bool));
         
-        auto serialize_matrix = [&](const Eigen::MatrixXd& mat) {
-            for (int i = 0; i < mat.rows(); ++i) {
-                for (int j = 0; j < mat.cols(); ++j) {
-                    out.write(reinterpret_cast<const char*>(&mat(i, j)), sizeof(double));
-                }
-            }
-        };
+        // Scrivi attivazioni
+        size_t act_len = activation_.size() + 1;
+        out.write(reinterpret_cast<const char*>(&act_len), sizeof(size_t));
+        out.write(activation_.c_str(), act_len);
         
-        serialize_matrix(kernel_r);
-        serialize_matrix(kernel_z);
-        serialize_matrix(kernel_h);
+        size_t rec_act_len = recurrent_activation_.size() + 1;
+        out.write(reinterpret_cast<const char*>(&rec_act_len), sizeof(size_t));
+        out.write(recurrent_activation_.c_str(), rec_act_len);
         
-        serialize_matrix(recurrent_r);
-        serialize_matrix(recurrent_z);
-        serialize_matrix(recurrent_h);
+        // Ottieni la matrice dei pesi come verrà usata da get_weights()
+        Eigen::MatrixXd weights = get_weights();
         
-        if (use_bias_) {
-            for (int i = 0; i < bias_r.size(); ++i) out.write(reinterpret_cast<const char*>(&bias_r(i)), sizeof(double));
-            for (int i = 0; i < bias_z.size(); ++i) out.write(reinterpret_cast<const char*>(&bias_z(i)), sizeof(double));
-            for (int i = 0; i < bias_h.size(); ++i) out.write(reinterpret_cast<const char*>(&bias_h(i)), sizeof(double));
-        }
+        // Scrivi tutta la matrice in un colpo solo
+        int rows = weights.rows();
+        int cols = weights.cols();
+        out.write(reinterpret_cast<const char*>(&rows), sizeof(int));
+        out.write(reinterpret_cast<const char*>(&cols), sizeof(int));
+        out.write(reinterpret_cast<const char*>(weights.data()), 
+                rows * cols * sizeof(double));
     }
 
     void GRULayer::deserialize(std::istream& in) {
-        std::string config;
-        std::getline(in, config);
+        // Leggi configurazione
+        size_t config_len;
+        in.read(reinterpret_cast<char*>(&config_len), sizeof(size_t));
+        std::vector<char> config_buf(config_len);
+        in.read(config_buf.data(), config_len);
         
+        // Leggi parametri
         in.read(reinterpret_cast<char*>(&units_), sizeof(int));
         in.read(reinterpret_cast<char*>(&input_size_), sizeof(int));
         
@@ -374,32 +394,32 @@ namespace layers {
         in.read(reinterpret_cast<char*>(&has_bias), sizeof(bool));
         use_bias_ = has_bias;
         
-        auto deserialize_matrix = [&](Eigen::MatrixXd& mat, int rows, int cols) {
-            mat.resize(rows, cols);
-            for (int i = 0; i < mat.rows(); ++i) {
-                for (int j = 0; j < mat.cols(); ++j) {
-                    in.read(reinterpret_cast<char*>(&mat(i, j)), sizeof(double));
-                }
-            }
-        };
+        // Leggi attivazioni
+        size_t act_len;
+        in.read(reinterpret_cast<char*>(&act_len), sizeof(size_t));
+        std::vector<char> act_buf(act_len);
+        in.read(act_buf.data(), act_len);
+        activation_ = std::string(act_buf.data());
         
-        deserialize_matrix(kernel_r, input_size_, units_);
-        deserialize_matrix(kernel_z, input_size_, units_);
-        deserialize_matrix(kernel_h, input_size_, units_);
+        size_t rec_act_len;
+        in.read(reinterpret_cast<char*>(&rec_act_len), sizeof(size_t));
+        std::vector<char> rec_act_buf(rec_act_len);
+        in.read(rec_act_buf.data(), rec_act_len);
+        recurrent_activation_ = std::string(rec_act_buf.data());
         
-        deserialize_matrix(recurrent_r, units_, units_);
-        deserialize_matrix(recurrent_z, units_, units_);
-        deserialize_matrix(recurrent_h, units_, units_);
+        // Leggi la matrice dei pesi
+        int rows, cols;
+        in.read(reinterpret_cast<char*>(&rows), sizeof(int));
+        in.read(reinterpret_cast<char*>(&cols), sizeof(int));
         
-        if (use_bias_) {
-            bias_r.resize(units_);
-            bias_z.resize(units_);
-            bias_h.resize(units_);
-            
-            for (int i = 0; i < units_; ++i) in.read(reinterpret_cast<char*>(&bias_r(i)), sizeof(double));
-            for (int i = 0; i < units_; ++i) in.read(reinterpret_cast<char*>(&bias_z(i)), sizeof(double));
-            for (int i = 0; i < units_; ++i) in.read(reinterpret_cast<char*>(&bias_h(i)), sizeof(double));
-        }
+        Eigen::MatrixXd weights(rows, cols);
+        in.read(reinterpret_cast<char*>(weights.data()), rows * cols * sizeof(double));
+        
+        // Usa set_weights per impostare tutti i pesi
+        set_weights(weights);
+        
+        // Resetta lo stato
+        hidden_state_.resize(0, 0);
     }
 
     std::string GRULayer::get_config() const {
