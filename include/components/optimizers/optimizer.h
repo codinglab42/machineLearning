@@ -32,6 +32,7 @@ namespace models {
         
         // Getter/Setter
         double get_learning_rate() const { return learning_rate_; }
+        double get_current_learning_rate() const;
         void set_learning_rate(double lr) { learning_rate_ = lr; }
         
         double get_decay() const { return decay_; }
@@ -54,9 +55,7 @@ namespace models {
         double learning_rate_;
         double decay_;
         int iterations_;  // numero di iterazioni eseguite
-        
-        // Applica il decay al learning rate
-        double get_current_learning_rate() const;
+
     };
 
 } // namespace models

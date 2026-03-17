@@ -38,6 +38,8 @@ add_ml_test(test_simple_rnn_layer_deep unit/layers/test_simple_rnn_layer_deep.cp
 add_ml_test(test_gru_layer_deep unit/layers/test_gru_layer_deep.cpp)
 add_ml_test(test_lstm_layer_deep unit/layers/test_lstm_layer_deep.cpp)
 
+# Test sugli optimizers
+add_ml_test(test_optimizers_deep unit/optimizers/test_optimizers_deep.cpp)
 
 
 #c# Test per Math Utils

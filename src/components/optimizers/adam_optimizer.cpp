@@ -5,15 +5,38 @@
 namespace models {
 
     AdamOptimizer::AdamOptimizer(double learning_rate,
-                                 double beta1,
-                                 double beta2,
-                                 double epsilon,
-                                 double decay)
+                             double beta1,
+                             double beta2,
+                             double epsilon,
+                             double decay)
         : Optimizer(learning_rate, decay),
-          beta1_(beta1),
-          beta2_(beta2),
-          epsilon_(epsilon) {}
-
+        beta1_(beta1),
+        beta2_(beta2),
+        epsilon_(epsilon) {
+        
+        // Validazione learning rate (se non già fatto da Optimizer)
+        if (learning_rate <= 0.0) {
+            ML_THROW_PARAMETER_ERROR("learning_rate", "must be > 0", "AdamOptimizer");
+        }
+        
+        // Validazione decay (opzionale, può essere 0)
+        if (decay < 0.0) {
+            ML_THROW_PARAMETER_ERROR("decay", "must be >= 0", "AdamOptimizer");
+        }
+        
+        // Validazione parametri specifici di Adam
+        if (beta1 <= 0.0 || beta1 >= 1.0) {
+            ML_THROW_PARAMETER_ERROR("beta1", "must be in (0, 1)", "AdamOptimizer");
+        }
+        
+        if (beta2 <= 0.0 || beta2 >= 1.0) {
+            ML_THROW_PARAMETER_ERROR("beta2", "must be in (0, 1)", "AdamOptimizer");
+        }
+        
+        if (epsilon <= 0.0) {
+            ML_THROW_PARAMETER_ERROR("epsilon", "must be > 0", "AdamOptimizer");
+        }
+    }
     void AdamOptimizer::initialize_if_needed(int rows, int cols) {
         if (m_w_.rows() != rows || m_w_.cols() != cols) {
             m_w_ = Eigen::MatrixXd::Zero(rows, cols);
