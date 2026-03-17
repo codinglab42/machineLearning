@@ -41,6 +41,9 @@ add_ml_test(test_lstm_layer_deep unit/layers/test_lstm_layer_deep.cpp)
 # Test sugli optimizers
 add_ml_test(test_optimizers_deep unit/optimizers/test_optimizers_deep.cpp)
 
+# Test sui regularizers
+add_ml_test(test_reularizers_deep unit/regularizers/test_reularizers_deep.cpp)
+
 
 #c# Test per Math Utils
 #add_ml_test(test_math unit/test_math.cpp)
