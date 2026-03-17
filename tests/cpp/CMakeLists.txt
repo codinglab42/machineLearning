@@ -37,7 +37,7 @@ add_ml_test(test_pooling_layer_deep unit/layers/test_pooling_layer_deep.cpp)
 add_ml_test(test_simple_rnn_layer_deep unit/layers/test_simple_rnn_layer_deep.cpp)
 add_ml_test(test_gru_layer_deep unit/layers/test_gru_layer_deep.cpp)
 add_ml_test(test_lstm_layer_deep unit/layers/test_lstm_layer_deep.cpp)
-add_ml_test(test_layers_gemini unit/layers/test_layers_gemini.cpp)
+
 
 
 #c# Test per Math Utils

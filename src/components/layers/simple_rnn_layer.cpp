@@ -6,10 +6,10 @@
 namespace layers {
 
     SimpleRNNLayer::SimpleRNNLayer(int units, int input_size, 
-                                   const std::string& activation,
-                                   bool use_bias)
+                               const std::string& activation,
+                               bool use_bias)
         : units_(units), input_size_(input_size), activation_(activation), 
-          use_bias_(use_bias) {
+        use_bias_(use_bias) {
         
         ML_CHECK_PARAM(units > 0, "units", "must be > 0", "SimpleRNNLayer");
         ML_CHECK_PARAM(input_size > 0, "input_size", "must be > 0", "SimpleRNNLayer");
@@ -36,13 +36,13 @@ namespace layers {
         }
         
         if (use_bias_) {
-            bias_.setZero(units);
+            bias_.resize(units);
+            bias_.setZero();  // <-- DEVE ESSERE QUI
         }
         
         hidden_state_.resize(0, 0);
         cache_ = nullptr;
     }
-
     void SimpleRNNLayer::set_input_shape(int input_size) {
         ML_CHECK_PARAM(input_size > 0, "input_size", "must be > 0", "SimpleRNNLayer");
         input_size_ = input_size;
@@ -103,7 +103,7 @@ namespace layers {
         if (use_bias_) {
             z.rowwise() += bias_.transpose();
         }
-        
+          
         if (training) {
             cache_->z_values.push_back(z);
         }
@@ -202,21 +202,24 @@ namespace layers {
     }
 
     Eigen::MatrixXd SimpleRNNLayer::get_weights() const {
+        int total_rows = kernel_.rows() + recurrent_.rows();
         int total_cols = kernel_.cols() + recurrent_.cols();
         if (use_bias_) total_cols += 1;
         
-        Eigen::MatrixXd weights(kernel_.rows() + recurrent_.rows(), total_cols);
+        // Inizializza a ZERO tutta la matrice
+        Eigen::MatrixXd weights = Eigen::MatrixXd::Zero(total_rows, total_cols);
         
+        // Ora assegna i blocchi
         weights.block(0, 0, kernel_.rows(), kernel_.cols()) = kernel_;
         weights.block(0, kernel_.cols(), recurrent_.rows(), recurrent_.cols()) = recurrent_;
         
         if (use_bias_) {
-            weights.col(kernel_.cols() + recurrent_.cols()) = bias_;
+            weights.col(kernel_.cols() + recurrent_.cols()).head(bias_.size()) = bias_;
+            // Le righe rimanenti restano zero
         }
         
         return weights;
     }
-
     void SimpleRNNLayer::set_weights(const Eigen::MatrixXd& weights) {
         int expected_cols = kernel_.cols() + recurrent_.cols() + (use_bias_ ? 1 : 0);
         if (weights.cols() != expected_cols) {
@@ -247,25 +250,39 @@ namespace layers {
     }
 
     void SimpleRNNLayer::serialize(std::ostream& out) const {
-        out << get_config() << std::endl;
+        // Scrivi configurazione con lunghezza
+        std::string config = get_config();
+        size_t config_len = config.size() + 1;
+        out.write(reinterpret_cast<const char*>(&config_len), sizeof(size_t));
+        out.write(config.c_str(), config_len);
+        
+        // Scrivi parametri
         out.write(reinterpret_cast<const char*>(&units_), sizeof(int));
         out.write(reinterpret_cast<const char*>(&input_size_), sizeof(int));
         
         bool has_bias = use_bias_;
         out.write(reinterpret_cast<const char*>(&has_bias), sizeof(bool));
         
+        // Scrivi attivazione
+        size_t act_len = activation_.size() + 1;
+        out.write(reinterpret_cast<const char*>(&act_len), sizeof(size_t));
+        out.write(activation_.c_str(), act_len);
+        
+        // Scrivi kernel
         for (int i = 0; i < kernel_.rows(); ++i) {
             for (int j = 0; j < kernel_.cols(); ++j) {
                 out.write(reinterpret_cast<const char*>(&kernel_(i, j)), sizeof(double));
             }
         }
         
+        // Scrivi recurrent
         for (int i = 0; i < recurrent_.rows(); ++i) {
             for (int j = 0; j < recurrent_.cols(); ++j) {
                 out.write(reinterpret_cast<const char*>(&recurrent_(i, j)), sizeof(double));
             }
         }
         
+        // Scrivi bias se presenti
         if (use_bias_) {
             for (int i = 0; i < bias_.size(); ++i) {
                 out.write(reinterpret_cast<const char*>(&bias_(i)), sizeof(double));
@@ -274,9 +291,13 @@ namespace layers {
     }
 
     void SimpleRNNLayer::deserialize(std::istream& in) {
-        std::string config;
-        std::getline(in, config);
+        // Leggi configurazione
+        size_t config_len;
+        in.read(reinterpret_cast<char*>(&config_len), sizeof(size_t));
+        std::vector<char> config_buf(config_len);
+        in.read(config_buf.data(), config_len);
         
+        // Leggi parametri
         in.read(reinterpret_cast<char*>(&units_), sizeof(int));
         in.read(reinterpret_cast<char*>(&input_size_), sizeof(int));
         
@@ -284,26 +305,43 @@ namespace layers {
         in.read(reinterpret_cast<char*>(&has_bias), sizeof(bool));
         use_bias_ = has_bias;
         
+        // Leggi attivazione
+        size_t act_len;
+        in.read(reinterpret_cast<char*>(&act_len), sizeof(size_t));
+        std::vector<char> act_buf(act_len);
+        in.read(act_buf.data(), act_len);
+        activation_ = std::string(act_buf.data());
+        
+        // Ridimensiona matrici
         kernel_.resize(input_size_, units_);
+        recurrent_.resize(units_, units_);
+        if (use_bias_) {
+            bias_.resize(units_);
+        }
+        
+        // Leggi kernel
         for (int i = 0; i < kernel_.rows(); ++i) {
             for (int j = 0; j < kernel_.cols(); ++j) {
                 in.read(reinterpret_cast<char*>(&kernel_(i, j)), sizeof(double));
             }
         }
         
-        recurrent_.resize(units_, units_);
+        // Leggi recurrent
         for (int i = 0; i < recurrent_.rows(); ++i) {
             for (int j = 0; j < recurrent_.cols(); ++j) {
                 in.read(reinterpret_cast<char*>(&recurrent_(i, j)), sizeof(double));
             }
         }
         
+        // Leggi bias se presenti
         if (use_bias_) {
-            bias_.resize(units_);
             for (int i = 0; i < bias_.size(); ++i) {
                 in.read(reinterpret_cast<char*>(&bias_(i)), sizeof(double));
             }
         }
+        
+        // Resetta stato
+        hidden_state_.resize(0, 0);
     }
 
     std::string SimpleRNNLayer::get_config() const {
