@@ -53,4 +53,7 @@ add_ml_test(test_linear unit/models/test_linear.cpp)
 add_ml_test(test_logistic unit/models/test_logistic.cpp)
 add_ml_test(test_neural unit/models/test_neural.cpp)
 
+# Test integration
+add_ml_test(test_linear_regression_deep integration/test_linear_regression_deep.cpp)
+
 message(STATUS "✅ C++ tests configured")
