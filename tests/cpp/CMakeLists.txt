@@ -45,16 +45,12 @@ add_ml_test(test_optimizers_deep unit/optimizers/test_optimizers_deep.cpp)
 add_ml_test(test_reularizers_deep unit/regularizers/test_reularizers_deep.cpp)
 
 
-#c# Test per Math Utils
-#add_ml_test(test_math unit/test_math.cpp)
+# Test per Math Utils
+add_ml_test(test_math_utils_deep unit/utils/test_math_utils_deep.cpp)
 
-# Test per Linear Regression
+# Test per i Models
 add_ml_test(test_linear unit/models/test_linear.cpp)
-
-# Test per Logistic Regression
 add_ml_test(test_logistic unit/models/test_logistic.cpp)
-
-# Test per Neural Network
 add_ml_test(test_neural unit/models/test_neural.cpp)
 
 message(STATUS "✅ C++ tests configured")
