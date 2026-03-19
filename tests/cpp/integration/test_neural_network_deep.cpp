@@ -2,11 +2,9 @@
 #include <gmock/gmock.h>
 #include "models/neural_network.h"
 #include "utils/math_utils.h"
-#include "exceptions/ml_exception.h"
 
 using namespace models;
 using namespace utils;
-//using namespace ml;
 using namespace testing;
 
 class NeuralNetworkIntegrationTest : public ::testing::Test {
@@ -64,9 +62,9 @@ protected:
 };
 
 TEST_F(NeuralNetworkIntegrationTest, AND) {
-    NeuralNetwork network({2, 4, 1}, "relu", "sigmoid", OptimizerType::ADAM, 0.1);
+    NeuralNetwork network({2, 8, 1}, "relu", "sigmoid", OptimizerType::ADAM, 0.2);
     network.set_loss_function("binary_crossentropy");
-    network.set_epochs(500);
+    network.set_epochs(1000);
     network.set_batch_size(4);
     network.set_verbose(true);
     
@@ -83,9 +81,9 @@ TEST_F(NeuralNetworkIntegrationTest, AND) {
 }
 
 TEST_F(NeuralNetworkIntegrationTest, OR) {
-    NeuralNetwork network({2, 4, 1}, "relu", "sigmoid", OptimizerType::ADAM, 0.1);
+    NeuralNetwork network({2, 8, 1}, "relu", "sigmoid", OptimizerType::ADAM, 0.2);
     network.set_loss_function("binary_crossentropy");
-    network.set_epochs(500);
+    network.set_epochs(1000);
     network.set_batch_size(4);
     network.set_verbose(true);
     
@@ -102,22 +100,22 @@ TEST_F(NeuralNetworkIntegrationTest, OR) {
 }
 
 TEST_F(NeuralNetworkIntegrationTest, BinaryClassification) {
-    NeuralNetwork network({2, 8, 8, 1}, "relu", "sigmoid", OptimizerType::ADAM, 0.01);
+    NeuralNetwork network({2, 16, 8, 1}, "relu", "sigmoid", OptimizerType::ADAM, 0.05);
     network.set_loss_function("binary_crossentropy");
-    network.set_epochs(200);
-    network.set_batch_size(16);
+    network.set_epochs(500);
+    network.set_batch_size(32);
     network.set_verbose(true);
     
     network.fit(X_binary, y_binary);
     
     double score = network.score(X_binary, y_binary);
-    EXPECT_GT(score, 0.9);
+    EXPECT_GT(score, 0.95);
 }
 
 TEST_F(NeuralNetworkIntegrationTest, History) {
-    NeuralNetwork network({2, 8, 1}, "relu", "sigmoid", OptimizerType::ADAM, 0.1);
+    NeuralNetwork network({2, 8, 1}, "relu", "sigmoid", OptimizerType::ADAM, 0.2);
     network.set_loss_function("binary_crossentropy");
-    network.set_epochs(100);
+    network.set_epochs(200);
     network.set_batch_size(4);
     network.set_verbose(false);
     
@@ -129,9 +127,9 @@ TEST_F(NeuralNetworkIntegrationTest, History) {
 }
 
 TEST_F(NeuralNetworkIntegrationTest, PredictProba) {
-    NeuralNetwork network({2, 4, 1}, "relu", "sigmoid", OptimizerType::ADAM, 0.1);
+    NeuralNetwork network({2, 8, 1}, "relu", "sigmoid", OptimizerType::ADAM, 0.2);
     network.set_loss_function("binary_crossentropy");
-    network.set_epochs(100);
+    network.set_epochs(200);
     network.set_batch_size(4);
     network.set_verbose(false);
     
