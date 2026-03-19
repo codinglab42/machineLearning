@@ -674,32 +674,53 @@ namespace models {
     }
 
     void NeuralNetwork::deserialize_binary(std::istream& in) {
-        in.read(reinterpret_cast<char*>(&n_features_), sizeof(int));
-        in.read(reinterpret_cast<char*>(&n_classes_), sizeof(int));
-        in.read(reinterpret_cast<char*>(&fitted_), sizeof(bool));
+    in.read(reinterpret_cast<char*>(&n_features_), sizeof(int));
+    in.read(reinterpret_cast<char*>(&n_classes_), sizeof(int));
+    in.read(reinterpret_cast<char*>(&fitted_), sizeof(bool));
+    
+    size_t num_layers;
+    in.read(reinterpret_cast<char*>(&num_layers), sizeof(size_t));
+    
+    layers_.clear();
+    for (size_t i = 0; i < num_layers; ++i) {
+        size_t type_len;
+        in.read(reinterpret_cast<char*>(&type_len), sizeof(size_t));
         
-        size_t num_layers;
-        in.read(reinterpret_cast<char*>(&num_layers), sizeof(size_t));
+        // Leggi la stringa del tipo
+        std::vector<char> type_buf(type_len + 1, '\0');
+        in.read(type_buf.data(), type_len);
+        std::string type(type_buf.data());
         
-        layers_.clear();
-        for (size_t i = 0; i < num_layers; ++i) {
-            size_t type_len;
-            in.read(reinterpret_cast<char*>(&type_len), sizeof(size_t));
-            
-            std::string type(type_len, ' ');
-            in.read(&type[0], type_len);
-            
-            // Qui dovresti creare il layer in base al tipo
-            // Questo è un esempio semplificato
-            if (type == "Dense") {
-                auto layer = std::make_unique<layers::DenseLayer>(1, "relu", true);
-                layer->deserialize(in);
-                layers_.push_back(std::move(layer));
-            }
-            // Aggiungi altri tipi di layer...
+        std::cout << "Deserializing layer type: " << type << std::endl;  // Debug
+        
+        std::unique_ptr<layers::Layer> layer;
+        
+        if (type == "DenseLayer") {
+            layer = std::make_unique<layers::DenseLayer>(1, "relu", true);
+        } else if (type == "Conv2DLayer") {
+            layer = std::make_unique<layers::Conv2DLayer>(1, 3);
+        } else if (type == "FlattenLayer") {
+            layer = std::make_unique<layers::FlattenLayer>();
+        } else if (type == "DropoutLayer") {
+            layer = std::make_unique<layers::DropoutLayer>(0.5);
+        } else if (type == "BatchNormLayer") {
+            layer = std::make_unique<layers::BatchNormLayer>();
+        } else if (type == "SimpleRNNLayer") {
+            layer = std::make_unique<layers::SimpleRNNLayer>(1, 1);
+        } else if (type == "LSTMLayer") {
+            layer = std::make_unique<layers::LSTMLayer>(1, 1);
+        } else if (type == "GRULayer") {
+            layer = std::make_unique<layers::GRULayer>(1, 1);
+        } else if (type == "PoolingLayer") {
+            layer = std::make_unique<layers::PoolingLayer>(2, 2, layers::PoolingLayer::MAX, 1);
+        } else {
+            throw std::runtime_error("Unknown layer type: " + type);
         }
+        
+        layer->deserialize(in);
+        layers_.push_back(std::move(layer));
     }
-
+}
     std::string NeuralNetwork::get_model_type() const {
         return "NeuralNetwork";
     }
