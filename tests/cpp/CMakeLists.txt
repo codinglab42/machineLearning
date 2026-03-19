@@ -55,5 +55,8 @@ add_ml_test(test_neural unit/models/test_neural.cpp)
 
 # Test integration
 add_ml_test(test_linear_regression_deep integration/test_linear_regression_deep.cpp)
+add_ml_test(test_logistic_regression_deep integration/test_logistic_regression_deep.cpp)
+add_ml_test(test_neural_network_deep integration/test_neural_network_deep.cpp)
+add_ml_test(test_neural_network_debug_deep integration/test_neural_network_debug_deep.cpp)
 
 message(STATUS "✅ C++ tests configured")

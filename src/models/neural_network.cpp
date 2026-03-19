@@ -468,17 +468,17 @@ namespace models {
     }
 
     Eigen::VectorXd NeuralNetwork::backward_pass(const Eigen::VectorXd& y_true, 
-                                              const Eigen::MatrixXd& y_pred) {
+                                           const Eigen::MatrixXd& y_pred) {
         // Calcola gradiente iniziale
         Eigen::MatrixXd gradient;
         
         if (loss_function_ == "mse") {
-            gradient = 2.0 * (y_pred - y_true.transpose()) / y_true.size();
+            gradient = 2.0 * (y_pred - y_true) / y_true.size();  // Togli .transpose()
         } else if (loss_function_ == "binary_crossentropy") {
-            gradient = (y_pred - y_true.transpose()).array() / 
-                      (y_pred.array() * (1.0 - y_pred.array()) + 1e-7);
+            gradient = (y_pred - y_true).array() / 
+                    (y_pred.array() * (1.0 - y_pred.array()) + 1e-7);  // Togli .transpose()
         } else {
-            gradient = y_pred - y_true.transpose();
+            gradient = y_pred - y_true;  // Togli .transpose()
         }
         
         // Backpropagation attraverso i layer
@@ -531,10 +531,17 @@ namespace models {
         double data_loss = 0.0;
 
         if (loss_function_ == "mse") {
-            data_loss = (y_pred - y_true).array().square().mean();
+            data_loss = (y_pred - y_true).array().square().mean();  // Togli .transpose()
+        } else if (loss_function_ == "binary_crossentropy") {
+            Eigen::ArrayXd pred = y_pred.array();
+            Eigen::ArrayXd true_val = y_true.array();
+            pred = pred.max(1e-7).min(1.0 - 1e-7);
+            data_loss = -((true_val * pred.log() + (1 - true_val) * (1 - pred).log())).mean();
         } else if (loss_function_ == "categorical_crossentropy") {
-            Eigen::ArrayXXd pred = y_pred.array().max(1e-7);
-            data_loss = -(y_true.array() * pred.log()).rowwise().sum().mean();
+            Eigen::ArrayXd pred = y_pred.array();
+            Eigen::ArrayXd true_val = y_true.array();
+            pred = pred.max(1e-7);
+            data_loss = -(true_val * pred.log()).sum() / y_true.size();
         }
 
         // Aggiungi regolarizzazione
