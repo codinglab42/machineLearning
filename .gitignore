@@ -27,6 +27,7 @@ lib/*.cpython
 # Cartelle e file di cache di Python
 __pycache__/
 *.pyc
+.pytest_cache
 
 # Ignora l'ambiente virtuale (anche se pyenv gestisce versioni isolate, è buona norma)
 venv/
