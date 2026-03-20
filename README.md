@@ -36,9 +36,72 @@ A modern, high-performance machine learning library written in C++ with Python b
 ## 🚀 Installation
 
 ### Prerequisites
-```bash
+
 # Ubuntu/Debian
 sudo apt-get install build-essential cmake python3-dev
 
 # pyenv for Python (optional)
 curl [https://pyenv.run](https://pyenv.run) | bash
+
+### Build
+
+git clone [https://github.com/codinglab42/machineLearning.git](https://github.com/codinglab42/machineLearning.git)
+cd machineLearning
+./build.sh
+
+### Python (with pyenv)
+
+pyenv install 3.11.14
+pyenv virtualenv 3.11.14 ai-devel
+pyenv activate ai-devel
+pip install pytest numpy
+./build.sh
+
+## 📖 Examples
+###Linear Regression in C++
+include "models/linear_regression.h"
+
+// Create and train model
+LinearRegression model(0.01, 1000);
+model.fit(X, y);
+
+// Predict
+Eigen::VectorXd y_pred = model.predict(X_test);
+double r2 = model.score(X_test, y_test);
+
+### Logistic Regression in Python
+import machine_learning_module as ml
+import numpy as np
+
+# Create model
+model = ml.LogisticRegression(0.1, 1000, 0.001)
+model.fit(X_train, y_train)
+
+# Predict
+y_pred = model.predict_class(X_test)
+accuracy = model.score(X_test, y_test)
+
+## 📁 Project Structure
+machineLearning/
+├── include/          # Header files
+├── src/              # Source files
+├── tests/
+│   ├── cpp/          # Unit and integration tests
+│   └── python/       # Python binding tests
+├── build.sh          # Build script
+└── CMakeLists.txt    # CMake configuration
+
+## 🤝 Contributing
+1. Fork the project
+2. Create a branch (git checkout -b feature/AmazingFeature)
+3. Commit your changes (git commit -m 'Add AmazingFeature')
+4. Push to the branch (git push origin feature/AmazingFeature)
+5. Open a Pull Request
+
+## 📝 License
+Distributed under the MIT License. See LICENSE for more information.
+
+## 📧 Contact
+**Maurizio Penna** - mauriziopenna@gmail.com
+**Project Link**: https://github.com/codinglab42/machineLearning
+
