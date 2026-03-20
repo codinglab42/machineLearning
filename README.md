@@ -37,29 +37,36 @@ A modern, high-performance machine learning library written in C++ with Python b
 
 ### Prerequisites
 
-# Ubuntu/Debian
-sudo apt-get install build-essential cmake python3-dev
-
-# pyenv for Python (optional)
-curl [https://pyenv.run](https://pyenv.run) | bash
+**Ubuntu/Debian**
+```
+   sudo apt-get install build-essential cmake python3-dev
+```
+**pyenv for Python (optional)**
+   curl [https://pyenv.run](https://pyenv.run) | bash
 
 ### Build
-
-git clone [https://github.com/codinglab42/machineLearning.git](https://github.com/codinglab42/machineLearning.git)
-cd machineLearning
-./build.sh
+```
+   git clone [https://github.com/codinglab42/machineLearning.git](https://github.com/codinglab42/machineLearning.git)
+   cd machineLearning
+   ./build.sh
+```
 
 ### Python (with pyenv)
-
-pyenv install 3.11.14
-pyenv virtualenv 3.11.14 ai-devel
-pyenv activate ai-devel
-pip install pytest numpy
-./build.sh
+```
+   pyenv install 3.11.14
+   pyenv virtualenv 3.11.14 ai-devel
+   pyenv activate ai-devel
+   pip install pytest numpy
+   ./build.sh
+```
 
 ## 📖 Examples
-###Linear Regression in C++
-include "models/linear_regression.h"
+### Linear Regression in C++
+```
+c++
+```
+```
+#include "models/linear_regression.h"
 
 // Create and train model
 LinearRegression model(0.01, 1000);
@@ -68,8 +75,13 @@ model.fit(X, y);
 // Predict
 Eigen::VectorXd y_pred = model.predict(X_test);
 double r2 = model.score(X_test, y_test);
+```
 
 ### Logistic Regression in Python
+```
+python
+```
+```
 import machine_learning_module as ml
 import numpy as np
 
@@ -80,16 +92,20 @@ model.fit(X_train, y_train)
 # Predict
 y_pred = model.predict_class(X_test)
 accuracy = model.score(X_test, y_test)
+```
 
 ## 📁 Project Structure
-machineLearning/
-├── include/          # Header files
-├── src/              # Source files
-├── tests/
-│   ├── cpp/          # Unit and integration tests
-│   └── python/       # Python binding tests
-├── build.sh          # Build script
-└── CMakeLists.txt    # CMake configuration
+```
+machineLearning
+├── include          # Header files
+├── src              # Source files
+├── pybinding        # Python Binding
+├── tests
+│   ├── cpp          # Unit and integration tests
+│   └── python       # Python binding tests
+├── build.sh         # Build script
+└── CMakeLists.txt   # CMake configuration
+```
 
 ## 🤝 Contributing
 1. Fork the project
@@ -102,6 +118,6 @@ machineLearning/
 Distributed under the MIT License. See LICENSE for more information.
 
 ## 📧 Contact
-**Maurizio Penna** - mauriziopenna@gmail.com
+**Maurizio Penna** - mauriziopenna@gmail.com  
 **Project Link**: https://github.com/codinglab42/machineLearning
 
