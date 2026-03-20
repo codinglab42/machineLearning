@@ -22,7 +22,7 @@
 ./build.sh
 # Library will be in build/lib/
 ```
-Python (via pyenv)
+### Python (via pyenv)
 ```bash
 pyenv activate ai-devel
 pip install -r tests/python/requirements.txt
@@ -122,10 +122,12 @@ params = {"beta1": 0.9, "beta2": 0.999, "epsilon": 1e-8}
 optimizer = ml.OptimizerFactory.create("adam", 0.001, params)
 ```
 ### Regularizers
-Type	Description	Formula
-L1	Lasso	λ * Σ|w|
-L2	Ridge	λ/2 * Σw²
-Elastic Net	L1 + L2 combination	λ * (α*L1 + (1-α)*L2)
+| Type | Description | Formula |  
+| :--- | :--- | :--- |  
+| L1 | Lasso | λ * Σ|w| |  
+| L2 | Ridge | λ/2 * Σw² |  
+| Elastic Net | L1 + L2 combination | λ * (α*L1 + (1-α)*L2) |
+
 Usage in Python:
 
 ```python
