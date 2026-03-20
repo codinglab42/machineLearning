@@ -42,6 +42,7 @@ namespace models {
         double intercept() const { return (theta_.size() > 0) ? theta_(0) : 0.0; }
         const std::vector<double>& cost_history() const { return cost_history_; }
         const std::vector<double>& accuracy_history() const { return accuracy_history_; }
+        int get_n_iter() const { return n_iter_; }
         
         // Setters con validazione
         void set_max_iterations(int max_iter);
