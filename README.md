@@ -1,6 +1,6 @@
 # ML Library - Machine Learning in C++
 
-[![Build Status](https://github.com/tuo-username/machineLearning/actions/workflows/build.yml/badge.svg)](https://github.com/tuo-username/machineLearning/actions/workflows/build.yml)
+[![Build Status](https://github.com/codinglab42/machineLearning/actions/workflows/build.yml/badge.svg)](https://github.com/codinglab42/machineLearning/actions/workflows/build.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![C++14](https://img.shields.io/badge/C++-14-blue.svg)](https://en.cppreference.com/w/cpp/14)
 [![Python 3.11+](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://www.python.org/)
