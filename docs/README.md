@@ -1,8 +1,6 @@
 
-### 2. **docs/README.md** - Detailed Documentation
-
-```markdown
 # ML Library Documentation
+### Detailed Documentation
 
 ## Table of Contents
 1. [Installation](#installation)
@@ -23,14 +21,15 @@
 ```bash
 ./build.sh
 # Library will be in build/lib/
-
+```
 Python (via pyenv)
-bash
+```bash
 pyenv activate ai-devel
 pip install -r tests/python/requirements.txt
-Models
-Linear Regression
-cpp
+```
+### Models
+**Linear Regression**
+```cpp
 // C++ example
 LinearRegression model(learning_rate=0.01, max_iter=1000, lambda=0.0, solver=GRADIENT_DESCENT);
 model.fit(X, y);
@@ -51,9 +50,9 @@ max_iter: Maximum number of iterations (default: 1000)
 lambda: L2 regularization strength (default: 0.0)
 
 solver: Solver type (GRADIENT_DESCENT, NORMAL_EQUATION, SVD)
-
-Logistic Regression
-cpp
+```
+**Logistic Regression**
+```cpp
 LogisticRegression model(learning_rate=0.1, max_iter=1000, lambda=0.001);
 model.fit(X, y);
 Eigen::VectorXd y_proba = model.predict(X_test);
@@ -69,9 +68,9 @@ max_iter: Maximum iterations (default: 1000)
 lambda: L2 regularization strength (default: 0.001)
 
 tolerance: Convergence tolerance (default: 1e-4)
-
-Neural Network
-cpp
+```
+**Neural Network**
+```cpp
 // Create network
 NeuralNetwork network({input_size, hidden1, hidden2, output_size}, 
                       "relu", "softmax", OptimizerType::ADAM, 0.01);
@@ -100,15 +99,17 @@ output_activation: Output layer activation ("softmax", "sigmoid", "linear")
 optimizer_type: Optimizer type (SGD, MOMENTUM, ADAM)
 
 learning_rate: Learning rate (default: 0.01)
+```
+### Optimizers
+| Type | Description | Parameters |  
+| :--- | :--- | :--- |  
+| **SGD** | Stochastic Gradient Descent | learning_rate, decay |  
+| **Momentum** | SGD with momentum | learning_rate, momentum, decay, nesterov |  
+| **Adam** |	Adaptive Moment Estimation | learning_rate, beta1, beta2, epsilon, decay |  
 
-Optimizers
-Type	Description	Parameters
-SGD	Stochastic Gradient Descent	learning_rate, decay
-Momentum	SGD with momentum	learning_rate, momentum, decay, nesterov
-Adam	Adaptive Moment Estimation	learning_rate, beta1, beta2, epsilon, decay
 Usage in Python:
 
-python
+```python
 # SGD
 optimizer = ml.OptimizerFactory.create("sgd", 0.01)
 
@@ -119,14 +120,15 @@ optimizer = ml.OptimizerFactory.create("momentum", 0.01, params)
 # Adam
 params = {"beta1": 0.9, "beta2": 0.999, "epsilon": 1e-8}
 optimizer = ml.OptimizerFactory.create("adam", 0.001, params)
-Regularizers
+```
+### Regularizers
 Type	Description	Formula
 L1	Lasso	λ * Σ|w|
 L2	Ridge	λ/2 * Σw²
 Elastic Net	L1 + L2 combination	λ * (α*L1 + (1-α)*L2)
 Usage in Python:
 
-python
+```python
 # L1
 reg = ml.RegularizerFactory.create("l1", 0.01)
 
@@ -136,35 +138,40 @@ reg = ml.RegularizerFactory.create("l2", 0.01)
 # Elastic Net
 params = {"l1_ratio": 0.5}
 reg = ml.RegularizerFactory.create("elastic_net", 0.01, params)
-Layers
-Dense Layer
+```
+### Layers
+**Dense Layer**
 Fully connected layer with configurable activation.
 
-cpp
+```cpp
 auto dense = std::make_unique<layers::DenseLayer>(units, "relu", true);
 dense->set_input_shape(input_size);
-Convolutional Layer
+```
+**Convolutional Layer**
 2D convolution for image processing.
 
-cpp
+```cpp
 auto conv = std::make_unique<layers::Conv2DLayer>(filters, kernel_size, strides, "valid", "relu");
 conv->set_input_shape(input_size);
-Pooling Layer
+```
+**Pooling Layer**
 Max or average pooling for downsampling.
 
-cpp
+```cpp
 auto pool = std::make_unique<layers::PoolingLayer>(pool_size, stride, layers::PoolingLayer::MAX, channels);
-Recurrent Layers
+```
+**Recurrent Layers**
 RNN, LSTM, and GRU for sequence data.
 
-cpp
+```cpp
 auto rnn = std::make_unique<layers::SimpleRNNLayer>(units, input_size);
 auto lstm = std::make_unique<layers::LSTMLayer>(units, input_size);
 auto gru = std::make_unique<layers::GRULayer>(units, input_size);
-Python Bindings
+```
+### Python Bindings
 All C++ classes are exposed to Python with a clean API:
 
-python
+```python
 import machine_learning_module as ml
 import numpy as np
 
@@ -183,9 +190,10 @@ network = ml.NeuralNetwork([2, 8, 1], "relu", "sigmoid")
 network.set_loss_function("binary_crossentropy")
 network.set_epochs(500)
 network.fit(X, y)
-Examples
-Example 1: Iris Classification with Logistic Regression
-python
+```
+## Examples
+### Example 1: Iris Classification with Logistic Regression
+```python
 import machine_learning_module as ml
 import numpy as np
 
@@ -211,8 +219,9 @@ print(f"Accuracy: {accuracy:.4f}")
 cm = model.confusion_matrix(X_test, y_test)
 print("Confusion Matrix:")
 print(cm)
-Example 2: XOR with Neural Network
-python
+```
+### Example 2: XOR with Neural Network
+```python
 import machine_learning_module as ml
 import numpy as np
 
@@ -233,8 +242,9 @@ network.fit(X, y)
 y_pred = network.predict(X)
 print("Predictions:", (y_pred > 0.5).astype(int).flatten())
 print("True values:", y.astype(int))
-Example 3: Boston Housing with Linear Regression
-python
+```
+### Example 3: Boston Housing with Linear Regression
+```python
 import machine_learning_module as ml
 import numpy as np
 
@@ -256,10 +266,11 @@ r2 = model.score(X_scaled, y)
 print(f"R² Score: {r2:.4f}")
 print(f"Coefficients: {model.coefficients}")
 print(f"Intercept: {model.intercept}")
-API Reference
+```
+### API Reference
 For complete API documentation, see the Doxygen-generated documentation.
 
-Performance Tips
+### Performance Tips
 Use Normal Equation for small datasets (< 10k samples) with linear regression
 
 Use Gradient Descent for large datasets with appropriate learning rate
@@ -270,13 +281,13 @@ Use Adam optimizer for most neural network tasks
 
 Enable OpenMP for better performance on multi-core systems
 
-Troubleshooting
-Common Issues
-Issue: basic_string::_M_create error during serialization
-Solution: Ensure the model is properly trained before saving. Use the latest version.
+### Troubleshooting
+**Common Issues**
+*Issue*: basic_string::_M_create error during serialization  
+*Solution*: Ensure the model is properly trained before saving. Use the latest version.
 
-Issue: Dimension mismatch in forward/backward
-Solution: Check that input shapes match the layer configuration.
+*Issue*: Dimension mismatch in forward/backward  
+*Solution*: Check that input shapes match the layer configuration.
 
-Issue: Python module not found
-Solution: Ensure the build directory is in Python path. Use conftest.py as provided.
+*Issue*: Python module not found  
+*Solution*: Ensure the build directory is in Python path. Use conftest.py as provided.
