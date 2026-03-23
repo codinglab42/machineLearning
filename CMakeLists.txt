@@ -6,7 +6,7 @@ project(ML_Library VERSION 2.0.0 LANGUAGES CXX)
 # ============================================================================
 option(BUILD_PYTHON_BINDINGS "Costruisci i binding Python" ON)
 option(BUILD_TESTS "Costruisci i test C++" ON)
-option(BUILD_EXAMPLES "Costruisci esempi" OFF)
+option(BUILD_EXAMPLES "Costruisci esempi" ON)
 option(USE_OPENMP "Usa OpenMP per parallelizzazione" OFF)
 option(VERBOSE_OUTPUT "Output verboso di configurazione" ON)
 option(BUILD_SHARED_LIBS "Build shared libraries instead of static" OFF)
