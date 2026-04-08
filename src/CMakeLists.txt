@@ -27,6 +27,8 @@ set(ML_LIBRARY_SOURCES
     components/cache/dense_cache.cpp       
 
     # Layers
+    components/layers/layer_factory.cpp  
+    components/layers/layer_registry.cpp    
     components/layers/dense_layer.cpp
     components/layers/pooling_layer.cpp  
     components/layers/simple_rnn_layer.cpp    

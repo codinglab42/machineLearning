@@ -1,33 +1,31 @@
+// src/models/estimator.cpp
 #include "models/estimator.h"
-#include "components/optimizers/optimizer_factory.h"
+#include "components/optimizers/momentum_optimizer.h"  // AGGIUNGI QUESTO
 #include "components/optimizers/sgd_optimizer.h"
 #include "components/optimizers/adam_optimizer.h"
-#include "components/optimizers/momentum_optimizer.h"
-#include "exceptions/exception_macros.h"
-#include <iostream>
-
 namespace models {
 
 void Estimator::set_optimizer(OptimizerType type, double learning_rate) {
-    std::cout << "🔍 Estimator::set_optimizer: type=" 
-              << (type == OptimizerType::ADAM ? "ADAM" : "SGD")
-              << ", lr=" << learning_rate << std::endl;
-    
     ML_CHECK_PARAM(learning_rate > 0, "learning_rate", "must be positive", get_model_type());
     ML_CHECK_PARAM(learning_rate < 10.0, "learning_rate", "should be < 10.0", get_model_type());
     
     switch(type) {
         case OptimizerType::SGD:
             optimizer_ = std::make_unique<SGDOptimizer>(learning_rate);
-            std::cout << "🔍 Creato SGD con successo" << std::endl;
-            break;
-        case OptimizerType::ADAM:
-            optimizer_ = std::make_unique<AdamOptimizer>(learning_rate);
-            std::cout << "🔍 Creato ADAM con successo" << std::endl;
             break;
         case OptimizerType::MOMENTUM:
             optimizer_ = std::make_unique<MomentumOptimizer>(learning_rate);
-            std::cout << "🔍 Creato Momentum con successo" << std::endl;
+            break;
+        case OptimizerType::ADAM:
+            optimizer_ = std::make_unique<AdamOptimizer>(learning_rate);
+            break;
+        case OptimizerType::RMSPROP:
+        case OptimizerType::ADAGRAD:
+            // TODO: implementare quando disponibili
+            ML_THROW_NOT_IMPLEMENTED_ERROR("Optimizer type", get_model_type());
+            break;
+        default:
+            ML_THROW_PARAMETER_ERROR("optimizer type", "unknown optimizer type", get_model_type());
             break;
     }
 }

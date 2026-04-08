@@ -4,192 +4,197 @@
 #include <iostream>
 #include <fstream>
 #include <string>
+#include <vector>
 #include <memory>
 #include <type_traits>
-#include "exceptions/io_exception.h"
-#include "exceptions/validation_exception.h"
+#include <Eigen/Dense>
 #include "exceptions/exception_macros.h"
 
 namespace utils {
 
-    // Interfaccia base per oggetti serializzabili
-    class ISerializable {
-    public:
-        virtual ~ISerializable() = default;
-        
-        virtual void save(const std::string& filename) const = 0;
-        virtual void load(const std::string& filename) = 0;
-        virtual std::string to_string() const = 0;
-        
-        // Metodi protetti per serializzazione binaria
-        virtual void serialize_binary(std::ostream& out) const = 0;
-        virtual void deserialize_binary(std::istream& in) = 0;
-        
-        // Metodo per ottenere il tipo del modello
-        virtual std::string get_model_type() const = 0;
-    };
+constexpr uint32_t SERIALIZATION_MAGIC = 0x4C4D4C42;
+constexpr uint32_t SERIALIZATION_VERSION = 2;
 
-    // Template per serializzazione binaria
-    template<typename Model>
-    class BinarySerializer {
-    public:
-        static void save(const Model& model, const std::string& filename) {
-            std::ofstream file(filename, std::ios::binary);
-            if (!file.is_open()) {
-                ML_THROW_IO_ERROR(filename, "open for writing", model.get_model_type());
-            }
+// ============================================================================
+// FUNZIONI DI BASE
+// ============================================================================
+
+inline void write_string(std::ostream& out, const std::string& str) {
+    uint32_t len = static_cast<uint32_t>(str.size());
+    out.write(reinterpret_cast<const char*>(&len), sizeof(len));
+    out.write(str.data(), len);
+}
+
+inline std::string read_string(std::istream& in) {
+    uint32_t len;
+    in.read(reinterpret_cast<char*>(&len), sizeof(len));
+    if (!in.good()) {
+        ML_THROW_IO_ERROR("stream", "read", "Serialization");
+    }
+    std::string str(len, ' ');
+    in.read(&str[0], len);
+    return str;
+}
+
+template<typename T>
+void write_scalar(std::ostream& out, const T& value) {
+    out.write(reinterpret_cast<const char*>(&value), sizeof(T));
+}
+
+template<typename T>
+void read_scalar(std::istream& in, T& value) {
+    in.read(reinterpret_cast<char*>(&value), sizeof(T));
+}
+
+// ============================================================================
+// FUNZIONI PER EIGEN
+// ============================================================================
+
+// Per matrici (Eigen::MatrixXd)
+inline void write_eigen_matrix(std::ostream& out, const Eigen::MatrixXd& mat) {
+    int rows = mat.rows();
+    int cols = mat.cols();
+    write_scalar(out, rows);
+    write_scalar(out, cols);
+    if (rows > 0 && cols > 0) {
+        out.write(reinterpret_cast<const char*>(mat.data()), 
+                  rows * cols * sizeof(double));
+    }
+}
+
+inline void read_eigen_matrix(std::istream& in, Eigen::MatrixXd& mat) {
+    int rows, cols;
+    read_scalar(in, rows);
+    read_scalar(in, cols);
+    ML_CHECK_PARAM(rows > 0 && cols > 0, "matrix dimensions", 
+                   "must be positive", "Serialization");
+    mat.resize(rows, cols);
+    if (rows > 0 && cols > 0) {
+        in.read(reinterpret_cast<char*>(mat.data()), 
+                rows * cols * sizeof(double));
+    }
+}
+
+// Per vettori (Eigen::VectorXd)
+inline void write_eigen_vector(std::ostream& out, const Eigen::VectorXd& vec) {
+    int size = vec.size();
+    write_scalar(out, size);
+    if (size > 0) {
+        out.write(reinterpret_cast<const char*>(vec.data()), 
+                  size * sizeof(double));
+    }
+}
+
+inline void read_eigen_vector(std::istream& in, Eigen::VectorXd& vec) {
+    int size;
+    read_scalar(in, size);
+    ML_CHECK_PARAM(size >= 0, "vector size", "must be >= 0", "Serialization");
+    vec.resize(size);
+    if (size > 0) {
+        in.read(reinterpret_cast<char*>(vec.data()), 
+                size * sizeof(double));
+    }
+}
+
+// ============================================================================
+// CLASSI PER LA SERIALIZZAZIONE DEI MODELLI
+// ============================================================================
+
+class ISerializable {
+public:
+    virtual ~ISerializable() = default;
+    virtual void save(const std::string& filename) const = 0;
+    virtual void load(const std::string& filename) = 0;
+    virtual std::string to_string() const = 0;
+    virtual void serialize_binary(std::ostream& out) const = 0;
+    virtual void deserialize_binary(std::istream& in) = 0;
+    virtual std::string get_model_type() const = 0;
+};
+
+template<typename Model>
+class BinarySerializer {
+public:
+    static void save(const Model& model, const std::string& filename) {
+        std::ofstream file(filename, std::ios::binary);
+        if (!file.is_open()) {
+            ML_THROW_IO_ERROR(filename, "open for writing", model.get_model_type());
+        }
+        
+        try {
+            uint32_t magic = SERIALIZATION_MAGIC;
+            file.write(reinterpret_cast<const char*>(&magic), sizeof(magic));
             
-            try {
-                // Scrive header con versione e tipo modello
-                // Magic number come uint32_t
-                uint32_t magic = 0x4C4D4F44;  // "MLOD" in hex
-                file.write(reinterpret_cast<const char*>(&magic), sizeof(magic));
-
-                uint32_t version = 1;
-                file.write(reinterpret_cast<const char*>(&version), sizeof(version));
-                
-                // Serializza il modello
-                model.serialize_binary(file);
-                
-                if (!file.good()) {
-                    throw ml_exception::SerializationException(
-                        filename, "write error", model.get_model_type());
-                }
-            } catch (const std::exception& e) {
+            uint32_t version = SERIALIZATION_VERSION;
+            file.write(reinterpret_cast<const char*>(&version), sizeof(version));
+            
+            model.serialize_binary(file);
+            
+            if (!file.good()) {
                 throw ml_exception::SerializationException(
-                    filename, e.what(), model.get_model_type());
+                    filename, "write error", model.get_model_type());
             }
+        } catch (const std::exception& e) {
+            throw ml_exception::SerializationException(
+                filename, e.what(), model.get_model_type());
+        }
+    }
+    
+    static void load(Model& model, const std::string& filename) {
+        std::ifstream file(filename, std::ios::binary);
+        if (!file.is_open()) {
+            throw ml_exception::FileNotFoundException(filename, model.get_model_type());
         }
         
-        static void load(Model& model, const std::string& filename) {
-            std::ifstream file(filename, std::ios::binary);
-            if (!file.is_open()) {
-                throw ml_exception::FileNotFoundException(filename, model.get_model_type());
-            }
+        try {
+            uint32_t magic;
+            file.read(reinterpret_cast<char*>(&magic), sizeof(magic));
             
-            try {
-                // Legge e verifica header
-                // Leggi magic number
-                uint32_t magic;
-                file.read(reinterpret_cast<char*>(&magic), sizeof(magic));
-                
-                if (magic != 0x4C4D4F44) {  // "MLOD"
-                    throw ml_exception::DeserializationException(
-                        filename, "invalid file format (wrong magic number)", 
-                        model.get_model_type());
-                }
-                uint32_t version;
-                file.read(reinterpret_cast<char*>(&version), sizeof(version));
-                
-                if (version != 1) {
-                    throw ml_exception::DeserializationException(
-                        filename, "unsupported version: " + std::to_string(version),
-                        model.get_model_type());
-                }
-                
-                // Deserializza il modello
-                model.deserialize_binary(file);
-                
-                if (!file.good() && !file.eof()) {
-                    throw ml_exception::DeserializationException(
-                        filename, "read error or corrupted file", model.get_model_type());
-                }
-            } catch (const ml_exception::MLException&) {
-                throw;
-            } catch (const std::exception& e) {
+            if (magic != SERIALIZATION_MAGIC) {
                 throw ml_exception::DeserializationException(
-                    filename, e.what(), model.get_model_type());
+                    filename, "invalid file format (wrong magic number)", 
+                    model.get_model_type());
             }
+            
+            uint32_t version;
+            file.read(reinterpret_cast<char*>(&version), sizeof(version));
+            
+            if (version != SERIALIZATION_VERSION) {
+                throw ml_exception::DeserializationException(
+                    filename, "unsupported version: " + std::to_string(version),
+                    model.get_model_type());
+            }
+            
+            model.deserialize_binary(file);
+            
+            if (!file.good() && !file.eof()) {
+                throw ml_exception::DeserializationException(
+                    filename, "read error or corrupted file", model.get_model_type());
+            }
+        } catch (const ml_exception::MLException&) {
+            throw;
+        } catch (const std::exception& e) {
+            throw ml_exception::DeserializationException(
+                filename, e.what(), model.get_model_type());
         }
-    };
+    }
+};
 
-    // Utility per serializzazione di tipi Eigen
-    namespace eigen_utils {
-        
-        template<typename EigenType>
-        static void serialize_eigen(const EigenType& matrix, std::ostream& out) {
-            using Scalar = typename EigenType::Scalar;
-            using Index = typename EigenType::Index;
-            
-            Index rows = matrix.rows();
-            Index cols = matrix.cols();
-            
-            out.write(reinterpret_cast<const char*>(&rows), sizeof(Index));
-            out.write(reinterpret_cast<const char*>(&cols), sizeof(Index));
-            
-            if (rows > 0 && cols > 0) {
-                out.write(reinterpret_cast<const char*>(matrix.data()), 
-                         rows * cols * sizeof(Scalar));
-            }
-        }
-        
-        template<typename EigenType>
-        static void deserialize_eigen(EigenType& matrix, std::istream& in) {
-            using Scalar = typename EigenType::Scalar;
-            using Index = typename EigenType::Index;
-            
-            Index rows, cols;
-            in.read(reinterpret_cast<char*>(&rows), sizeof(Index));
-            in.read(reinterpret_cast<char*>(&cols), sizeof(Index));
-            
-            matrix.resize(rows, cols);
-            
-            if (rows > 0 && cols > 0) {
-                in.read(reinterpret_cast<char*>(matrix.data()), 
-                       rows * cols * sizeof(Scalar));
-            }
-        }
-        
-        template<typename EigenType>
-        static void serialize_eigen_vector(const EigenType& vector, std::ostream& out) {
-            using Scalar = typename EigenType::Scalar;
-            using Index = typename EigenType::Index;
-            
-            Index size = vector.size();
-            out.write(reinterpret_cast<const char*>(&size), sizeof(Index));
-            
-            if (size > 0) {
-                out.write(reinterpret_cast<const char*>(vector.data()), 
-                         size * sizeof(Scalar));
-            }
-        }
-        
-        template<typename EigenType>
-        static void deserialize_eigen_vector(EigenType& vector, std::istream& in) {
-            using Scalar = typename EigenType::Scalar;
-            using Index = typename EigenType::Index;
-            
-            Index size;
-            in.read(reinterpret_cast<char*>(&size), sizeof(Index));
-            
-            vector.resize(size);
-            
-            if (size > 0) {
-                in.read(reinterpret_cast<char*>(vector.data()), 
-                       size * sizeof(Scalar));
-            }
-        }
-    };
+class SerializableModel : public ISerializable {
+public:
+    void save(const std::string& filename) const override {
+        BinarySerializer<std::decay_t<decltype(*this)>>::save(*this, filename);
+    }
+    
+    void load(const std::string& filename) override {
+        BinarySerializer<std::decay_t<decltype(*this)>>::load(*this, filename);
+    }
+    
+    virtual std::string to_string() const override = 0;
+    virtual void serialize_binary(std::ostream& out) const override = 0;
+    virtual void deserialize_binary(std::istream& in) override = 0;
+    virtual std::string get_model_type() const override = 0;
+};
 
-    // Classe base astratta per modelli serializzabili
-    class SerializableModel : public ISerializable {
-    public:
-        // Implementazioni default che usano BinarySerializer
-        void save(const std::string& filename) const override {
-            BinarySerializer<std::decay_t<decltype(*this)>>::save(*this, filename);
-        }
-        
-        void load(const std::string& filename) override {
-            BinarySerializer<std::decay_t<decltype(*this)>>::load(*this, filename);
-        }
-        
-        // Metodi che devono essere implementati dalle classi derivate
-        virtual std::string to_string() const override = 0;
-        virtual void serialize_binary(std::ostream& out) const override = 0;
-        virtual void deserialize_binary(std::istream& in) override = 0;
-        virtual std::string get_model_type() const override = 0;
-    };
+} // namespace utils
 
-} // namespace serialization
-
-#endif
+#endif // SERIALIZABLE_H

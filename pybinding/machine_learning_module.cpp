@@ -3,6 +3,8 @@
 #include <pybind11/eigen.h>
 #include <pybind11/functional.h>
 
+
+#include "components/layers/layer_factory.h"
 #include "models/estimator.h"
 #include "models/linear_regression.h"
 #include "models/logistic_regression.h"
@@ -152,6 +154,9 @@ PYBIND11_MODULE(machine_learning_module, m) {
             PyErr_SetString(PyExc_Exception, "Unknown C++ exception");
         }
     });
+
+    // registra tutti i layer all'avvio
+    layers::LayerFactory::register_all_layers();
     
     // Bind LinearRegression::Solver enum
     py::enum_<models::LinearRegression::Solver> solver_enum(m, "LinearSolver");

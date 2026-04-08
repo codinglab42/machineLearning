@@ -281,7 +281,7 @@ void LogisticRegression::serialize_binary(std::ostream& out) const {
     out.write(reinterpret_cast<const char*>(&n_iter_), sizeof(int));
     
     // Serializza theta
-    eigen_utils::serialize_eigen_vector(theta_, out);
+    utils::write_eigen_vector(out, theta_);
     
     // Serializza history
     size_t cost_size = cost_history_.size();
@@ -312,7 +312,7 @@ void LogisticRegression::deserialize_binary(std::istream& in) {
     in.read(reinterpret_cast<char*>(&n_iter_), sizeof(int));
     
     // Deserializza theta
-    eigen_utils::deserialize_eigen_vector(theta_, in);
+    utils::read_eigen_vector(in, theta_);
     
     // Deserializza history
     size_t cost_size;

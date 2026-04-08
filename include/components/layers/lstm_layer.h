@@ -25,7 +25,9 @@ namespace layers {
         void deserialize(std::istream& in) override;
         
         std::string get_type() const override { return "LSTMLayer"; }
+        LayerType get_layer_type() const override { return LayerType::LSTM; }
         std::string get_config() const override;
+        uint32_t get_version() const override { return 1; }
         
         bool has_weights() const override { return true; }
         Eigen::MatrixXd get_weights() const override;

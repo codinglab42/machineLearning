@@ -24,7 +24,9 @@ namespace layers {
         void deserialize(std::istream& in) override;
         
         std::string get_type() const override { return "Conv2DLayer"; }
+        LayerType get_layer_type() const override { return LayerType::CONV2D; }
         std::string get_config() const override;
+        uint32_t get_version() const override { return 1; }
         
         bool has_weights() const override { return true; }
         Eigen::MatrixXd get_weights() const override;

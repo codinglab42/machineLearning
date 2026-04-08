@@ -253,19 +253,19 @@ VectorXd LinearRegression::cross_val_score(const MatrixXd& X, const VectorXd& y,
 void LinearRegression::serialize_binary(std::ostream& out) const {
     using namespace utils;
     
-    out.write(reinterpret_cast<const char*>(&learning_rate_), sizeof(double));
-    out.write(reinterpret_cast<const char*>(&max_iter_), sizeof(int));
-    out.write(reinterpret_cast<const char*>(&lambda_), sizeof(double));
-    out.write(reinterpret_cast<const char*>(&tolerance_), sizeof(double));
-    out.write(reinterpret_cast<const char*>(&verbose_), sizeof(bool));
-    out.write(reinterpret_cast<const char*>(&solver_), sizeof(Solver));
-    out.write(reinterpret_cast<const char*>(&n_features_), sizeof(int));
-    out.write(reinterpret_cast<const char*>(&n_iter_), sizeof(int));
+    write_scalar(out, learning_rate_);
+    write_scalar(out, max_iter_);
+    write_scalar(out, lambda_);
+    write_scalar(out, tolerance_);
+    write_scalar(out, verbose_);
+    write_scalar(out, static_cast<int>(solver_));
+    write_scalar(out, n_features_);
+    write_scalar(out, n_iter_);
     
-    eigen_utils::serialize_eigen_vector(theta_, out);
+    write_eigen_vector(out, theta_);  // OK ora
     
     size_t cost_size = cost_history_.size();
-    out.write(reinterpret_cast<const char*>(&cost_size), sizeof(size_t));
+    write_scalar(out, cost_size);
     if (cost_size > 0) {
         out.write(reinterpret_cast<const char*>(cost_history_.data()), 
                  cost_size * sizeof(double));
@@ -275,19 +275,21 @@ void LinearRegression::serialize_binary(std::ostream& out) const {
 void LinearRegression::deserialize_binary(std::istream& in) {
     using namespace utils;
     
-    in.read(reinterpret_cast<char*>(&learning_rate_), sizeof(double));
-    in.read(reinterpret_cast<char*>(&max_iter_), sizeof(int));
-    in.read(reinterpret_cast<char*>(&lambda_), sizeof(double));
-    in.read(reinterpret_cast<char*>(&tolerance_), sizeof(double));
-    in.read(reinterpret_cast<char*>(&verbose_), sizeof(bool));
-    in.read(reinterpret_cast<char*>(&solver_), sizeof(Solver));
-    in.read(reinterpret_cast<char*>(&n_features_), sizeof(int));
-    in.read(reinterpret_cast<char*>(&n_iter_), sizeof(int));
+    int solver_int;
+    read_scalar(in, learning_rate_);
+    read_scalar(in, max_iter_);
+    read_scalar(in, lambda_);
+    read_scalar(in, tolerance_);
+    read_scalar(in, verbose_);
+    read_scalar(in, solver_int);
+    solver_ = static_cast<Solver>(solver_int);
+    read_scalar(in, n_features_);
+    read_scalar(in, n_iter_);
     
-    eigen_utils::deserialize_eigen_vector(theta_, in);
+    read_eigen_vector(in, theta_);  // OK ora
     
     size_t cost_size;
-    in.read(reinterpret_cast<char*>(&cost_size), sizeof(size_t));
+    read_scalar(in, cost_size);
     cost_history_.resize(cost_size);
     if (cost_size > 0) {
         in.read(reinterpret_cast<char*>(cost_history_.data()), 

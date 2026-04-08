@@ -11,6 +11,21 @@ namespace layers {
 
     class LayerCache;
 
+    // Enum per identificare i tipi di layer in modo efficiente
+    enum class LayerType : uint8_t {
+        DENSE = 1,
+        CONV2D = 2,
+        MAX_POOLING = 3,
+        AVERAGE_POOLING = 4,
+        FLATTEN = 5,
+        DROPOUT = 6,
+        BATCH_NORM = 7,
+        SIMPLE_RNN = 8,
+        LSTM = 9,
+        GRU = 10
+    };
+
+
     class Layer {
     public:
         virtual ~Layer() = default;
@@ -29,8 +44,10 @@ namespace layers {
         virtual void deserialize(std::istream& in) = 0;
         
         // Info layer
+        virtual LayerType get_layer_type() const = 0;
         virtual std::string get_type() const = 0;
         virtual std::string get_config() const = 0;
+        virtual uint32_t get_version() const { return 1; }
         
         // Gestione parametri
         virtual bool has_weights() const = 0;

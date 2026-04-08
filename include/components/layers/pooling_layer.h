@@ -24,7 +24,9 @@ namespace layers {
         void deserialize(std::istream& in) override;
         
         std::string get_type() const override { return "Pooling"; }
+        LayerType get_layer_type() const override { return LayerType::MAX_POOLING; }
         std::string get_config() const override;
+        uint32_t get_version() const override { return 1; }
         
         bool has_weights() const override { return false; }
         Eigen::MatrixXd get_weights() const override { return Eigen::MatrixXd(); }
