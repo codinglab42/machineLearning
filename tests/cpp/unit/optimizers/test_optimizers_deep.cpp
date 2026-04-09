@@ -1,6 +1,7 @@
 // test/optimizers/optimizer_test.cpp
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
+#include "utils/serializable.h"
 #include "components/optimizers/sgd_optimizer.h"
 #include "components/optimizers/momentum_optimizer.h"
 #include "components/optimizers/adam_optimizer.h"

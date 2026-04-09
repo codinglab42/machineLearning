@@ -101,29 +101,29 @@ namespace models {
     void AdamOptimizer::serialize(std::ostream& out) const {
         Optimizer::serialize(out);
         
-        out.write(reinterpret_cast<const char*>(&beta1_), sizeof(double));
-        out.write(reinterpret_cast<const char*>(&beta2_), sizeof(double));
-        out.write(reinterpret_cast<const char*>(&epsilon_), sizeof(double));
+        utils::write_scalar(out, beta1_);
+        utils::write_scalar(out, beta2_);
+        utils::write_scalar(out, epsilon_);
         
-        // Usa le funzioni di eigen_utils
-        utils::eigen_utils::serialize_eigen(m_w_, out);
-        utils::eigen_utils::serialize_eigen(v_w_, out);
-        utils::eigen_utils::serialize_eigen_vector(m_b_, out);
-        utils::eigen_utils::serialize_eigen_vector(v_b_, out);
+        // Usa le nuove funzioni
+        utils::write_eigen_matrix(out, m_w_);
+        utils::write_eigen_matrix(out, v_w_);
+        utils::write_eigen_vector(out, m_b_);
+        utils::write_eigen_vector(out, v_b_);
     }
 
     void AdamOptimizer::deserialize(std::istream& in) {
         Optimizer::deserialize(in);
         
-        in.read(reinterpret_cast<char*>(&beta1_), sizeof(double));
-        in.read(reinterpret_cast<char*>(&beta2_), sizeof(double));
-        in.read(reinterpret_cast<char*>(&epsilon_), sizeof(double));
+        utils::read_scalar(in, beta1_);
+        utils::read_scalar(in, beta2_);
+        utils::read_scalar(in, epsilon_);
         
-        // Usa le funzioni di eigen_utils
-        utils::eigen_utils::deserialize_eigen(m_w_, in);
-        utils::eigen_utils::deserialize_eigen(v_w_, in);
-        utils::eigen_utils::deserialize_eigen_vector(m_b_, in);
-        utils::eigen_utils::deserialize_eigen_vector(v_b_, in);
+        // Usa le nuove funzioni
+        utils::read_eigen_matrix(in, m_w_);
+        utils::read_eigen_matrix(in, v_w_);
+        utils::read_eigen_vector(in, m_b_);
+        utils::read_eigen_vector(in, v_b_);
     }
 
     std::unique_ptr<Optimizer> AdamOptimizer::clone() const {

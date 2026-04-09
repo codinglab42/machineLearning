@@ -29,6 +29,9 @@ public:
     MOCK_METHOD(Eigen::VectorXd, get_biases, (), (const, override));
     MOCK_METHOD(void, set_biases, (const Eigen::VectorXd&), (override));
     MOCK_METHOD(void, set_input_shape, (int), (override));
+
+    LayerType get_layer_type() const override { return LayerType::DENSE; }
+    uint32_t get_version() const override { return 1; }
 };
 
 TEST(LayerInterfaceTest, VirtualDestructor) {

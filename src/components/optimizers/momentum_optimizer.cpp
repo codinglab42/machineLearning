@@ -64,28 +64,24 @@ namespace models {
     void MomentumOptimizer::serialize(std::ostream& out) const {
         Optimizer::serialize(out);
         
-        out.write(reinterpret_cast<const char*>(&momentum_), sizeof(double));
+        utils::write_scalar(out, momentum_);
+        utils::write_scalar(out, nesterov_);
         
-        bool nesterov = nesterov_;
-        out.write(reinterpret_cast<const char*>(&nesterov), sizeof(bool));
-        
-        utils::eigen_utils::serialize_eigen(velocity_w_, out);
-        utils::eigen_utils::serialize_eigen_vector(velocity_b_, out);
+        // Usa le nuove funzioni
+        utils::write_eigen_matrix(out, velocity_w_);
+        utils::write_eigen_vector(out, velocity_b_);
     }
 
     void MomentumOptimizer::deserialize(std::istream& in) {
         Optimizer::deserialize(in);
         
-        in.read(reinterpret_cast<char*>(&momentum_), sizeof(double));
+        utils::read_scalar(in, momentum_);
+        utils::read_scalar(in, nesterov_);
         
-        bool nesterov;
-        in.read(reinterpret_cast<char*>(&nesterov), sizeof(bool));
-        nesterov_ = nesterov;
-        
-        utils::eigen_utils::deserialize_eigen(velocity_w_, in);
-        utils::eigen_utils::deserialize_eigen_vector(velocity_b_, in);
+        // Usa le nuove funzioni
+        utils::read_eigen_matrix(in, velocity_w_);
+        utils::read_eigen_vector(in, velocity_b_);
     }
-
     std::unique_ptr<Optimizer> MomentumOptimizer::clone() const {
         auto clone = std::make_unique<MomentumOptimizer>(learning_rate_, momentum_, decay_, nesterov_);
         clone->velocity_w_ = velocity_w_;
