@@ -11,20 +11,10 @@
 
 namespace layers {
 
-// Implementazione dei metodi statici privati
-std::unordered_map<LayerType, LayerFactory::Creator>& LayerFactory::get_creators() {
-    static std::unordered_map<LayerType, Creator> creators;
-    return creators;
-}
-
-std::unordered_map<LayerType, std::string>& LayerFactory::get_names() {
-    static std::unordered_map<LayerType, std::string> names;
-    return names;
-}
-
-std::unordered_map<std::string, LayerType>& LayerFactory::get_type_map() {
-    static std::unordered_map<std::string, LayerType> type_map;
-    return type_map;
+void LayerFactory::register_layer(LayerType type, Creator creator, const std::string& name) {
+    get_creators()[type] = creator;
+    get_names()[type] = name;
+    get_type_map()[name] = type;
 }
 
 bool& LayerFactory::is_registered() {
@@ -88,6 +78,23 @@ std::string LayerFactory::get_name(LayerType type) {
     }
     return "Unknown";
 }
+
+// Implementazione dei metodi statici privati
+std::unordered_map<LayerType, LayerFactory::Creator>& LayerFactory::get_creators() {
+    static std::unordered_map<LayerType, Creator> creators;
+    return creators;
+}
+
+std::unordered_map<LayerType, std::string>& LayerFactory::get_names() {
+    static std::unordered_map<LayerType, std::string> names;
+    return names;
+}
+
+std::unordered_map<std::string, LayerType>& LayerFactory::get_type_map() {
+    static std::unordered_map<std::string, LayerType> type_map;
+    return type_map;
+}
+
 
 
 } // namespace layers
