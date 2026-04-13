@@ -66,8 +66,6 @@ inline void read_eigen_matrix(std::istream& in, Eigen::MatrixXd& mat) {
     int rows, cols;
     read_scalar(in, rows);
     read_scalar(in, cols);
-    ML_CHECK_PARAM(rows > 0 && cols > 0, "matrix dimensions", 
-                   "must be positive", "Serialization");
     mat.resize(rows, cols);
     if (rows > 0 && cols > 0) {
         in.read(reinterpret_cast<char*>(mat.data()), 
@@ -88,7 +86,6 @@ inline void write_eigen_vector(std::ostream& out, const Eigen::VectorXd& vec) {
 inline void read_eigen_vector(std::istream& in, Eigen::VectorXd& vec) {
     int size;
     read_scalar(in, size);
-    ML_CHECK_PARAM(size >= 0, "vector size", "must be >= 0", "Serialization");
     vec.resize(size);
     if (size > 0) {
         in.read(reinterpret_cast<char*>(vec.data()), 

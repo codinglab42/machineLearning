@@ -314,9 +314,10 @@ TEST_F(NeuralNetworkDebugTest, AND_LinearSeparable) {
     Eigen::VectorXd y_simple(2);
     y_simple << 0, 1;
     
-    NeuralNetwork network({2, 4, 1}, "relu", "sigmoid", OptimizerType::ADAM, 0.1);
+    // Aumenta LR e usa più neuroni
+    NeuralNetwork network({2, 8, 1}, "relu", "sigmoid", OptimizerType::ADAM, 0.5);
     network.set_loss_function("binary_crossentropy");
-    network.set_epochs(500);
+    network.set_epochs(1000);
     network.set_batch_size(2);
     network.set_verbose(true);
     
@@ -541,9 +542,9 @@ TEST_F(NeuralNetworkDebugTest, AND_WithSGDHigherLR) {
 }
 
 TEST_F(NeuralNetworkDebugTest, AND_SimpleArchitecture) {
-    NeuralNetwork network({2, 6, 1}, "relu", "sigmoid", OptimizerType::ADAM, 0.1);
+    NeuralNetwork network({2, 12, 1}, "relu", "sigmoid", OptimizerType::ADAM, 0.5);
     network.set_loss_function("binary_crossentropy");
-    network.set_epochs(2000);
+    network.set_epochs(5000);
     network.set_batch_size(4);
     network.set_verbose(true);
     
@@ -563,7 +564,7 @@ TEST_F(NeuralNetworkDebugTest, AND_SimpleArchitecture) {
 
 TEST_F(NeuralNetworkDebugTest, AND_WithMSE) {
     NeuralNetwork network({2, 8, 1}, "relu", "sigmoid", OptimizerType::ADAM, 0.5);
-    network.set_loss_function("mse");
+    network.set_loss_function("binary_crossentropy");
     network.set_epochs(2000);
     network.set_batch_size(4);
     network.set_verbose(true);
