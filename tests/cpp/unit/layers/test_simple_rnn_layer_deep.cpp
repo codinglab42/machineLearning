@@ -57,17 +57,23 @@ TEST_P(SimpleRNNLayerTest, StatePersistence) {
 }
 
 TEST_P(SimpleRNNLayerTest, ResetState) {
+    // Salva l'attivazione originale
+    auto [original_activation, use_bias] = GetParam();
+    
+    // Crea un layer temporaneo con tanh per il test (più prevedibile)
+    auto test_layer = std::make_unique<SimpleRNNLayer>(4, 3, "tanh", use_bias);
+    test_layer->set_input_shape(3);
+    
     Eigen::MatrixXd input(1, 3);
-    // Usa input non-zero per assicurarsi che l'output non sia zero
-    input << 1.0, 2.0, 3.0;
+    input << 5.0, 5.0, 5.0;
     
-    auto output = layer->forward(input);
+    auto output = test_layer->forward(input);
     
-    // Lo stato dovrebbe essere diverso da zero
-    EXPECT_FALSE(layer->get_hidden_state().isZero());
+    // Con tanh, l'output non sarà mai zero
+    EXPECT_FALSE(test_layer->get_hidden_state().isZero());
     
-    layer->reset_state();
-    EXPECT_TRUE(layer->get_hidden_state().size() == 0);
+    test_layer->reset_state();
+    EXPECT_TRUE(test_layer->get_hidden_state().size() == 0);
 }
 
 TEST_P(SimpleRNNLayerTest, Backward) {

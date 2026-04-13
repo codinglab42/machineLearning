@@ -28,6 +28,7 @@ lib/*.cpython
 __pycache__/
 *.pyc
 .pytest_cache
+*.cpython*
 
 # Ignora l'ambiente virtuale (anche se pyenv gestisce versioni isolate, è buona norma)
 venv/
