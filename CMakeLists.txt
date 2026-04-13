@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.15)
-project(ML_Library VERSION 2.0.0 LANGUAGES CXX)
+project(ML_Library VERSION 2.0.1 LANGUAGES CXX)
 
 # ============================================================================
 # OPZIONI DI CONFIGURAZIONE

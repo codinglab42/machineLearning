@@ -2,7 +2,7 @@ import os
 from setuptools import setup
 from pybind11.setup_helpers import Pybind11Extension, build_ext
 
-__version__ = "2.0.0"
+__version__ = "2.0.1"
 
 # Identifica la directory radice del progetto
 project_root = os.path.dirname(os.path.abspath(__file__))
