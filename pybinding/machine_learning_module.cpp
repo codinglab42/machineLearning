@@ -133,9 +133,9 @@ PYBIND11_MODULE(machine_learning_module, m) {
     )pbdoc";
     
     // Version info
-    m.attr("__version__") = "2.0.0";
-    m.attr("__author__") = "Your Name";
-    m.attr("__email__") = "your.email@example.com";
+    m.attr("__version__") = "2.0.1";
+    m.attr("__author__") = "Maurizio Penna";
+    m.attr("__email__") = "mauriziopenna@gmail.com";
     
     // Registra il traduttore di eccezioni
     // MODIFICA: Usa std::exception come base per catturare tutto
