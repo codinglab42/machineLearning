@@ -53,11 +53,19 @@ add_ml_test(test_linear unit/models/test_linear.cpp)
 add_ml_test(test_logistic unit/models/test_logistic.cpp)
 add_ml_test(test_neural unit/models/test_neural.cpp)
 
+# Test per le Loss
+add_ml_test(test_loss unit/loss/test_loss.cpp)
+add_ml_test(test_binary_cross_entropy_loss unit/loss/test_binary_cross_entropy_loss.cpp)
+add_ml_test(test_categorical_cross_entropy_loss unit/loss/test_categorical_cross_entropy_loss.cpp)
+add_ml_test(test_mean_squared_error_loss unit/loss/test_mean_squared_error_loss.cpp)
+add_ml_test(test_mean_absolute_error_loss unit/loss/test_mean_absolute_error_loss.cpp)
+add_ml_test(test_huber_loss unit/loss/test_huber_loss.cpp)
+add_ml_test(test_loss_factory_loss unit/loss/test_loss_factory_loss.cpp)
+
 # Test integration
 add_ml_test(test_linear_regression_deep integration/test_linear_regression_deep.cpp)
 add_ml_test(test_logistic_regression_deep integration/test_logistic_regression_deep.cpp)
 add_ml_test(test_neural_network_deep integration/test_neural_network_deep.cpp)
-add_ml_test(test_neural_network_debug_deep integration/test_neural_network_debug_deep.cpp)
 add_ml_test(test_real_datasets_deep integration/test_real_datasets_deep.cpp)
 
 

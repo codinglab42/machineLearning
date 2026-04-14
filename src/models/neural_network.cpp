@@ -1,8 +1,4 @@
 #include "models/neural_network.h"
-#include "exceptions/dimension_exception.h"
-#include "exceptions/fitting_exception.h" 
-#include "exceptions/io_exception.h"
-#include "exceptions/validation_exception.h"
 #include "exceptions/exception_macros.h"
 #include "utils/serializable.h"
 #include <algorithm>
@@ -20,38 +16,43 @@ namespace models {
     
     // Costruttore default
     NeuralNetwork::NeuralNetwork() 
-        : loss_function_("mse"),
-          learning_rate_(0.01),
-          verbose_(false),
-          n_features_(0),
-          n_classes_(0),
-          fitted_(false),
-          batch_size_(32),
-          epochs_(100),
-          validation_split_(0.0) {
+        : loss_function_name_("mse"),
+        learning_rate_(0.01),
+        verbose_(false),
+        n_features_(0),
+        n_classes_(0),
+        fitted_(false),
+        batch_size_(32),
+        epochs_(100),
+        validation_split_(0.0) {
         optimizer_ = OptimizerFactory::create(OptimizerType::SGD, learning_rate_);
+        loss_function_ = loss::LossFactory::create("mse");
     }
 
     // Costruttore con parametri
     NeuralNetwork::NeuralNetwork(const std::vector<int>& layer_sizes,
-                                 const std::string& activation,
-                                 const std::string& output_activation,
-                                 OptimizerType optimizer_type,
-                                 double learning_rate,
-                                 RegularizerType regularizer_type,
-                                 double regularizer_strength)
-        : loss_function_("categorical_crossentropy"),
-          learning_rate_(learning_rate),
-          verbose_(false),
-          n_features_(layer_sizes.front()),
-          n_classes_(layer_sizes.back()),
-          fitted_(false) {
+                             const std::string& activation,
+                             const std::string& output_activation,
+                             OptimizerType optimizer_type,
+                             double learning_rate,
+                             RegularizerType regularizer_type,
+                             double regularizer_strength)
+        : loss_function_name_("categorical_crossentropy"),
+        learning_rate_(learning_rate),
+        verbose_(false),
+        n_features_(layer_sizes.front()),
+        n_classes_(layer_sizes.back()),
+        fitted_(false),
+        batch_size_(32),
+        epochs_(100),
+        validation_split_(0.0)  {
         
         ML_CHECK_PARAM(layer_sizes.size() >= 2, "layer_sizes", 
-                      "must have at least input and output layer", "NeuralNetwork");
+                    "must have at least input and output layer", "NeuralNetwork");
         
         optimizer_ = OptimizerFactory::create(optimizer_type, learning_rate);
         regularizer_ = RegularizerFactory::create(regularizer_type, regularizer_strength);
+        loss_function_ = loss::LossFactory::create("categorical_crossentropy");
         
         // Crea layer nascosti
         for (size_t i = 1; i < layer_sizes.size() - 1; ++i) {
@@ -325,7 +326,10 @@ namespace models {
                 batch_loss /= current_batch_size;
                 epoch_loss += batch_loss * current_batch_size;
                 
-                backward_pass(y_batch, y_pred);
+                Eigen::MatrixXd gradient = compute_loss_gradient(y_batch, y_pred);
+                for (int j = static_cast<int>(layers_.size()) - 1; j >= 0; --j) {
+                    gradient = layers_[j]->backward(gradient, learning_rate_);
+                }
             }
             
             epoch_loss /= n_samples;
@@ -449,6 +453,11 @@ namespace models {
     }
 
     //===========================================================================
+    // LOSS FUNCTION
+    //===========================================================================
+
+
+    //===========================================================================
     // FORWARD/BACKWARD PASS
     //===========================================================================
     
@@ -468,18 +477,19 @@ namespace models {
     }
 
     Eigen::VectorXd NeuralNetwork::backward_pass(const Eigen::VectorXd& y_true, 
-                                           const Eigen::MatrixXd& y_pred) {
-        // Calcola gradiente iniziale
-        Eigen::MatrixXd gradient;
-        
-        if (loss_function_ == "mse") {
-            gradient = 2.0 * (y_pred - y_true) / y_true.size();  // Togli .transpose()
-        } else if (loss_function_ == "binary_crossentropy") {
-            gradient = (y_pred - y_true).array() / 
-                    (y_pred.array() * (1.0 - y_pred.array()) + 1e-7);  // Togli .transpose()
-        } else {
-            gradient = y_pred - y_true;  // Togli .transpose()
+                                                const Eigen::MatrixXd& y_pred) {
+        if (!loss_function_) {
+            ML_THROW_FITTING_ERROR("NeuralNetwork", "loss function not set");
         }
+        
+        // Usa la loss function per calcolare il gradiente
+        // Converte y_true in MatrixXd (n_samples, 1)
+        Eigen::MatrixXd y_true_mat(y_true.size(), 1);
+        for (int i = 0; i < y_true.size(); ++i) {
+            y_true_mat(i, 0) = y_true(i);
+        }
+        
+        Eigen::MatrixXd gradient = loss_function_->gradient(y_true_mat, y_pred);
         
         // Backpropagation attraverso i layer
         for (int i = static_cast<int>(layers_.size()) - 1; i >= 0; --i) {
@@ -492,27 +502,26 @@ namespace models {
     //===========================================================================
     // LOSS FUNCTIONS
     //===========================================================================
-    
+   
+    void NeuralNetwork::set_loss_function(const std::string& loss) { 
+        loss_function_name_ = loss;
+        loss_function_ = loss::LossFactory::create(loss);
+    }
+
     double NeuralNetwork::compute_loss(const Eigen::VectorXd& y_true, 
                                         const Eigen::MatrixXd& y_pred) const {
-        double data_loss = 0.0;
-
-        if (loss_function_ == "mse") {
-            data_loss = (y_pred - y_true.transpose()).array().square().mean();
-        } else if (loss_function_ == "binary_crossentropy") {
-            Eigen::ArrayXd pred = y_pred.array();
-            Eigen::ArrayXd true_val = y_true.array();
-            // Aggiungi epsilon per evitare log(0)
-            pred = pred.max(1e-7).min(1.0 - 1e-7);
-            data_loss = -((true_val * pred.log() + (1 - true_val) * (1 - pred).log())).mean();
-        } else if (loss_function_ == "categorical_crossentropy") {
-            Eigen::ArrayXd pred = y_pred.array();
-            Eigen::ArrayXd true_val = y_true.array();
-            // Aggiungi epsilon per evitare log(0)
-            pred = pred.max(1e-7);
-            data_loss = -(true_val * pred.log()).sum() / y_true.size();
+        if (!loss_function_) {
+            ML_THROW_FITTING_ERROR("NeuralNetwork", "loss function not set");
         }
-
+        
+        // Converte y_true in MatrixXd
+        Eigen::MatrixXd y_true_mat(y_true.size(), 1);
+        for (int i = 0; i < y_true.size(); ++i) {
+            y_true_mat(i, 0) = y_true(i);
+        }
+        
+        double data_loss = loss_function_->compute(y_true_mat, y_pred);
+        
         // Aggiungi regolarizzazione
         double reg_loss = 0.0;
         if (regularizer_) {
@@ -527,23 +536,13 @@ namespace models {
     }
 
     double NeuralNetwork::compute_loss(const Eigen::MatrixXd& y_true, 
-                                        const Eigen::MatrixXd& y_pred) const {
-        double data_loss = 0.0;
-
-        if (loss_function_ == "mse") {
-            data_loss = (y_pred - y_true).array().square().mean();  // Togli .transpose()
-        } else if (loss_function_ == "binary_crossentropy") {
-            Eigen::ArrayXd pred = y_pred.array();
-            Eigen::ArrayXd true_val = y_true.array();
-            pred = pred.max(1e-7).min(1.0 - 1e-7);
-            data_loss = -((true_val * pred.log() + (1 - true_val) * (1 - pred).log())).mean();
-        } else if (loss_function_ == "categorical_crossentropy") {
-            Eigen::ArrayXd pred = y_pred.array();
-            Eigen::ArrayXd true_val = y_true.array();
-            pred = pred.max(1e-7);
-            data_loss = -(true_val * pred.log()).sum() / y_true.size();
+                                    const Eigen::MatrixXd& y_pred) const {
+        if (!loss_function_) {
+            ML_THROW_FITTING_ERROR("NeuralNetwork", "loss function not set");
         }
-
+        
+        double data_loss = loss_function_->compute(y_true, y_pred);
+        
         // Aggiungi regolarizzazione
         double reg_loss = 0.0;
         if (regularizer_) {
@@ -558,15 +557,17 @@ namespace models {
     }
 
     Eigen::MatrixXd NeuralNetwork::compute_loss_gradient(const Eigen::VectorXd& y_true, 
-                                                           const Eigen::MatrixXd& y_pred) const {
-        if (loss_function_ == "mse") {
-            return 2.0 * (y_pred - y_true.transpose()) / y_true.size();
-        } else if (loss_function_ == "binary_crossentropy") {
-            return (y_pred - y_true.transpose()).array() / 
-                   (y_pred.array() * (1.0 - y_pred.array()) + 1e-7);
-        } else {
-            return y_pred - y_true.transpose();
+                                                      const Eigen::MatrixXd& y_pred) const {
+        if (!loss_function_) {
+            ML_THROW_FITTING_ERROR("NeuralNetwork", "loss function not set");
         }
+        
+        Eigen::MatrixXd y_true_mat(y_true.size(), 1);
+        for (int i = 0; i < y_true.size(); ++i) {
+            y_true_mat(i, 0) = y_true(i);
+        }
+        
+        return loss_function_->gradient(y_true_mat, y_pred);
     }
 
     //===========================================================================
@@ -660,6 +661,11 @@ namespace models {
         out.write(reinterpret_cast<const char*>(&n_features_), sizeof(int));
         out.write(reinterpret_cast<const char*>(&n_classes_), sizeof(int));
         out.write(reinterpret_cast<const char*>(&fitted_), sizeof(bool));
+
+        // Salva il nome della loss function
+        size_t loss_name_len = loss_function_name_.size();
+        out.write(reinterpret_cast<const char*>(&loss_name_len), sizeof(size_t));
+        out.write(loss_function_name_.c_str(), loss_name_len);
         
         size_t num_layers = layers_.size();
         out.write(reinterpret_cast<const char*>(&num_layers), sizeof(size_t));
@@ -677,6 +683,14 @@ namespace models {
     in.read(reinterpret_cast<char*>(&n_features_), sizeof(int));
     in.read(reinterpret_cast<char*>(&n_classes_), sizeof(int));
     in.read(reinterpret_cast<char*>(&fitted_), sizeof(bool));
+
+    // Leggi il nome della loss function
+    size_t loss_name_len;
+    in.read(reinterpret_cast<char*>(&loss_name_len), sizeof(size_t));
+    std::vector<char> loss_name_buf(loss_name_len + 1, '\0');
+    in.read(loss_name_buf.data(), loss_name_len);
+    loss_function_name_ = std::string(loss_name_buf.data());
+    loss_function_ = loss::LossFactory::create(loss_function_name_);
     
     size_t num_layers;
     in.read(reinterpret_cast<char*>(&num_layers), sizeof(size_t));
@@ -771,7 +785,7 @@ namespace models {
         std::cout << "Output size:         " << n_classes_ << std::endl;
         std::cout << "Number of layers:    " << layers_.size() << std::endl;
         std::cout << "Total parameters:    " << get_num_parameters() << std::endl;
-        std::cout << "Loss function:       " << loss_function_ << std::endl;
+        std::cout << "Loss function:       " << loss_function_name_ << std::endl;
         std::cout << "Optimizer:           " << (optimizer_ ? optimizer_->get_type_str() : "none") << std::endl;
         std::cout << "Learning rate:       " << learning_rate_ << std::endl;
         std::cout << "Fitted:              " << (fitted_ ? "yes" : "no") << std::endl;

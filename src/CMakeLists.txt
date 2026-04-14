@@ -37,7 +37,19 @@ set(ML_LIBRARY_SOURCES
     components/layers/batch_norm_layer.cpp
     components/layers/conv2d_layer.cpp
     components/layers/dropout_layer.cpp
-    components/layers/flatten_layer.cpp        
+    components/layers/flatten_layer.cpp     
+    
+    # Loss
+    components/loss/binary_cross_entropy_loss.cpp
+    components/loss/categorical_cross_entropy_loss.cpp
+    components/loss/huber_loss.cpp
+    components/loss/loss_factory.cpp
+    components/loss/mean_absolute_error_loss.cpp
+    components/loss/mean_squared_error_loss.cpp
+
+
+
+    
     
     # Activation
     components/activation/activation.cpp

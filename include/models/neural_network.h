@@ -24,6 +24,8 @@
 #include "components/layers/lstm_layer.h"
 #include "components/layers/gru_layer.h"
 #include "components/cache/layer_cache.h"
+#include "components/loss/loss_factory.h"
+#include "components/loss/loss.h"
 #include "exceptions/exception_macros.h"
 
 namespace models {
@@ -152,7 +154,7 @@ namespace models {
         
         // Settings
         void set_optimizer(OptimizerType type, double learning_rate = 0.01);
-        void set_loss_function(const std::string& loss) { loss_function_ = loss; }
+        void set_loss_function(const std::string& loss);
         void set_verbose(bool verbose) { verbose_ = verbose; }
         
         // Reset
@@ -188,7 +190,8 @@ namespace models {
         // Cache per forward/backward (opzionale)
         mutable std::vector<std::shared_ptr<layers::LayerCache>> forward_cache_;
             
-        std::string loss_function_;
+        std::unique_ptr<loss::Loss> loss_function_;  // Usa la classe astratta
+        std::string loss_function_name_;              // Mantieni il nome per serializzazione
         double learning_rate_;
         bool verbose_;
         int n_features_;

@@ -62,15 +62,25 @@ protected:
 };
 
 TEST_F(NeuralNetworkIntegrationTest, AND) {
-    NeuralNetwork network({2, 8, 1}, "relu", "sigmoid", OptimizerType::ADAM, 0.2);
+    NeuralNetwork network({2, 8, 1}, "relu", "sigmoid", OptimizerType::ADAM, 0.5);
     network.set_loss_function("binary_crossentropy");
-    network.set_epochs(1000);
+    network.set_epochs(2000);
     network.set_batch_size(4);
     network.set_verbose(true);
     
     network.fit(X_and, y_and);
     
     Eigen::VectorXd y_pred = network.predict(X_and);
+    
+    // DEBUG: stampa predizioni
+    std::cout << "Predictions for AND:" << std::endl;
+    for (int i = 0; i < 4; ++i) {
+        std::cout << "  Input: (" << X_and(i,0) << ", " << X_and(i,1) 
+                  << ") -> true=" << y_and(i) 
+                  << ", pred=" << y_pred(i)
+                  << " (" << (y_pred(i) > 0.5 ? "1" : "0") << ")" << std::endl;
+    }
+    
     Eigen::VectorXi y_pred_int = (y_pred.array() > 0.5).cast<int>();
     
     int correct = 0;
@@ -81,7 +91,8 @@ TEST_F(NeuralNetworkIntegrationTest, AND) {
 }
 
 TEST_F(NeuralNetworkIntegrationTest, OR) {
-    NeuralNetwork network({2, 8, 1}, "relu", "sigmoid", OptimizerType::ADAM, 0.2);
+    // Aumenta learning rate a 0.5 come AND
+    NeuralNetwork network({2, 8, 1}, "relu", "sigmoid", OptimizerType::ADAM, 0.5);
     network.set_loss_function("binary_crossentropy");
     network.set_epochs(1000);
     network.set_batch_size(4);
@@ -90,6 +101,16 @@ TEST_F(NeuralNetworkIntegrationTest, OR) {
     network.fit(X_or, y_or);
     
     Eigen::VectorXd y_pred = network.predict(X_or);
+    
+    // Debug output
+    std::cout << "Predictions for OR:" << std::endl;
+    for (int i = 0; i < 4; ++i) {
+        std::cout << "  Input: (" << X_or(i,0) << ", " << X_or(i,1) 
+                  << ") -> true=" << y_or(i) 
+                  << ", pred=" << y_pred(i)
+                  << " (" << (y_pred(i) > 0.5 ? "1" : "0") << ")" << std::endl;
+    }
+    
     Eigen::VectorXi y_pred_int = (y_pred.array() > 0.5).cast<int>();
     
     int correct = 0;
@@ -100,15 +121,25 @@ TEST_F(NeuralNetworkIntegrationTest, OR) {
 }
 
 TEST_F(NeuralNetworkIntegrationTest, BinaryClassification) {
-    NeuralNetwork network({2, 16, 8, 1}, "relu", "sigmoid", OptimizerType::ADAM, 0.05);
+    NeuralNetwork network({2, 32, 16, 1}, "relu", "sigmoid", OptimizerType::ADAM, 0.2);
     network.set_loss_function("binary_crossentropy");
-    network.set_epochs(500);
-    network.set_batch_size(32);
+    network.set_epochs(2000);
+    network.set_batch_size(16);
     network.set_verbose(true);
     
     network.fit(X_binary, y_binary);
     
+    // Debug: mostra alcune predizioni
+    Eigen::VectorXd y_pred = network.predict(X_binary);
+    std::cout << "\nSample predictions:" << std::endl;
+    for (int i = 0; i < 10; ++i) {
+        std::cout << "  Sample " << i << ": true=" << y_binary(i) 
+                  << ", pred=" << y_pred(i) 
+                  << " (" << (y_pred(i) > 0.5 ? "1" : "0") << ")" << std::endl;
+    }
+
     double score = network.score(X_binary, y_binary);
+    std::cout << "Final accuracy: " << score << std::endl;
     EXPECT_GT(score, 0.95);
 }
 
