@@ -42,16 +42,16 @@ add_ml_test(test_lstm_layer_deep unit/layers/test_lstm_layer_deep.cpp)
 add_ml_test(test_optimizers_deep unit/optimizers/test_optimizers_deep.cpp)
 
 # Test sui regularizers
-add_ml_test(test_reularizers_deep unit/regularizers/test_reularizers_deep.cpp)
+add_ml_test(test_regularizers_deep unit/regularizers/test_regularizers_deep.cpp)
 
 
 # Test per Math Utils
 add_ml_test(test_math_utils_deep unit/utils/test_math_utils_deep.cpp)
 
 # Test per i Models
-add_ml_test(test_linear unit/models/test_linear.cpp)
-add_ml_test(test_logistic unit/models/test_logistic.cpp)
-add_ml_test(test_neural unit/models/test_neural.cpp)
+add_ml_test(test_linear_regression_model unit/models/test_linear_regression_model.cpp)
+add_ml_test(test_logistic_regression_model unit/models/test_logistic_regression_model.cpp)
+add_ml_test(test_neural_network_model unit/models/test_neural_network_model.cpp)
 
 # Test per le Loss
 add_ml_test(test_loss unit/loss/test_loss.cpp)
@@ -63,10 +63,15 @@ add_ml_test(test_huber_loss unit/loss/test_huber_loss.cpp)
 add_ml_test(test_loss_factory_loss unit/loss/test_loss_factory_loss.cpp)
 
 # Test integration
-add_ml_test(test_linear_regression_deep integration/test_linear_regression_deep.cpp)
-add_ml_test(test_logistic_regression_deep integration/test_logistic_regression_deep.cpp)
-add_ml_test(test_neural_network_deep integration/test_neural_network_deep.cpp)
-add_ml_test(test_real_datasets_deep integration/test_real_datasets_deep.cpp)
-
+add_ml_test(test_linear_regression_integration integration/test_linear_regression_integration.cpp)
+add_ml_test(test_logistic_regression_integration integration/test_logistic_regression_integration.cpp)
+add_ml_test(test_neural_network_integration integration/test_neural_network_integration.cpp)
+add_ml_test(test_real_datasets_integration integration/test_real_datasets_integration.cpp)
+add_ml_test(test_loss_optimizer_integration integration/test_loss_optimizer_integration.cpp)
+add_ml_test(test_loss_regularizer_integration integration/test_loss_regularizer_integration.cpp)
+add_ml_test(test_neural_network_regularizer_integration integration/test_neural_network_regularizer_integration.cpp)
+add_ml_test(test_layer_optimizer_integration integration/test_layer_optimizer_integration.cpp)
+add_ml_test(test_end_to_end_integration integration/test_end_to_end_integration.cpp)
+add_ml_test(test_convergence_integration integration/test_convergence_integration.cpp)
 
 message(STATUS "✅ C++ tests configured")
