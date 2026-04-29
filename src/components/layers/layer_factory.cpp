@@ -1,3 +1,5 @@
+#include "exceptions/exception_macros.h"
+#include <memory>
 #include "components/layers/layer_factory.h"
 #include "components/layers/dense_layer.h"
 #include "components/layers/conv2d_layer.h"

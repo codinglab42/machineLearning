@@ -191,13 +191,13 @@ namespace ml_exception {
     class DeserializationException : public MLException {
     public:
         explicit DeserializationException(const std::string& reason,
-                                         const std::string& model_type = "")
+                                         const std::string& model_type)
             : MLException(build_message(reason), model_type),
               reason_(reason) {}
         
         DeserializationException(const std::string& filename,
                                 const std::string& reason,
-                                const std::string& model_type = "")
+                                const std::string& model_type)
             : MLException(build_message(filename, reason), model_type),
               filename_(filename),
               reason_(reason) {}

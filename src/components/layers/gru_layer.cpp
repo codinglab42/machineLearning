@@ -1,3 +1,6 @@
+#include <random>
+#include <memory>
+#include <Eigen/Dense>
 #include "components/layers/gru_layer.h"
 #include "exceptions/exception_macros.h"
 #include <sstream>
@@ -54,6 +57,9 @@ namespace layers {
         
         hidden_state_.resize(0, 0);
         cache_ = nullptr;
+
+        weights_gradient_.resize(0, 0);
+        bias_gradient_.resize(0);
     }
 
     void GRULayer::set_input_shape(int input_size) {
@@ -171,12 +177,10 @@ namespace layers {
         return h_t;
     }
 
-    Eigen::MatrixXd GRULayer::backward(const Eigen::MatrixXd& gradient, double learning_rate) {
+    Eigen::MatrixXd GRULayer::backward(const Eigen::MatrixXd& gradient) {
         if (!cache_) {
             ML_THROW_FITTING_ERROR("GRULayer", "cache not initialized. Call forward first.");
         }
-        
-        ML_CHECK_PARAM(learning_rate > 0, "learning_rate", "must be > 0", "GRULayer");
         
         auto gru_cache = get_specific_cache();
         
@@ -192,7 +196,6 @@ namespace layers {
                 gradient.rows(), gradient.cols(), "GRULayer");
         }
         
-        // Recupera dati dalla cache
         const Eigen::MatrixXd& h_t = gru_cache->hidden_states[0];
         const Eigen::MatrixXd& r_t = gru_cache->reset_gates[0];
         const Eigen::MatrixXd& z_t = gru_cache->update_gates[0];
@@ -205,18 +208,14 @@ namespace layers {
                                         gru_cache->hidden_states[0] : 
                                         Eigen::MatrixXd::Zero(batch_size, units_);
         
-        // Gradiente rispetto a h_t (dato)
         Eigen::MatrixXd dH = gradient;
         
-        // Gradienti intermedi
         Eigen::MatrixXd dZ_t = dH.array() * (h_tilde - prev_h).array() * sigmoid_derivative(z_z).array();
         Eigen::MatrixXd dH_tilde = dH.array() * z_t.array() * tanh_derivative(z_h).array();
         
-        // Gradiente per reset gate
         Eigen::MatrixXd dR_t = (dH_tilde * recurrent_h.transpose()).array() * 
-                               prev_h.array() * sigmoid_derivative(z_r).array();
+                            prev_h.array() * sigmoid_derivative(z_r).array();
         
-        // Gradienti per i pesi
         const Eigen::MatrixXd& input = gru_cache->input_cache;
         
         Eigen::MatrixXd dKernel_r = input.transpose() * dR_t;
@@ -228,32 +227,34 @@ namespace layers {
         Eigen::MatrixXd dRecurrent_z = prev_h.transpose() * dZ_t;
         Eigen::MatrixXd dRecurrent_h = h_weighted.transpose() * dH_tilde;
         
-        Eigen::VectorXd dBias_r, dBias_z, dBias_h;
+        // SALVA GRADIENTI (NON aggiornare pesi!)
+        int total_rows = kernel_r.rows() + recurrent_r.rows();
+        int total_cols = 3 * units_ + (use_bias_ ? 3 : 0);
+        weights_gradient_.resize(total_rows, total_cols);
+        weights_gradient_.setZero();
+        
+        weights_gradient_.block(0, 0, dKernel_r.rows(), units_) = dKernel_r;
+        weights_gradient_.block(0, units_, dKernel_z.rows(), units_) = dKernel_z;
+        weights_gradient_.block(0, 2*units_, dKernel_h.rows(), units_) = dKernel_h;
+        
+        weights_gradient_.block(kernel_r.rows(), 0, dRecurrent_r.rows(), units_) = dRecurrent_r;
+        weights_gradient_.block(kernel_r.rows(), units_, dRecurrent_z.rows(), units_) = dRecurrent_z;
+        weights_gradient_.block(kernel_r.rows(), 2*units_, dRecurrent_h.rows(), units_) = dRecurrent_h;
+        
         if (use_bias_) {
-            dBias_r = dR_t.colwise().sum();
-            dBias_z = dZ_t.colwise().sum();
-            dBias_h = dH_tilde.colwise().sum();
+            bias_gradient_.resize(3 * units_);
+            bias_gradient_.segment(0, units_) = dR_t.colwise().sum();
+            bias_gradient_.segment(units_, units_) = dZ_t.colwise().sum();
+            bias_gradient_.segment(2*units_, units_) = dH_tilde.colwise().sum();
+            
+            weights_gradient_.col(3*units_) = bias_gradient_.segment(0, units_);
+            weights_gradient_.col(3*units_ + 1) = bias_gradient_.segment(units_, units_);
+            weights_gradient_.col(3*units_ + 2) = bias_gradient_.segment(2*units_, units_);
         }
         
-        // Gradiente per l'input
         Eigen::MatrixXd dX = dR_t * kernel_r.transpose() + 
                             dZ_t * kernel_z.transpose() + 
                             dH_tilde * kernel_h.transpose();
-        
-        // Aggiorna pesi
-        kernel_r -= learning_rate * dKernel_r / batch_size;
-        kernel_z -= learning_rate * dKernel_z / batch_size;
-        kernel_h -= learning_rate * dKernel_h / batch_size;
-        
-        recurrent_r -= learning_rate * dRecurrent_r / batch_size;
-        recurrent_z -= learning_rate * dRecurrent_z / batch_size;
-        recurrent_h -= learning_rate * dRecurrent_h / batch_size;
-        
-        if (use_bias_) {
-            bias_r -= learning_rate * dBias_r / batch_size;
-            bias_z -= learning_rate * dBias_z / batch_size;
-            bias_h -= learning_rate * dBias_h / batch_size;
-        }
         
         return dX;
     }

@@ -14,7 +14,7 @@ namespace layers {
 
         virtual Eigen::MatrixXd forward(const Eigen::MatrixXd& input) override = 0;
         virtual Eigen::MatrixXd forward(const Eigen::MatrixXd& input, bool training) override = 0;
-        virtual Eigen::MatrixXd backward(const Eigen::MatrixXd& gradient, double learning_rate) override = 0;
+        virtual Eigen::MatrixXd backward(const Eigen::MatrixXd& gradient) override= 0;
         
         virtual void serialize(std::ostream& out) const override = 0;
         virtual void deserialize(std::istream& in) override = 0;

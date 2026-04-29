@@ -6,6 +6,7 @@
 #include "components/optimizers/optimizer.h"
 #include "components/optimizers/sgd_optimizer.h"
 #include "components/optimizers/adam_optimizer.h"
+#include "components/regularizers/regularizer.h"
 #include "utils/serializable.h"
 
 namespace models {
@@ -38,6 +39,7 @@ namespace models {
 
     protected:
         std::unique_ptr<Optimizer> optimizer_;
+        std::unique_ptr<Regularizer> regularizer_;
     };
 
 } // namespace regression

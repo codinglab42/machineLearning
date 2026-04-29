@@ -87,7 +87,7 @@ TEST_P(GRULayerTest, Backward) {
     auto weights_before = layer->get_weights();
     
     // Backward con learning rate significativo
-    auto dX = layer->backward(gradient, 0.1);
+    auto dX = layer->backward(gradient);
     
     // Verifica output
     EXPECT_EQ(dX.rows(), input.rows());
@@ -333,7 +333,7 @@ TEST_P(GRULayerTest, EmptyInput) {
 TEST_P(GRULayerTest, BackwardWithoutForward) {
     Eigen::MatrixXd gradient(2, 4);
     gradient.setOnes();
-    EXPECT_THROW(layer->backward(gradient, 0.01), ml_exception::NotFittedException);
+    EXPECT_THROW(layer->backward(gradient), ml_exception::NotFittedException);
 }
 
 TEST_P(GRULayerTest, MultipleTimeSteps) {

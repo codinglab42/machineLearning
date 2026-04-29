@@ -1,3 +1,5 @@
+#include <memory>
+#include <Eigen/Dense>
 #include "components/optimizers/momentum_optimizer.h"
 #include "utils/serializable.h"
 #include <cmath>

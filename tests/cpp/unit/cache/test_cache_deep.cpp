@@ -11,7 +11,6 @@
 #include "components/cache/simple_rnn_cache.h"
 #include "components/cache/lstm_cache.h"
 #include "components/cache/gru_cache.h"
-#include "components/cache/weighted_cache.h"
 #include <Eigen/Dense>
 
 using namespace layers;
@@ -29,7 +28,6 @@ TEST(DenseCacheTest, InitialState) {
     EXPECT_EQ(cache.get_input().size(), 0);
     EXPECT_EQ(cache.get_output().size(), 0);
     EXPECT_EQ(cache.get_type(), "DenseCache");
-    EXPECT_TRUE(cache.has_activation());
     
     EXPECT_EQ(cache.mutable_input().size(), 0);
     EXPECT_EQ(cache.mutable_z().size(), 0);
@@ -84,7 +82,6 @@ TEST(ConvCacheTest, InitialState) {
     EXPECT_EQ(cache.get_input().size(), 0);
     EXPECT_EQ(cache.get_output().size(), 0);
     EXPECT_EQ(cache.get_type(), "ConvCache");
-    EXPECT_TRUE(cache.has_activation());
 }
 
 TEST(ConvCacheTest, SetDimensions) {
@@ -205,7 +202,6 @@ TEST(PoolingCacheTest, InitialState) {
     EXPECT_FALSE(cache.is_valid());
     EXPECT_EQ(cache.get_input().size(), 0);
     EXPECT_EQ(cache.get_output().size(), 0);
-    EXPECT_FALSE(cache.has_activation());
     EXPECT_EQ(cache.get_type(), "PoolingCache");
     EXPECT_FALSE(cache.get_training());
     EXPECT_TRUE(cache.get_max_indices().empty());
@@ -295,7 +291,6 @@ TEST(DropoutCacheTest, InitialState) {
     EXPECT_FALSE(cache.is_valid());
     EXPECT_EQ(cache.get_input().size(), 0);
     EXPECT_EQ(cache.get_output().size(), 0);
-    EXPECT_FALSE(cache.has_activation());
     EXPECT_EQ(cache.get_type(), "DropoutCache");
     EXPECT_EQ(cache.mask.size(), 0);
     EXPECT_FALSE(cache.training);
@@ -362,7 +357,6 @@ TEST(FlattenCacheTest, InitialState) {
     EXPECT_FALSE(cache.is_valid());
     EXPECT_EQ(cache.get_input().size(), 0);
     EXPECT_EQ(cache.get_output().size(), 0);
-    EXPECT_FALSE(cache.has_activation());
     EXPECT_EQ(cache.get_type(), "FlattenCache");
     EXPECT_TRUE(cache.original_shape.empty());
 }
@@ -419,7 +413,6 @@ TEST(BatchNormCacheTest, InitialState) {
     EXPECT_FALSE(cache.is_valid());
     EXPECT_EQ(cache.get_input().size(), 0);
     EXPECT_EQ(cache.get_output().size(), 0);
-    EXPECT_FALSE(cache.has_activation());
     EXPECT_EQ(cache.get_type(), "BatchNormCache");
     EXPECT_FALSE(cache.training);
     EXPECT_EQ(cache.x_centered.size(), 0);
@@ -497,7 +490,6 @@ TEST(RNNCacheTest, InitialState) {
     EXPECT_FALSE(cache.is_valid());
     EXPECT_EQ(cache.get_input().size(), 0);
     EXPECT_EQ(cache.get_output().size(), 0);
-    EXPECT_TRUE(cache.has_activation());
     EXPECT_EQ(cache.get_type(), "RNNCache");
     EXPECT_TRUE(cache.hidden_states.empty());
     EXPECT_TRUE(cache.pre_activations.empty());
@@ -755,189 +747,6 @@ TEST(GRUCacheTest, SetData) {
 }
 
 //=============================================================================
-// WEIGHTED CACHE TESTS
-//=============================================================================
-
-TEST(WeightedCacheTest, InitialState) {
-    WeightedCache cache;
-    
-    EXPECT_FALSE(cache.is_valid());
-    EXPECT_EQ(cache.get_input().size(), 0);
-    EXPECT_EQ(cache.get_output().size(), 0);
-    EXPECT_TRUE(cache.has_activation());
-    EXPECT_EQ(cache.get_type(), "WeightedCache");
-    EXPECT_EQ(cache.get_weights().size(), 0);
-    EXPECT_EQ(cache.get_biases().size(), 0);
-    EXPECT_EQ(cache.get_weight_version(), 0);
-}
-
-TEST(WeightedCacheTest, SetInputOutput) {
-    WeightedCache cache;
-    
-    MatrixXd input = MatrixXd::Random(5, 10);
-    MatrixXd z = MatrixXd::Random(5, 3);
-    MatrixXd output = MatrixXd::Random(5, 3);
-    
-    cache.set_input(input);
-    cache.set_z(z);
-    cache.set_output(output);
-    
-    EXPECT_EQ(cache.get_input().rows(), 5);
-    EXPECT_EQ(cache.get_z().rows(), 5);
-    EXPECT_EQ(cache.get_output().cols(), 3);
-    EXPECT_TRUE(cache.is_valid());
-}
-
-TEST(WeightedCacheTest, SetWeightsAndBiases) {
-    WeightedCache cache;
-    
-    MatrixXd weights = MatrixXd::Random(5, 3);
-    VectorXd biases = VectorXd::Random(3);
-    
-    cache.set_weights(weights);
-    cache.set_biases(biases);
-    
-    EXPECT_EQ(cache.get_weights().rows(), 5);
-    EXPECT_EQ(cache.get_weights().cols(), 3);
-    EXPECT_EQ(cache.get_biases().size(), 3);
-    
-    cache.mutable_weights() = MatrixXd::Ones(5, 3);
-    cache.mutable_biases() = VectorXd::Ones(3);
-    
-    EXPECT_EQ(cache.get_weights()(0, 0), 1.0);
-    EXPECT_EQ(cache.get_biases()(0), 1.0);
-}
-
-TEST(WeightedCacheTest, SetGradients) {
-    WeightedCache cache;
-    
-    MatrixXd w_grad = MatrixXd::Random(5, 3);
-    VectorXd b_grad = VectorXd::Random(3);
-    
-    cache.set_weight_gradient(w_grad);
-    cache.set_bias_gradient(b_grad);
-    
-    EXPECT_EQ(cache.get_weight_gradient().rows(), 5);
-    EXPECT_EQ(cache.get_weight_gradient().cols(), 3);
-    EXPECT_EQ(cache.get_bias_gradient().size(), 3);
-    
-    cache.mutable_weight_gradient() = MatrixXd::Ones(5, 3);
-    cache.mutable_bias_gradient() = VectorXd::Ones(3);
-    
-    EXPECT_EQ(cache.get_weight_gradient()(0, 0), 1.0);
-}
-
-TEST(WeightedCacheTest, GradientHistory) {
-    WeightedCache cache;
-    
-    for (int i = 0; i < 5; ++i) {
-        cache.push_gradient_history(MatrixXd::Random(5, 3));
-    }
-    
-    EXPECT_EQ(cache.get_gradient_history().size(), 5);
-    
-    cache.clear_gradient_history();
-    EXPECT_TRUE(cache.get_gradient_history().empty());
-}
-
-TEST(WeightedCacheTest, OptimizerState) {
-    WeightedCache cache;
-    
-    // Prima di impostare i pesi, gli stati non vengono inizializzati
-    auto& state_before = cache.get_optimizer_state("adam");
-    EXPECT_EQ(state_before.timestep, 0);
-    EXPECT_EQ(state_before.first_moment.size(), 0);  // Non inizializzato
-    
-    // Imposta pesi
-    cache.set_weights(MatrixXd::Random(5, 3));
-    
-    // Dopo aver impostato i pesi, ottieni un nuovo stato o recupera quello esistente
-    // NOTA: la cache potrebbe aver già creato uno stato per "adam" alla prima chiamata,
-    // ma senza dimensioni. Dopo set_weights, dobbiamo ottenere un nuovo stato o
-    // quello esistente potrebbe non essere stato aggiornato.
-    
-    // Metodo 1: Ottieni un nuovo stato con un nome diverso
-    auto& adam_state = cache.get_optimizer_state("adam_after_weights");
-    EXPECT_EQ(adam_state.timestep, 0);
-    EXPECT_EQ(adam_state.first_moment.rows(), 5);
-    EXPECT_EQ(adam_state.first_moment.cols(), 3);
-    EXPECT_EQ(adam_state.second_moment.rows(), 5);
-    EXPECT_EQ(adam_state.second_moment.cols(), 3);
-    
-    // Metodo 2: Oppure modifica la cache per aggiornare gli stati esistenti
-    // quando vengono impostati i pesi (consigliato ma richiede modifica alla classe)
-    
-    auto& state = cache.get_optimizer_state("momentum");
-    state.timestep = 10;
-    state.momentum = MatrixXd::Ones(5, 3);
-    
-    EXPECT_TRUE(cache.has_optimizer_state("momentum"));
-    EXPECT_FALSE(cache.has_optimizer_state("unknown"));
-    
-    auto& retrieved = cache.get_optimizer_state("momentum");
-    EXPECT_EQ(retrieved.timestep, 10);
-    EXPECT_EQ(retrieved.momentum.rows(), 5);
-    EXPECT_EQ(retrieved.momentum.cols(), 3);
-}
-
-TEST(WeightedCacheTest, Checkpointing) {
-    WeightedCache cache;
-    
-    MatrixXd weights = MatrixXd::Random(5, 3);
-    VectorXd biases = VectorXd::Random(3);
-    
-    cache.set_weights(weights);
-    cache.set_biases(biases);
-    
-    cache.save_checkpoint(100);
-    cache.save_checkpoint(200);
-    
-    MatrixXd loaded_weights;
-    VectorXd loaded_biases;
-    
-    EXPECT_TRUE(cache.load_checkpoint(100, loaded_weights, loaded_biases));
-    EXPECT_EQ(loaded_weights.rows(), 5);
-    EXPECT_EQ(loaded_weights.cols(), 3);
-    
-    EXPECT_FALSE(cache.load_checkpoint(300, loaded_weights, loaded_biases));
-    
-    cache.clear_checkpoints();
-    EXPECT_FALSE(cache.load_checkpoint(100, loaded_weights, loaded_biases));
-}
-
-TEST(WeightedCacheTest, VersionAndRegularization) {
-    WeightedCache cache;
-    
-    cache.set_weight_version(42);
-    EXPECT_EQ(cache.get_weight_version(), 42);
-    
-    cache.set_regularization_loss(0.123);
-    EXPECT_DOUBLE_EQ(cache.get_regularization_loss(), 0.123);
-}
-
-TEST(WeightedCacheTest, Clear) {
-    WeightedCache cache;
-    
-    cache.set_input(MatrixXd::Random(5, 10));
-    cache.set_z(MatrixXd::Random(5, 3));
-    cache.set_output(MatrixXd::Random(5, 3));
-    cache.set_weights(MatrixXd::Random(5, 3));
-    cache.set_biases(VectorXd::Random(3));
-    cache.push_gradient_history(MatrixXd::Random(5, 3));
-    cache.save_checkpoint(100);
-    
-    EXPECT_TRUE(cache.is_valid());
-    
-    cache.clear();
-    
-    EXPECT_FALSE(cache.is_valid());
-    EXPECT_EQ(cache.get_input().size(), 0);
-    EXPECT_EQ(cache.get_weights().size(), 0);
-    EXPECT_TRUE(cache.get_gradient_history().empty());
-    EXPECT_EQ(cache.get_weight_version(), 0);
-}
-
-//=============================================================================
 // INTEGRATION TESTS
 //=============================================================================
 
@@ -952,11 +761,11 @@ TEST(CacheIntegrationTest, AllCachesDeriveFromLayerCache) {
     SimpleRNNCache simple_rnn;
     LSTMCache lstm;
     GRUCache gru;
-    WeightedCache weighted;
+
     
     std::vector<LayerCache*> caches = {
         &dense, &conv, &pooling, &dropout, &flatten,
-        &batchnorm, &rnn, &simple_rnn, &lstm, &gru, &weighted
+        &batchnorm, &rnn, &simple_rnn, &lstm, &gru
     };
     
     for (auto* cache : caches) {

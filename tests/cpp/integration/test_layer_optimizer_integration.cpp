@@ -39,7 +39,7 @@ TEST_F(LayerOptimizerIntegrationTest, LayerUpdateWithSGD) {
     MatrixXd output = layer_->forward(input);
     
     // Backward pass con SGD (learning rate è passato al metodo backward)
-    MatrixXd dX = layer_->backward(grad, 0.01);
+    MatrixXd dX = layer_->backward(grad);
     
     EXPECT_EQ(dX.rows(), input.rows());
     EXPECT_EQ(dX.cols(), input.cols());
@@ -59,7 +59,7 @@ TEST_F(LayerOptimizerIntegrationTest, LayerBackwardPassDimensions) {
     MatrixXd grad = MatrixXd::Random(10, 5);
     
     layer_->forward(input);
-    MatrixXd dX = layer_->backward(grad, 0.01);
+    MatrixXd dX = layer_->backward(grad);
     
     EXPECT_EQ(dX.rows(), input.rows());
     EXPECT_EQ(dX.cols(), input.cols());
@@ -74,7 +74,7 @@ TEST_F(LayerOptimizerIntegrationTest, WeightsChangeAfterBackward) {
     
     // Forward and backward pass
     layer_->forward(input);
-    layer_->backward(grad, 0.01);
+    layer_->backward(grad);
     
     // Get weights after update
     Eigen::MatrixXd final_weights = layer_->get_weights();
@@ -89,11 +89,11 @@ TEST_F(LayerOptimizerIntegrationTest, MultipleBackwardPasses) {
     
     // First backward pass
     layer_->forward(input);
-    MatrixXd dX1 = layer_->backward(grad, 0.01);
+    MatrixXd dX1 = layer_->backward(grad);
     
     // Second backward pass
     layer_->forward(input);
-    MatrixXd dX2 = layer_->backward(grad, 0.01);
+    MatrixXd dX2 = layer_->backward(grad);
     
     // Both should have correct dimensions
     EXPECT_EQ(dX1.rows(), input.rows());
@@ -113,7 +113,7 @@ TEST_F(LayerOptimizerIntegrationTest, DifferentBatchSizes) {
         MatrixXd output = layer_->forward(input);
         
         // Backward pass
-        MatrixXd dX = layer_->backward(grad, 0.01);
+        MatrixXd dX = layer_->backward(grad);
         
         EXPECT_EQ(dX.rows(), batch_size);
         EXPECT_EQ(dX.cols(), 3) << "Failed for batch size: " << batch_size;

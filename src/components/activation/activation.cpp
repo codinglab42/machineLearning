@@ -1,3 +1,5 @@
+#include <memory>
+#include <Eigen/Dense>
 #include "components/activation/activation.h"
 #include <cmath>
 #include <algorithm>

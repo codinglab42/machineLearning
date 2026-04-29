@@ -1,3 +1,6 @@
+#include "exceptions/exception_macros.h"
+#include <memory>
+#include <Eigen/Dense>
 #include "components/optimizers/adam_optimizer.h"
 #include "utils/serializable.h"
 #include <cmath>

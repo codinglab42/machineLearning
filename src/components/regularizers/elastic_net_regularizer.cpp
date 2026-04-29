@@ -1,3 +1,5 @@
+#include <memory>
+#include <Eigen/Dense>
 #include "components/regularizers/elastic_net_regularizer.h"
 #include "utils/serializable.h"
 #include <cmath>

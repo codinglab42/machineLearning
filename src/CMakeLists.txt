@@ -13,19 +13,6 @@ set(ML_LIBRARY_SOURCES
     models/logistic_regression.cpp
     models/neural_network.cpp
     
-    # Cache
-    components/cache/rnn_cache.cpp
-    components/cache/pooling_cache.cpp
-    components/cache/weighted_cache.cpp      
-    components/cache/simple_rnn_cache.cpp     
-    components/cache/lstm_cache.cpp           
-    components/cache/gru_cache.cpp    
-    components/cache/batchnorm_cache.cpp
-    components/cache/conv_cache.cpp
-    components/cache/dropout_cache.cpp
-    components/cache/flatten_cache.cpp   
-    components/cache/dense_cache.cpp       
-
     # Layers
     components/layers/layer_factory.cpp  
     components/layers/layer_registry.cpp    

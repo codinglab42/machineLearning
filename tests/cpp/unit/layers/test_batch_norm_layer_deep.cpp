@@ -83,14 +83,14 @@ TEST_F(BatchNormLayerTest, Backward) {
     Eigen::MatrixXd gradient(4, 5);
     gradient.setOnes();
     
-    auto dX = layer->backward(gradient, 0.01);
+    auto dX = layer->backward(gradient);
     
     EXPECT_EQ(dX.rows(), input.rows());
     EXPECT_EQ(dX.cols(), input.cols());
     
     // Verifica che i parametri siano stati aggiornati
     auto weights_before = layer->get_weights();
-    layer->backward(gradient, 0.01);
+    layer->backward(gradient);
     auto weights_after = layer->get_weights();
     
     EXPECT_FALSE(weights_before.isApprox(weights_after));

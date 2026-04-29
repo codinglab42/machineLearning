@@ -72,7 +72,7 @@ TEST_P(DropoutLayerTest, Backward) {
     Eigen::MatrixXd gradient(3, 10);
     gradient.setOnes();
     
-    auto dX = layer->backward(gradient, 0.01);
+    auto dX = layer->backward(gradient);
     
     // Il gradiente dovrebbe essere moltiplicato per la maschera
     Eigen::MatrixXd expected_dX = gradient.cwiseProduct(expected_mask);
@@ -88,7 +88,7 @@ TEST_P(DropoutLayerTest, BackwardInference) {
     Eigen::MatrixXd gradient(3, 10);
     gradient.setOnes();
     
-    auto dX = layer->backward(gradient, 0.01);
+    auto dX = layer->backward(gradient);
     
     // In inference, il gradiente passa inalterato
     EXPECT_TRUE(dX.isApprox(gradient));

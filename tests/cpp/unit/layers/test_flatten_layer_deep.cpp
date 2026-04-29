@@ -46,7 +46,7 @@ TEST_F(FlattenLayerTest, Backward) {
     Eigen::MatrixXd gradient(2, 4);
     gradient.setOnes();
     
-    auto dX = layer->backward(gradient, 0.01);
+    auto dX = layer->backward(gradient);
     
     // Gradiente passa inalterato
     EXPECT_TRUE(dX.isApprox(gradient));
@@ -56,7 +56,7 @@ TEST_F(FlattenLayerTest, BackwardWithoutForward) {
     Eigen::MatrixXd gradient(2, 4);
     gradient.setOnes();
     
-    EXPECT_THROW(layer->backward(gradient, 0.01), std::runtime_error);
+    EXPECT_THROW(layer->backward(gradient), std::runtime_error);
 }
 
 TEST_F(FlattenLayerTest, Serialization) {

@@ -18,7 +18,7 @@ namespace layers {
 
         Eigen::MatrixXd forward(const Eigen::MatrixXd& input) override;
         Eigen::MatrixXd forward(const Eigen::MatrixXd& input, bool training) override;
-        Eigen::MatrixXd backward(const Eigen::MatrixXd& gradient, double learning_rate) override;
+        Eigen::MatrixXd backward(const Eigen::MatrixXd& gradient) override;
         
         void serialize(std::ostream& out) const override;
         void deserialize(std::istream& in) override;
@@ -46,6 +46,14 @@ namespace layers {
         void set_biases(const Eigen::VectorXd& biases) override { bias_ = biases; }
         void set_input_shape(int input_size) override;
 
+    
+        const Eigen::MatrixXd& get_weights_gradient() const { return weights_gradient_; }
+        const Eigen::VectorXd& get_bias_gradient() const { return bias_gradient_; }
+        void set_weights_gradient(const Eigen::MatrixXd& gradient) override { weights_gradient_ = gradient; }
+        void set_bias_gradient(const Eigen::VectorXd& gradient) override { bias_gradient_ = gradient; }
+
+        bool get_use_bias() const { return use_bias_; }
+        
     private:
         Eigen::MatrixXd apply_activation(const Eigen::MatrixXd& z) const;
         Eigen::MatrixXd apply_activation_derivative(const Eigen::MatrixXd& z) const;
@@ -67,6 +75,10 @@ namespace layers {
         
         Eigen::MatrixXd kernels_;
         Eigen::VectorXd bias_;
+
+        bool use_bias_;
+        Eigen::MatrixXd weights_gradient_;
+        Eigen::VectorXd bias_gradient_;
         
         int input_size_;
         int input_height_;

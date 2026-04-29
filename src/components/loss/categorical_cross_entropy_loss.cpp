@@ -1,3 +1,4 @@
+#include <Eigen/Dense>
 #include "components/loss/categorical_cross_entropy_loss.h"
 #include "exceptions/exception_macros.h"
 #include <cmath>

@@ -1,3 +1,5 @@
+#include "exceptions/exception_macros.h"
+#include <Eigen/Dense>
 #include "models/logistic_regression.h"
 #include <iostream>
 #include <fstream>

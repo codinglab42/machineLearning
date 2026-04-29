@@ -1,3 +1,5 @@
+#include <memory>
+#include <Eigen/Dense>
 #include "components/regularizers/l1_regularizer.h"
 #include <cmath>
 

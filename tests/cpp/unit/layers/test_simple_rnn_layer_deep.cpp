@@ -86,7 +86,7 @@ TEST_P(SimpleRNNLayerTest, Backward) {
     gradient.setOnes();
     
     auto weights_before = layer->get_weights();
-    auto dX = layer->backward(gradient, 0.1);  // LR più alto
+    auto dX = layer->backward(gradient);  // LR più alto
     
     EXPECT_EQ(dX.rows(), input.rows());
     EXPECT_EQ(dX.cols(), input.cols());
@@ -104,7 +104,7 @@ TEST_P(SimpleRNNLayerTest, BackwardInference) {
     Eigen::MatrixXd gradient(3, 4);
     gradient.setOnes();
     
-    auto dX = layer->backward(gradient, 0.01);
+    auto dX = layer->backward(gradient);
     
     EXPECT_TRUE(dX.isApprox(gradient));
 }
@@ -308,7 +308,7 @@ TEST_P(SimpleRNNLayerTest, EmptyInput) {
 TEST_P(SimpleRNNLayerTest, BackwardWithoutForward) {
     Eigen::MatrixXd gradient(2, 4);
     gradient.setOnes();
-    EXPECT_THROW(layer->backward(gradient, 0.01), ml_exception::NotFittedException);
+    EXPECT_THROW(layer->backward(gradient), ml_exception::NotFittedException);
 }
 
 INSTANTIATE_TEST_SUITE_P(

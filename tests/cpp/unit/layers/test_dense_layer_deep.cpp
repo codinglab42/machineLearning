@@ -67,7 +67,7 @@ TEST_P(DenseLayerTest, Backward) {
     gradient.setOnes();
     
     auto weights_before = layer->get_weights();
-    auto dX = layer->backward(gradient, 0.1);  // LR più alto
+    auto dX = layer->backward(gradient);  // LR più alto
     
     EXPECT_EQ(dX.rows(), input.rows());
     EXPECT_EQ(dX.cols(), input.cols());

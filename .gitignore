@@ -10,6 +10,7 @@
 /output
 compila.txt
 
+
 # Ignora i file di output compilati, nel caso in cui finiscano altrove
 lib/*.o             # File oggetto
 lib/*.a             # Librerie statiche (come libml_algorithms.a)
@@ -57,6 +58,9 @@ dist/
 *.log
 *.tmp
 *.old
+/scripts
+*.sh 
+*.txt
 
 
 compile_commands.json

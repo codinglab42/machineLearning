@@ -1,3 +1,4 @@
+#include <Eigen/Dense>
 #include "components/loss/mean_absolute_error_loss.h"
 #include "exceptions/exception_macros.h"
 #include <cmath>

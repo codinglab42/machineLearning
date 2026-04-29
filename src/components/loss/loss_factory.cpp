@@ -1,3 +1,4 @@
+#include <memory>
 #include "components/loss/loss_factory.h"
 #include "components/loss/binary_cross_entropy_loss.h"
 #include "components/loss/categorical_cross_entropy_loss.h"

@@ -1,4 +1,6 @@
 // src/models/estimator.cpp
+#include "exceptions/exception_macros.h"
+#include <memory>
 #include "models/estimator.h"
 #include "components/optimizers/momentum_optimizer.h"  // AGGIUNGI QUESTO
 #include "components/optimizers/sgd_optimizer.h"

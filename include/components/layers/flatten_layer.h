@@ -14,7 +14,7 @@ namespace layers {
 
         Eigen::MatrixXd forward(const Eigen::MatrixXd& input) override;
         Eigen::MatrixXd forward(const Eigen::MatrixXd& input, bool training) override;
-        Eigen::MatrixXd backward(const Eigen::MatrixXd& gradient, double learning_rate) override;
+        Eigen::MatrixXd backward(const Eigen::MatrixXd& gradient) override;
         
         void serialize(std::ostream& out) const override;
         void deserialize(std::istream& in) override;
@@ -42,6 +42,13 @@ namespace layers {
         void set_biases(const Eigen::VectorXd& biases) override {}
         void set_input_shape(int input_size) override;
 
+    
+        const Eigen::MatrixXd& get_weights_gradient() const { return weights_gradient_; }
+        const Eigen::VectorXd& get_bias_gradient() const { return bias_gradient_; }
+        void set_weights_gradient(const Eigen::MatrixXd& gradient) override { (void)gradient; }
+        void set_bias_gradient(const Eigen::VectorXd& gradient) override { (void)gradient; }
+        bool get_use_bias() const { return use_bias_; }
+        
     private:
         std::shared_ptr<FlattenCache> get_specific_cache() const {
             return std::dynamic_pointer_cast<FlattenCache>(cache_);
@@ -49,6 +56,10 @@ namespace layers {
         
         int input_size_;
         std::shared_ptr<FlattenCache> cache_;
+
+        bool use_bias_;
+        Eigen::MatrixXd weights_gradient_;
+        Eigen::VectorXd bias_gradient_;
     };
 
 } // namespace layers

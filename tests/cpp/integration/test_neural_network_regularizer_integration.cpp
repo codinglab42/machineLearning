@@ -65,22 +65,19 @@ protected:
  * - Accuracy exceeds 85%
  */
 TEST_F(NeuralNetworkRegularizerIntegrationTest, TrainWithL2Regularization) {
-    NeuralNetwork nn({2, 16, 1}, "relu", "sigmoid", OptimizerType::ADAM, 0.01);
+    NeuralNetwork nn({2, 16, 1}, "relu", "sigmoid", OptimizerType::ADAM, 0.001);  // LR ridotto a 0.001
     nn.set_loss_function("binary_crossentropy");
-    nn.set_regularizer(RegularizerType::L2, 0.001);
-    nn.set_epochs(100);
+    nn.set_regularizer(RegularizerType::L2, 0.0001);  // Regularization più piccola
+    nn.set_epochs(500);  // Aumentato a 500
     nn.set_batch_size(32);
-    nn.set_verbose(false);
+    nn.set_verbose(true);  // Metti verbose per vedere progresso
     
-    // Training should complete without exceptions
     EXPECT_NO_THROW(nn.fit(X_, y_));
     
-    // Accuracy should be good
     double score = nn.score(X_, y_);
     std::cout << "L2 Regularization accuracy: " << score << std::endl;
     EXPECT_GT(score, 0.85);
 }
-
 /**
  * @brief Test L2 regularization with different strengths
  * 
@@ -117,12 +114,12 @@ TEST_F(NeuralNetworkRegularizerIntegrationTest, L2RegularizationWithDifferentStr
  * Verifies that L1 regularization works correctly with neural networks
  */
 TEST_F(NeuralNetworkRegularizerIntegrationTest, TrainWithL1Regularization) {
-    NeuralNetwork nn({2, 16, 1}, "relu", "sigmoid", OptimizerType::ADAM, 0.01);
+    NeuralNetwork nn({2, 16, 1}, "relu", "sigmoid", OptimizerType::ADAM, 0.001);
     nn.set_loss_function("binary_crossentropy");
-    nn.set_regularizer(RegularizerType::L1, 0.001);
-    nn.set_epochs(100);
+    nn.set_regularizer(RegularizerType::L1, 0.0001);
+    nn.set_epochs(500);
     nn.set_batch_size(32);
-    nn.set_verbose(false);
+    nn.set_verbose(true);
     
     EXPECT_NO_THROW(nn.fit(X_, y_));
     

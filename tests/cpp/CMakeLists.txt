@@ -73,5 +73,6 @@ add_ml_test(test_neural_network_regularizer_integration integration/test_neural_
 add_ml_test(test_layer_optimizer_integration integration/test_layer_optimizer_integration.cpp)
 add_ml_test(test_end_to_end_integration integration/test_end_to_end_integration.cpp)
 add_ml_test(test_convergence_integration integration/test_convergence_integration.cpp)
+add_ml_test(test_neural_network_minimal_and integration/test_neural_network_minimal_and.cpp)
 
 message(STATUS "✅ C++ tests configured")

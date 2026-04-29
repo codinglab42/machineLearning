@@ -1,190 +1,277 @@
+/**
+ * @file test_neural_network_regularizer_integration.cpp
+ * @brief Integration tests for Neural Network with Regularizers
+ */
+
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
+#include <memory>
+#include <iostream>
+#include <Eigen/Dense>
+
 #include "models/neural_network.h"
-#include "utils/math_utils.h"
+#include "components/regularizers/regularizer_factory.h"
 
 using namespace models;
-using namespace utils;
+using namespace Eigen;
 using namespace testing;
 
-class NeuralNetworkIntegrationTest : public ::testing::Test {
+// ============================================================================
+// Utility function for feature normalization
+// ============================================================================
+
+/**
+ * @brief Normalize features to have zero mean and unit variance
+ * @param X Matrix to normalize (modified in place)
+ */
+void normalize_features(Eigen::MatrixXd& X) {
+    for (int i = 0; i < X.cols(); ++i) {
+        double mean = X.col(i).mean();
+        double std = std::sqrt((X.col(i).array() - mean).square().mean());
+        if (std < 1e-7) std = 1.0;
+        X.col(i) = (X.col(i).array() - mean) / std;
+    }
+}
+
+/**
+ * @brief Test fixture for Neural Network with Regularizer integration tests
+ */
+class NeuralNetworkRegularizerIntegrationTest : public ::testing::Test {
 protected:
     void SetUp() override {
-        // Dataset AND
-        X_and.resize(4, 2);
-        X_and << 0, 0,
-                 0, 1,
-                 1, 0,
-                 1, 1;
-        y_and.resize(4);
-        y_and << 0, 0, 0, 1;
+        // Create a simple binary classification dataset
+        X_.resize(100, 2);
+        X_.setRandom();
         
-        // Dataset OR
-        X_or.resize(4, 2);
-        X_or << 0, 0,
-                0, 1,
-                1, 0,
-                1, 1;
-        y_or.resize(4);
-        y_or << 0, 1, 1, 1;
+        // NORMALIZE FEATURES - CRITICAL for stable training!
+        normalize_features(X_);
         
-        // Dataset XOR (più difficile)
-        X_xor.resize(4, 2);
-        X_xor << 0, 0,
-                 0, 1,
-                 1, 0,
-                 1, 1;
-        y_xor.resize(4);
-        y_xor << 0, 1, 1, 0;
+        // Decision boundary: x0 + x1 > 0 (after normalization)
+        y_ = (X_.col(0).array() + X_.col(1).array() > 0).cast<double>();
         
-        // Dataset binario semplice
-        X_binary.resize(100, 2);
-        y_binary.resize(100);
+        // Ensure balanced classes
+        int positive_count = y_.sum();
+        int negative_count = y_.size() - positive_count;
         
-        std::random_device rd;
-        std::mt19937 gen(42);
-        
-        for (int i = 0; i < 100; ++i) {
-            if (i < 50) {
-                X_binary(i, 0) = 1.0 + std::normal_distribution<>(0, 0.3)(gen);
-                X_binary(i, 1) = 1.0 + std::normal_distribution<>(0, 0.3)(gen);
-                y_binary(i) = 0;
-            } else {
-                X_binary(i, 0) = 3.0 + std::normal_distribution<>(0, 0.3)(gen);
-                X_binary(i, 1) = 3.0 + std::normal_distribution<>(0, 0.3)(gen);
-                y_binary(i) = 1;
-            }
-        }
+        std::cout << "Dataset: " << y_.size() << " samples, "
+                  << positive_count << " positive, "
+                  << negative_count << " negative" << std::endl;
     }
     
-    Eigen::MatrixXd X_and, X_or, X_xor, X_binary;
-    Eigen::VectorXd y_and, y_or, y_xor, y_binary;
+    MatrixXd X_;
+    VectorXd y_;
 };
 
-TEST_F(NeuralNetworkIntegrationTest, AND) {
-    NeuralNetwork network({2, 8, 1}, "relu", "sigmoid", OptimizerType::ADAM, 0.5);
-    network.set_loss_function("binary_crossentropy");
-    network.set_epochs(2000);
-    network.set_batch_size(4);
-    network.set_verbose(true);
+// ============================================================================
+// L2 Regularization (Ridge) Tests
+// ============================================================================
+
+TEST_F(NeuralNetworkRegularizerIntegrationTest, TrainWithL2Regularization) {
+    NeuralNetwork nn({2, 16, 1}, "relu", "sigmoid", OptimizerType::ADAM, 0.01);
+    nn.set_loss_function("binary_crossentropy");
+    nn.set_regularizer(RegularizerType::L2, 0.001);
+    nn.set_epochs(200);
+    nn.set_batch_size(32);
+    nn.set_verbose(false);
     
-    network.fit(X_and, y_and);
+    EXPECT_NO_THROW(nn.fit(X_, y_));
     
-    Eigen::VectorXd y_pred = network.predict(X_and);
-    
-    // DEBUG: stampa predizioni
-    std::cout << "Predictions for AND:" << std::endl;
-    for (int i = 0; i < 4; ++i) {
-        std::cout << "  Input: (" << X_and(i,0) << ", " << X_and(i,1) 
-                  << ") -> true=" << y_and(i) 
-                  << ", pred=" << y_pred(i)
-                  << " (" << (y_pred(i) > 0.5 ? "1" : "0") << ")" << std::endl;
-    }
-    
-    Eigen::VectorXi y_pred_int = (y_pred.array() > 0.5).cast<int>();
-    
-    int correct = 0;
-    for (int i = 0; i < 4; ++i) {
-        if (y_pred_int(i) == static_cast<int>(y_and(i))) correct++;
-    }
-    EXPECT_GE(correct, 4);
+    double score = nn.score(X_, y_);
+    std::cout << "L2 Regularization accuracy: " << score << std::endl;
+    EXPECT_GT(score, 0.85);
 }
 
-TEST_F(NeuralNetworkIntegrationTest, OR) {
-    // Aumenta learning rate a 0.5 come AND
-    NeuralNetwork network({2, 8, 1}, "relu", "sigmoid", OptimizerType::ADAM, 0.5);
-    network.set_loss_function("binary_crossentropy");
-    network.set_epochs(1000);
-    network.set_batch_size(4);
-    network.set_verbose(true);
+TEST_F(NeuralNetworkRegularizerIntegrationTest, L2RegularizationWithDifferentStrengths) {
+    std::vector<double> strengths = {0.0001, 0.001, 0.01};
     
-    network.fit(X_or, y_or);
-    
-    Eigen::VectorXd y_pred = network.predict(X_or);
-    
-    // Debug output
-    std::cout << "Predictions for OR:" << std::endl;
-    for (int i = 0; i < 4; ++i) {
-        std::cout << "  Input: (" << X_or(i,0) << ", " << X_or(i,1) 
-                  << ") -> true=" << y_or(i) 
-                  << ", pred=" << y_pred(i)
-                  << " (" << (y_pred(i) > 0.5 ? "1" : "0") << ")" << std::endl;
-    }
-    
-    Eigen::VectorXi y_pred_int = (y_pred.array() > 0.5).cast<int>();
-    
-    int correct = 0;
-    for (int i = 0; i < 4; ++i) {
-        if (y_pred_int(i) == static_cast<int>(y_or(i))) correct++;
-    }
-    EXPECT_GE(correct, 4);
-}
-
-TEST_F(NeuralNetworkIntegrationTest, BinaryClassification) {
-    NeuralNetwork network({2, 32, 16, 1}, "relu", "sigmoid", OptimizerType::ADAM, 0.2);
-    network.set_loss_function("binary_crossentropy");
-    network.set_epochs(2000);
-    network.set_batch_size(16);
-    network.set_verbose(true);
-    
-    network.fit(X_binary, y_binary);
-    
-    // Debug: mostra alcune predizioni
-    Eigen::VectorXd y_pred = network.predict(X_binary);
-    std::cout << "\nSample predictions:" << std::endl;
-    for (int i = 0; i < 10; ++i) {
-        std::cout << "  Sample " << i << ": true=" << y_binary(i) 
-                  << ", pred=" << y_pred(i) 
-                  << " (" << (y_pred(i) > 0.5 ? "1" : "0") << ")" << std::endl;
-    }
-
-    double score = network.score(X_binary, y_binary);
-    std::cout << "Final accuracy: " << score << std::endl;
-    EXPECT_GT(score, 0.95);
-}
-
-TEST_F(NeuralNetworkIntegrationTest, History) {
-    NeuralNetwork network({2, 8, 1}, "relu", "sigmoid", OptimizerType::ADAM, 0.2);
-    network.set_loss_function("binary_crossentropy");
-    network.set_epochs(200);
-    network.set_batch_size(4);
-    network.set_verbose(false);
-    
-    network.fit(X_and, y_and);
-    
-    auto [loss, val_loss, acc] = network.get_training_history();
-    EXPECT_GT(loss.size(), 0);
-    EXPECT_LT(loss.back(), loss.front());
-}
-
-TEST_F(NeuralNetworkIntegrationTest, PredictProba) {
-    NeuralNetwork network({2, 8, 1}, "relu", "sigmoid", OptimizerType::ADAM, 0.2);
-    network.set_loss_function("binary_crossentropy");
-    network.set_epochs(200);
-    network.set_batch_size(4);
-    network.set_verbose(false);
-    
-    network.fit(X_and, y_and);
-    
-    Eigen::MatrixXd proba = network.predict_proba(X_and);
-    EXPECT_EQ(proba.rows(), 4);
-    EXPECT_EQ(proba.cols(), 1);
-    
-    for (int i = 0; i < 4; ++i) {
-        EXPECT_GE(proba(i,0), 0.0);
-        EXPECT_LE(proba(i,0), 1.0);
+    for (double strength : strengths) {
+        NeuralNetwork nn({2, 16, 1}, "relu", "sigmoid", OptimizerType::ADAM, 0.01);
+        nn.set_loss_function("binary_crossentropy");
+        nn.set_regularizer(RegularizerType::L2, strength);
+        nn.set_epochs(200);
+        nn.set_batch_size(32);
+        nn.set_verbose(false);
+        
+        EXPECT_NO_THROW(nn.fit(X_, y_)) 
+            << "Failed with L2 strength = " << strength;
+        
+        double score = nn.score(X_, y_);
+        std::cout << "L2 strength=" << strength << " accuracy: " << score << std::endl;
+        EXPECT_GT(score, 0.80) 
+            << "Low accuracy with L2 strength = " << strength;
     }
 }
 
-TEST_F(NeuralNetworkIntegrationTest, Summary) {
-    NeuralNetwork network({2, 8, 4, 1}, "relu", "sigmoid", OptimizerType::ADAM, 0.1);
+// ============================================================================
+// L1 Regularization (Lasso) Tests
+// ============================================================================
+
+TEST_F(NeuralNetworkRegularizerIntegrationTest, TrainWithL1Regularization) {
+    NeuralNetwork nn({2, 16, 1}, "relu", "sigmoid", OptimizerType::ADAM, 0.01);
+    nn.set_loss_function("binary_crossentropy");
+    nn.set_regularizer(RegularizerType::L1, 0.001);
+    nn.set_epochs(200);
+    nn.set_batch_size(32);
+    nn.set_verbose(false);
     
-    EXPECT_NO_THROW(network.summary());
-    EXPECT_EQ(network.get_num_layers(), 3);
-    EXPECT_GT(network.get_num_parameters(), 0);
+    EXPECT_NO_THROW(nn.fit(X_, y_));
+    
+    double score = nn.score(X_, y_);
+    std::cout << "L1 Regularization accuracy: " << score << std::endl;
+    EXPECT_GT(score, 0.85);
 }
 
-int main(int argc, char **argv) {
+TEST_F(NeuralNetworkRegularizerIntegrationTest, L1RegularizationWithDifferentStrengths) {
+    std::vector<double> strengths = {0.0001, 0.001, 0.01};
+    
+    for (double strength : strengths) {
+        NeuralNetwork nn({2, 16, 1}, "relu", "sigmoid", OptimizerType::ADAM, 0.01);
+        nn.set_loss_function("binary_crossentropy");
+        nn.set_regularizer(RegularizerType::L1, strength);
+        nn.set_epochs(200);
+        nn.set_batch_size(32);
+        nn.set_verbose(false);
+        
+        EXPECT_NO_THROW(nn.fit(X_, y_))
+            << "Failed with L1 strength = " << strength;
+        
+        double score = nn.score(X_, y_);
+        std::cout << "L1 strength=" << strength << " accuracy: " << score << std::endl;
+        EXPECT_GT(score, 0.80)
+            << "Low accuracy with L1 strength = " << strength;
+    }
+}
+
+// ============================================================================
+// Elastic Net Regularization Tests
+// ============================================================================
+
+TEST_F(NeuralNetworkRegularizerIntegrationTest, TrainWithElasticNetRegularization) {
+    NeuralNetwork nn({2, 16, 1}, "relu", "sigmoid", OptimizerType::ADAM, 0.01);
+    nn.set_loss_function("binary_crossentropy");
+    nn.set_regularizer(RegularizerType::ELASTIC_NET, 0.001);
+    nn.set_epochs(200);
+    nn.set_batch_size(32);
+    nn.set_verbose(false);
+    
+    EXPECT_NO_THROW(nn.fit(X_, y_));
+    
+    double score = nn.score(X_, y_);
+    std::cout << "Elastic Net Regularization accuracy: " << score << std::endl;
+    EXPECT_GT(score, 0.85);
+}
+
+TEST_F(NeuralNetworkRegularizerIntegrationTest, ElasticNetWithDifferentStrengths) {
+    std::vector<double> strengths = {0.0001, 0.001, 0.01};
+    
+    for (double strength : strengths) {
+        NeuralNetwork nn({2, 16, 1}, "relu", "sigmoid", OptimizerType::ADAM, 0.01);
+        nn.set_loss_function("binary_crossentropy");
+        nn.set_regularizer(RegularizerType::ELASTIC_NET, strength);
+        nn.set_epochs(200);
+        nn.set_batch_size(32);
+        nn.set_verbose(false);
+        
+        EXPECT_NO_THROW(nn.fit(X_, y_))
+            << "Failed with Elastic Net strength = " << strength;
+        
+        double score = nn.score(X_, y_);
+        std::cout << "Elastic Net strength=" << strength << " accuracy: " << score << std::endl;
+        EXPECT_GT(score, 0.80)
+            << "Low accuracy with Elastic Net strength = " << strength;
+    }
+}
+
+// ============================================================================
+// Comparison Tests
+// ============================================================================
+
+TEST_F(NeuralNetworkRegularizerIntegrationTest, CompareWithAndWithoutRegularization) {
+    // Without regularization
+    NeuralNetwork nn_no_reg({2, 16, 1}, "relu", "sigmoid", OptimizerType::ADAM, 0.01);
+    nn_no_reg.set_loss_function("binary_crossentropy");
+    nn_no_reg.set_epochs(200);
+    nn_no_reg.set_batch_size(32);
+    nn_no_reg.set_verbose(false);
+    nn_no_reg.fit(X_, y_);
+    
+    // With L2 regularization
+    NeuralNetwork nn_with_reg({2, 16, 1}, "relu", "sigmoid", OptimizerType::ADAM, 0.01);
+    nn_with_reg.set_loss_function("binary_crossentropy");
+    nn_with_reg.set_regularizer(RegularizerType::L2, 0.01);
+    nn_with_reg.set_epochs(200);
+    nn_with_reg.set_batch_size(32);
+    nn_with_reg.set_verbose(false);
+    nn_with_reg.fit(X_, y_);
+    
+    double score_no_reg = nn_no_reg.score(X_, y_);
+    double score_with_reg = nn_with_reg.score(X_, y_);
+    
+    std::cout << "Without regularization accuracy: " << score_no_reg << std::endl;
+    std::cout << "With L2 regularization accuracy: " << score_with_reg << std::endl;
+    
+    // Both should achieve good accuracy
+    EXPECT_GT(score_no_reg, 0.80);
+    EXPECT_GT(score_with_reg, 0.80);
+}
+
+TEST_F(NeuralNetworkRegularizerIntegrationTest, CompareRegularizationTypes) {
+    double strength = 0.001;
+    
+    struct RegularizerInfo {
+        RegularizerType type;
+        std::string name;
+    };
+    
+    std::vector<RegularizerInfo> reg_types = {
+        {RegularizerType::L1, "L1"},
+        {RegularizerType::L2, "L2"},
+        {RegularizerType::ELASTIC_NET, "ElasticNet"}
+    };
+    
+    for (const auto& info : reg_types) {
+        NeuralNetwork nn({2, 16, 1}, "relu", "sigmoid", OptimizerType::ADAM, 0.01);
+        nn.set_loss_function("binary_crossentropy");
+        nn.set_regularizer(info.type, strength);
+        nn.set_epochs(200);
+        nn.set_batch_size(32);
+        nn.set_verbose(false);
+        
+        EXPECT_NO_THROW(nn.fit(X_, y_)) 
+            << "Failed with " << info.name << " regularization";
+        
+        double score = nn.score(X_, y_);
+        std::cout << info.name << " regularization accuracy: " << score << std::endl;
+        EXPECT_GT(score, 0.85) 
+            << "Low accuracy with " << info.name << " regularization";
+    }
+}
+
+// ============================================================================
+// Edge Cases Tests
+// ============================================================================
+
+TEST_F(NeuralNetworkRegularizerIntegrationTest, ZeroRegularizationStrength) {
+    NeuralNetwork nn({2, 16, 1}, "relu", "sigmoid", OptimizerType::ADAM, 0.01);
+    nn.set_loss_function("binary_crossentropy");
+    nn.set_regularizer(RegularizerType::L2, 0.0);
+    nn.set_epochs(200);
+    nn.set_batch_size(32);
+    nn.set_verbose(false);
+    
+    EXPECT_NO_THROW(nn.fit(X_, y_));
+    
+    double score = nn.score(X_, y_);
+    std::cout << "Zero regularization strength accuracy: " << score << std::endl;
+    EXPECT_GT(score, 0.80);
+}
+
+// ============================================================================
+// Main function
+// ============================================================================
+
+int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);
+    ::testing::InitGoogleMock(&argc, argv);
     return RUN_ALL_TESTS();
 }

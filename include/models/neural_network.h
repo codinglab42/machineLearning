@@ -37,19 +37,7 @@ namespace models {
         GRU
     };
 
-    // Enum per i tipi di layer
-    enum class LayerType {
-        DENSE,
-        CONV2D,
-        MAX_POOLING,
-        AVERAGE_POOLING,
-        FLATTEN,
-        DROPOUT,
-        BATCH_NORM,
-        SIMPLE_RNN,
-        LSTM,
-        GRU
-    };
+    using LayerType = layers::LayerType;
 
     class NeuralNetwork : public Estimator {
     public:
@@ -162,6 +150,10 @@ namespace models {
         void reset_history() ;
 
     protected:
+
+        void determine_problem_type(const Eigen::VectorXd& y);
+        void clip_gradient(Eigen::MatrixXd& gradient, double max_norm = 1.0);
+
         // Forward/backward passes - forward_pass DICHIARATA const
         Eigen::MatrixXd forward_pass(const Eigen::MatrixXd& X, bool training = false) const;
         Eigen::VectorXd backward_pass(const Eigen::VectorXd& y_true, const Eigen::MatrixXd& y_pred);
@@ -177,8 +169,6 @@ namespace models {
 
     private:
         std::vector<std::unique_ptr<layers::Layer>> layers_;
-        std::unique_ptr<Optimizer> optimizer_;
-        std::unique_ptr<Regularizer> regularizer_;
 
         std::vector<double> loss_history_;
         std::vector<double> val_loss_history_;
@@ -186,7 +176,7 @@ namespace models {
         int batch_size_;
         int epochs_;
         double validation_split_;
-        
+
         // Cache per forward/backward (opzionale)
         mutable std::vector<std::shared_ptr<layers::LayerCache>> forward_cache_;
             
@@ -197,6 +187,9 @@ namespace models {
         int n_features_;
         int n_classes_;
         bool fitted_;
+
+        // random generator for shuffling
+        mutable std::mt19937 rng_;
         
         // Factory methods privati
         std::unique_ptr<layers::Layer> create_dense_layer(
