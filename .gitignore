@@ -9,6 +9,7 @@
 /pyBindAlgorithms/build
 /output
 compila.txt
+.coverage
 
 
 # Ignora i file di output compilati, nel caso in cui finiscano altrove
