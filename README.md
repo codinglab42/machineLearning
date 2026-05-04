@@ -100,12 +100,14 @@ sudo apt-get install build-essential cmake python3-dev libeigen3-dev
 ### Using the Python Package
 ```bash
    # Install directly from source
-   pip install -e .
+   pip install -e
 
    # Or build wheel
    python setup.py bdist_wheel
    pip install dist/ml_library-3.0.0-*.whl
 ```
+
+---
 
 ## 📖 Examples
 ### Linear Regression in C++
@@ -226,17 +228,20 @@ machineLearning
 └── CMakeLists.txt        # CMake configuration
 ```
 
-##🧪 Running Tests
-###C++ Tests
+---
+
+## 🧪 Running Tests
+### C++ Tests
 ```bash
 cd build
 ctest --output-on-failure
 ```
 
-###Python Tests
+### Python Tests
 ```bash
 pytest tests/python/
 ```
+---
 
 ## 🤝 Contributing
 1. Fork the project
@@ -245,7 +250,7 @@ pytest tests/python/
 4. Push to the branch (git push origin feature/AmazingFeature)
 5. Open a Pull Request
 
-##Coding Standards
+## Coding Standards
 
 C++17 standard
 Use Eigen::MatrixXd for matrices
@@ -259,7 +264,7 @@ Distributed under the MIT License. See LICENSE for more information.
 **Maurizio Penna** - mauriziopenna@gmail.com  
 **Project Link**: https://github.com/codinglab42/machineLearning
 
-##🙏 Acknowledgements
+## 🙏 Acknowledgements
 
 Eigen3 - Linear algebra library
 pybind11 - Python bindings
