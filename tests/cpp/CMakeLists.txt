@@ -23,8 +23,15 @@ endfunction()
 # --- Definizione dei Test ---
 
 # Test per la cache dei layers
-add_ml_test(test_cache_deep unit/cache/test_cache_deep.cpp) 
-add_ml_test(test_cache_gemini unit/cache/test_cache_gemini.cpp)
+add_ml_test(test_dense_cache unit/cache/test_dense_cache.cpp)
+add_ml_test(test_flatten_cache unit/cache/test_flatten_cache.cpp)
+add_ml_test(test_dropout_cache unit/cache/test_dropout_cache.cpp)
+add_ml_test(test_pooling_cache unit/cache/test_pooling_cache.cpp)
+add_ml_test(test_conv_cache unit/cache/test_conv_cache.cpp)
+add_ml_test(test_batchnorm_cache unit/cache/test_batchnorm_cache.cpp)
+add_ml_test(test_rnn_cache unit/cache/test_rnn_cache.cpp)
+add_ml_test(test_simple_rnn_cache unit/cache/test_simple_rnn_cache.cpp)
+add_ml_test(test_lstm_cache unit/cache/test_lstm_cache.cpp)
 
 # Test Atomici sui Layer (Gradient Checking, Forward/Backward)
 add_ml_test(test_layer_interface_deep unit/layers/test_layer_interface_deep.cpp)
