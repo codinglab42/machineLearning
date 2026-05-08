@@ -1,3 +1,4 @@
+// src/components/layers/simple_rnn_layer.cpp
 #include <random>
 #include <memory>
 #include <Eigen/Dense>
@@ -58,11 +59,45 @@ SimpleRNNLayer::SimpleRNNLayer(int units, int input_size,
     
     hidden_state_.resize(0, 0);
     cache_ = nullptr;
+
+    // VERIFICA dimensioni
+    std::cout << "=== CONSTRUCTOR ===" << std::endl;
+    std::cout << "kernel_ = " << kernel_.rows() << "x" << kernel_.cols() << std::endl;
+    std::cout << "Expected: " << input_size << "x" << units << std::endl;
+    std::cout << "recurrent_ = " << recurrent_.rows() << "x" << recurrent_.cols() << std::endl;
+    std::cout << "Expected: " << units << "x" << units << std::endl;
 }
 
 void SimpleRNNLayer::set_input_shape(int input_size) {
     ML_CHECK_PARAM(input_size > 0, "input_size", "must be > 0", "SimpleRNNLayer");
-    input_size_ = input_size;
+
+    std::cout << "=== set_input_shape ===" << std::endl;
+    std::cout << "input_size param = " << input_size << std::endl;
+    std::cout << "current input_size_ = " << input_size_ << std::endl;
+    std::cout << "kernel_ before: " << kernel_.rows() << "x" << kernel_.cols() << std::endl;
+    
+    if (input_size_ != input_size) {
+        input_size_ = input_size;
+        
+        // Ridimensiona i pesi del kernel
+        Eigen::MatrixXd new_kernel(input_size, units_);
+        double scale = std::sqrt(2.0 / (input_size + units_));
+        std::random_device rd;
+        std::mt19937 gen(rd());
+        std::normal_distribution<double> dist(0.0, scale);
+        
+        for (int i = 0; i < new_kernel.rows(); ++i) {
+            for (int j = 0; j < new_kernel.cols(); ++j) {
+                new_kernel(i, j) = dist(gen);
+            }
+        }
+        kernel_ = new_kernel;
+
+        std::cout << "kernel_ after resize: " << kernel_.rows() << "x" << kernel_.cols() << std::endl;
+        
+        // I pesi ricorrenti rimangono [units, units]
+        // I bias rimangono [units]
+    }
 }
 
 void SimpleRNNLayer::reset_state() {
@@ -79,6 +114,9 @@ Eigen::MatrixXd SimpleRNNLayer::forward(const Eigen::MatrixXd& input) {
 
 Eigen::MatrixXd SimpleRNNLayer::forward(const Eigen::MatrixXd& input, bool training) {
     ML_CHECK_NOT_EMPTY(input, "input", "SimpleRNNLayer");
+
+    std::cout << "=== forward DEBUG ===" << std::endl;
+    std::cout << "kernel_ at forward start: " << kernel_.rows() << "x" << kernel_.cols() << std::endl;
     
     if (input.cols() != input_size_) {
         ML_THROW_DIMENSION_MISMATCH("forward input",
@@ -138,10 +176,13 @@ Eigen::MatrixXd SimpleRNNLayer::backward(const Eigen::MatrixXd& gradient) {
     }
     
     auto rnn_cache = get_specific_cache();
-    
+
     if (!rnn_cache->training) {
+        std::cout << "SKIP: training mode is false, returning gradient unchanged" << std::endl;
         return gradient;
     }
+
+    std::cout << "inizio il calcolo" << std::endl;
     
     int batch_size = rnn_cache->batch_size;
     
@@ -157,10 +198,14 @@ Eigen::MatrixXd SimpleRNNLayer::backward(const Eigen::MatrixXd& gradient) {
                                      Eigen::MatrixXd::Zero(batch_size, units_);
     
     Eigen::MatrixXd dZ = gradient.array() * apply_activation_derivative(z).array();
+
+    std::cout << "dZ.rows() = " << dZ.rows() << ", dZ.cols() = " << dZ.cols() << std::endl;
     
+    // Calcolo gradienti per kernel e recurrent
     Eigen::MatrixXd dKernel = rnn_cache->input_cache.transpose() * dZ;
     Eigen::MatrixXd dRecurrent = prev_h.transpose() * dZ;
     
+    // Salva gradienti
     int total_rows = kernel_.rows() + recurrent_.rows();
     int total_cols = kernel_.cols() + recurrent_.cols() + (use_bias_ ? 1 : 0);
     weights_gradient_.resize(total_rows, total_cols);
@@ -174,8 +219,9 @@ Eigen::MatrixXd SimpleRNNLayer::backward(const Eigen::MatrixXd& gradient) {
         weights_gradient_.col(kernel_.cols() + recurrent_.cols()).head(bias_gradient_.size()) = bias_gradient_;
     }
     
+    // Calcola dX - deve avere dimensioni [batch_size, input_size]
     Eigen::MatrixXd dX = dZ * kernel_.transpose();
-    
+
     return dX;
 }
 
@@ -229,11 +275,17 @@ void SimpleRNNLayer::set_weights(const Eigen::MatrixXd& weights) {
         ML_THROW_PARAMETER_ERROR("weights", "invalid dimensions for SimpleRNNLayer", "SimpleRNNLayer");
     }
     
-    kernel_ = weights.block(0, 0, kernel_.rows(), kernel_.cols());
-    recurrent_ = weights.block(0, kernel_.cols(), recurrent_.rows(), recurrent_.cols());
+    // FORZA le dimensioni corrette
+    kernel_ = weights.block(0, 0, input_size_, units_);  // ← usa input_size_ e units_!
+    recurrent_ = weights.block(0, kernel_.cols(), units_, units_);
     
     if (use_bias_) {
         bias_ = weights.col(kernel_.cols() + recurrent_.cols());
+    }
+    
+    // Verifica finale
+    if (kernel_.rows() != input_size_ || kernel_.cols() != units_) {
+        ML_THROW_PARAMETER_ERROR("weights", "kernel dimensions mismatch", "SimpleRNNLayer");
     }
 }
 

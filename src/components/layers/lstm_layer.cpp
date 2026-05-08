@@ -1,3 +1,4 @@
+// src/components/layers/lstm_layer.cpp
 #include <random>
 #include <memory>
 #include <Eigen/Dense>
@@ -58,7 +59,7 @@ LSTMLayer::LSTMLayer(int units, int input_size,
     
     if (use_bias_) {
         bias_i.setZero(units);
-        bias_f = Eigen::VectorXd::Ones(units);
+        bias_f = Eigen::VectorXd::Ones(units);  // Forget gate bias inizializzato a 1
         bias_c.setZero(units);
         bias_o.setZero(units);
     }
@@ -70,7 +71,33 @@ LSTMLayer::LSTMLayer(int units, int input_size,
 
 void LSTMLayer::set_input_shape(int input_size) {
     ML_CHECK_PARAM(input_size > 0, "input_size", "must be > 0", "LSTMLayer");
-    input_size_ = input_size;
+    
+    if (input_size_ != input_size) {
+        input_size_ = input_size;
+        
+        double scale = std::sqrt(2.0 / (input_size + units_));
+        std::random_device rd;
+        std::mt19937 gen(rd());
+        std::normal_distribution<double> dist(0.0, scale);
+        
+        auto initialize_matrix = [&](Eigen::MatrixXd& mat, int rows, int cols) {
+            mat.resize(rows, cols);
+            for (int i = 0; i < rows; ++i) {
+                for (int j = 0; j < cols; ++j) {
+                    mat(i, j) = dist(gen);
+                }
+            }
+        };
+        
+        // Ridimensiona tutti i kernel
+        initialize_matrix(kernel_i, input_size, units_);
+        initialize_matrix(kernel_f, input_size, units_);
+        initialize_matrix(kernel_c, input_size, units_);
+        initialize_matrix(kernel_o, input_size, units_);
+        
+        // I pesi ricorrenti rimangono [units, units]
+        // I bias rimangono [units]
+    }
 }
 
 void LSTMLayer::reset_state() {
@@ -146,6 +173,7 @@ Eigen::MatrixXd LSTMLayer::forward(const Eigen::MatrixXd& input, bool training) 
         cell_state_ = Eigen::MatrixXd::Zero(batch_size, units_);
     }
     
+    // Calcolo dei gate LSTM
     Eigen::MatrixXd z_i = input * kernel_i + hidden_state_ * recurrent_i;
     Eigen::MatrixXd z_f = input * kernel_f + hidden_state_ * recurrent_f;
     Eigen::MatrixXd z_c = input * kernel_c + hidden_state_ * recurrent_c;
@@ -158,12 +186,14 @@ Eigen::MatrixXd LSTMLayer::forward(const Eigen::MatrixXd& input, bool training) 
         z_o.rowwise() += bias_o.transpose();
     }
     
-    Eigen::MatrixXd i_t = sigmoid(z_i);
-    Eigen::MatrixXd f_t = sigmoid(z_f);
-    Eigen::MatrixXd c_tilde = tanh(z_c);
-    Eigen::MatrixXd o_t = sigmoid(z_o);
+    Eigen::MatrixXd i_t = sigmoid(z_i);  // Input gate
+    Eigen::MatrixXd f_t = sigmoid(z_f);  // Forget gate
+    Eigen::MatrixXd c_tilde = tanh(z_c); // Cell candidate
+    Eigen::MatrixXd o_t = sigmoid(z_o);  // Output gate
     
-    Eigen::MatrixXd c_t = f_t.array() * cell_state_.array() + i_t.array() * c_tilde.array();
+    // Aggiornamento stato cella e stato nascosto
+    Eigen::MatrixXd c_t = f_t.array() * cell_state_.array() + 
+                          i_t.array() * c_tilde.array();
     Eigen::MatrixXd h_t = o_t.array() * tanh(c_t).array();
     
     if (training) {
@@ -274,7 +304,7 @@ Eigen::MatrixXd LSTMLayer::backward(const Eigen::MatrixXd& gradient) {
         weights_gradient_.col(4*units_ + 3) = bias_gradient_.segment(3*units_, units_);
     }
     
-    // Gradiente per l'input
+    // dX deve avere dimensioni [batch_size, input_size]
     Eigen::MatrixXd dX = dI * kernel_i.transpose() + 
                         dF * kernel_f.transpose() + 
                         dC_tilde * kernel_c.transpose() + 
@@ -325,6 +355,11 @@ void LSTMLayer::set_weights(const Eigen::MatrixXd& weights) {
     recurrent_f = weights.block(input_size_, units_, units_, units_);
     recurrent_c = weights.block(input_size_, 2*units_, units_, units_);
     recurrent_o = weights.block(input_size_, 3*units_, units_, units_);
+    
+    // Verifica dimensioni
+    if (kernel_i.rows() != input_size_ || kernel_i.cols() != units_) {
+        ML_THROW_PARAMETER_ERROR("weights", "kernel dimensions mismatch", "LSTMLayer");
+    }
     
     if (use_bias_) {
         bias_i = weights.col(4*units_);
@@ -427,6 +462,23 @@ void LSTMLayer::deserialize(std::istream& in) {
     in.read(&recurrent_activation_[0], rec_act_len);
     
     in.read(reinterpret_cast<char*>(&use_bias_), sizeof(bool));
+    
+    // Ridimensiona matrici
+    kernel_i.resize(input_size_, units_);
+    kernel_f.resize(input_size_, units_);
+    kernel_c.resize(input_size_, units_);
+    kernel_o.resize(input_size_, units_);
+    recurrent_i.resize(units_, units_);
+    recurrent_f.resize(units_, units_);
+    recurrent_c.resize(units_, units_);
+    recurrent_o.resize(units_, units_);
+    
+    if (use_bias_) {
+        bias_i.resize(units_);
+        bias_f.resize(units_);
+        bias_c.resize(units_);
+        bias_o.resize(units_);
+    }
     
     // Leggi matrici
     auto deserialize_matrix = [&](Eigen::MatrixXd& mat) {

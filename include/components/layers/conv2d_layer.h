@@ -60,6 +60,7 @@ namespace layers {
         
         Eigen::MatrixXd im2col(const Eigen::MatrixXd& input, int batch_idx, int start_idx) const;
         Eigen::MatrixXd col2im(const Eigen::MatrixXd& col, int batch_idx, int start_idx) const;
+        Eigen::MatrixXd col2im_from_cols(const Eigen::MatrixXd& dCol, int batch_idx) const;
         
         void compute_output_dimensions();
         

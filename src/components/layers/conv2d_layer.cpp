@@ -1,3 +1,4 @@
+// src/components/layers/conv2d_layer.cpp
 #include <random>
 #include <memory>
 #include <Eigen/Dense>
@@ -14,7 +15,8 @@ Conv2DLayer::Conv2DLayer(int filters, int kernel_size, int strides,
     : filters_(filters), kernel_size_(kernel_size), strides_(strides),
       padding_(padding), activation_(activation), input_size_(0),
       input_height_(0), input_width_(0), input_channels_(0),
-      output_height_(0), output_width_(0), kernel_elements_(0), use_bias_(true) {
+      output_height_(0), output_width_(0), kernel_elements_(0), 
+      use_bias_(true) {
     
     ML_CHECK_PARAM(filters > 0, "filters", "must be > 0", "Conv2DLayer");
     ML_CHECK_PARAM(kernel_size > 0, "kernel_size", "must be > 0", "Conv2DLayer");
@@ -68,7 +70,6 @@ void Conv2DLayer::set_input_shape(int input_size) {
     
     bias_.setZero(filters_);
     
-    // Inizializza gradienti
     weights_gradient_.resize(filters_, kernel_elements_);
     weights_gradient_.setZero();
     bias_gradient_.resize(filters_);
@@ -79,6 +80,9 @@ int Conv2DLayer::get_output_size() const {
     return output_height_ * output_width_ * filters_;
 }
 
+// ============================================================================
+// FORWARD - Input: [batch_size, input_size], Output: [batch_size, output_size]
+// ============================================================================
 Eigen::MatrixXd Conv2DLayer::forward(const Eigen::MatrixXd& input) {
     return forward(input, false);
 }
@@ -86,7 +90,7 @@ Eigen::MatrixXd Conv2DLayer::forward(const Eigen::MatrixXd& input) {
 Eigen::MatrixXd Conv2DLayer::forward(const Eigen::MatrixXd& input, bool training) {
     ML_CHECK_NOT_EMPTY(input, "input", "Conv2DLayer");
     
-    if (input.rows() % input_size_ != 0) {
+    if (input.cols() != input_size_) {
         ML_THROW_DIMENSION_MISMATCH("forward input",
             input.rows(), input_size_,
             input.rows(), input.cols(), "Conv2DLayer");
@@ -96,8 +100,10 @@ Eigen::MatrixXd Conv2DLayer::forward(const Eigen::MatrixXd& input, bool training
         cache_ = std::make_shared<ConvCache>();
     }
     
-    int batch_size = input.rows() / input_size_;
+    int batch_size = input.rows();
     int output_size = get_output_size();
+    int spatial_size = output_height_ * output_width_;
+    int col_size = spatial_size * kernel_elements_;
     
     cache_->set_input_shape(input_height_, input_width_, input_channels_);
     cache_->set_output_shape(output_height_, output_width_, filters_);
@@ -105,40 +111,45 @@ Eigen::MatrixXd Conv2DLayer::forward(const Eigen::MatrixXd& input, bool training
     cache_->set_kernel_info(kernel_size_, strides_, padding_);
     
     cache_->input_cache = input;
-    cache_->z_cache.resize(batch_size * output_size, 1);
-    cache_->output_cache.resize(batch_size * output_size, 1);
-    cache_->col_cache.resize(batch_size, output_height_ * output_width_ * kernel_elements_);
+    cache_->output_cache.resize(batch_size, output_size);
+    cache_->z_cache.resize(batch_size, output_size);
     
-    Eigen::MatrixXd z_output(batch_size * output_size, 1);
+    // Pre-allocazione della col_cache
+    cache_->col_cache.resize(batch_size, col_size);
+    
+    Eigen::MatrixXd output(batch_size, output_size);
     
     for (int b = 0; b < batch_size; ++b) {
-        Eigen::MatrixXd cols = im2col(input, b, 0);
+        // Estrai il campione come vettore colonna
+        Eigen::MatrixXd sample = input.row(b).transpose();
         
-        Eigen::Map<Eigen::RowVectorXd> col_map(
-            cache_->col_cache.row(b).data(), 
-            cols.rows() * cols.cols());
-        col_map = Eigen::Map<Eigen::RowVectorXd>(cols.data(), cols.rows() * cols.cols());
+        // Calcola le colonne UNA SOLA VOLTA e le SALVA nella cache
+        Eigen::MatrixXd cols = im2col(sample, b, 0);
         
-        Eigen::MatrixXd conv_output = cols * kernels_.transpose();
+        // Salva nella cache per il backward (evita ricalcolo!)
+        Eigen::Map<Eigen::RowVectorXd> col_cache_row(cache_->col_cache.row(b).data(), col_size);
+        col_cache_row = Eigen::Map<Eigen::RowVectorXd>(cols.data(), col_size);
         
-        int output_offset = b * output_size;
-        for (int f = 0; f < filters_; ++f) {
-            for (int p = 0; p < conv_output.rows(); ++p) {
-                int output_idx = output_offset + p * filters_ + f;
-                conv_output(p, f) += bias_(f);
-                z_output(output_idx) = conv_output(p, f);
-            }
+        // Convoluzione
+        Eigen::MatrixXd conv = cols * kernels_.transpose();
+        conv.rowwise() += bias_.transpose();
+        
+        // Output
+        Eigen::Map<Eigen::RowVectorXd> output_row(conv.data(), output_size);
+        output.row(b) = output_row;
+        
+        if (training) {
+            cache_->z_cache.row(b) = output_row;
         }
     }
     
-    cache_->z_cache = z_output;
-    cache_->output_cache = apply_activation(z_output);
+    cache_->output_cache = (activation_ == "linear") ? output : apply_activation(output);
     
     return cache_->output_cache;
 }
 
 // ============================================================================
-// BACKWARD - CALCOLA SOLO I GRADIENTI, NON AGGIORNA I PESI!
+// BACKWARD - Input: gradient [batch_size, output_size], Output: dX [batch_size, input_size]
 // ============================================================================
 Eigen::MatrixXd Conv2DLayer::backward(const Eigen::MatrixXd& gradient) {
     if (!cache_) {
@@ -149,57 +160,66 @@ Eigen::MatrixXd Conv2DLayer::backward(const Eigen::MatrixXd& gradient) {
     
     int batch_size = conv_cache->batch_size;
     int output_size = get_output_size();
+    int spatial_size = output_height_ * output_width_;
     
-    if (gradient.rows() != batch_size * output_size || gradient.cols() != 1) {
+    if (gradient.rows() != batch_size || gradient.cols() != output_size) {
         ML_THROW_DIMENSION_MISMATCH("backward gradient",
-            batch_size * output_size, 1,
+            batch_size, output_size,
             gradient.rows(), gradient.cols(), "Conv2DLayer");
     }
     
-    const Eigen::MatrixXd& z = conv_cache->z_cache;
+    // Gradiente post-attivazione
+    Eigen::MatrixXd dOut = (activation_ == "linear") ? gradient : 
+                           apply_activation_derivative(conv_cache->output_cache).array() * gradient.array();
     
-    Eigen::MatrixXd dZ = gradient.array() * apply_activation_derivative(z).array();
-    dZ.resize(batch_size * output_height_ * output_width_, filters_);
+    // Reshape dOut in formato [batch_size * spatial_size, filters]
+    Eigen::MatrixXd dZ(batch_size * spatial_size, filters_);
+    for (int b = 0; b < batch_size; ++b) {
+        Eigen::Map<Eigen::MatrixXd>(&dZ(b * spatial_size, 0), spatial_size, filters_) = 
+            Eigen::Map<Eigen::MatrixXd>(dOut.row(b).data(), spatial_size, filters_);
+    }
     
-    // Calcola gradienti (SALVA, NON AGGIORNARE!)
-    Eigen::VectorXd dbias = dZ.colwise().sum();
-    bias_gradient_ = dbias;
+    // Calcola gradienti per bias
+    bias_gradient_ = dZ.colwise().sum();
     
+    // Calcola gradienti per kernels usando le colonne salvate nella cache
     Eigen::MatrixXd dKernels = Eigen::MatrixXd::Zero(kernels_.rows(), kernels_.cols());
     
     for (int b = 0; b < batch_size; ++b) {
+        // RECUPERA le colonne dalla cache invece di ricalcolarle!
         Eigen::Map<Eigen::MatrixXd> cols(
             conv_cache->col_cache.row(b).data(),
-            output_height_ * output_width_,
+            spatial_size,
             kernel_elements_);
         
-        dKernels += dZ.block(b * output_height_ * output_width_, 0,
-                             output_height_ * output_width_, filters_).transpose() * cols;
+        dKernels += dZ.block(b * spatial_size, 0, spatial_size, filters_).transpose() * cols;
     }
-    
     weights_gradient_ = dKernels;
     
-    Eigen::MatrixXd dX = Eigen::MatrixXd::Zero(conv_cache->input_cache.rows(), 1);
+    // Calcola dX per l'input usando le colonne salvate
+    Eigen::MatrixXd dX(batch_size, input_size_);
+    dX.setZero();
     
     for (int b = 0; b < batch_size; ++b) {
         Eigen::Map<Eigen::MatrixXd> cols(
             conv_cache->col_cache.row(b).data(),
-            output_height_ * output_width_,
+            spatial_size,
             kernel_elements_);
         
-        Eigen::MatrixXd dZ_b = dZ.block(b * output_height_ * output_width_, 0,
-                                        output_height_ * output_width_, filters_);
-        
+        Eigen::MatrixXd dZ_b = dZ.block(b * spatial_size, 0, spatial_size, filters_);
         Eigen::MatrixXd dCol = dZ_b * kernels_;
-        dX.block(b * input_size_, 0, input_size_, 1) += col2im(dCol, b, 0);
+        
+        // col2im ora riceve la matrice delle colonne invece di ricalcolarla
+        Eigen::MatrixXd dSample = col2im_from_cols(dCol, b);
+        dX.row(b) = dSample.transpose();
     }
-    
-    // NOTA: NON aggiornare kernels_ e bias_ qui!
-    // Saranno aggiornati dall'ottimizzatore nella NeuralNetwork
     
     return dX;
 }
 
+// ============================================================================
+// im2col per un singolo campione - formato vettore colonna
+// ============================================================================
 Eigen::MatrixXd Conv2DLayer::im2col(const Eigen::MatrixXd& input, int batch_idx, int start_idx) const {
     int input_offset = batch_idx * input_size_ + start_idx;
     int patches = output_height_ * output_width_;
@@ -234,6 +254,9 @@ Eigen::MatrixXd Conv2DLayer::im2col(const Eigen::MatrixXd& input, int batch_idx,
     return cols;
 }
 
+// ============================================================================
+// col2im per un singolo campione - formato vettore colonna
+// ============================================================================
 Eigen::MatrixXd Conv2DLayer::col2im(const Eigen::MatrixXd& col, int batch_idx, int start_idx) const {
     Eigen::MatrixXd im = Eigen::MatrixXd::Zero(input_size_, 1);
     
@@ -263,6 +286,44 @@ Eigen::MatrixXd Conv2DLayer::col2im(const Eigen::MatrixXd& col, int batch_idx, i
     return im;
 }
 
+// ============================================================================
+// col2im usa le colonne già calcolate
+// ============================================================================
+Eigen::MatrixXd Conv2DLayer::col2im_from_cols(const Eigen::MatrixXd& dCol, int batch_idx) const {
+    Eigen::MatrixXd im = Eigen::MatrixXd::Zero(input_size_, 1);
+    int spatial_size = output_height_ * output_width_;
+    
+    for (int ph = 0; ph < output_height_; ++ph) {
+        for (int pw = 0; pw < output_width_; ++pw) {
+            int patch_idx = ph * output_width_ + pw;
+            int h_start = ph * strides_;
+            int w_start = pw * strides_;
+            
+            for (int kh = 0; kh < kernel_size_; ++kh) {
+                for (int kw = 0; kw < kernel_size_; ++kw) {
+                    for (int c = 0; c < input_channels_; ++c) {
+                        int h = h_start + kh;
+                        int w = w_start + kw;
+                        
+                        if (h < input_height_ && w < input_width_) {
+                            int input_idx = (h * input_width_ + w) * input_channels_ + c;
+                            // dCol ha dimensioni [spatial_size, kernel_elements]
+                            // ma noi abbiamo la colonna specifica
+                            int col_idx = (kh * kernel_size_ + kw) * input_channels_ + c;
+                            im(input_idx) += dCol(patch_idx, col_idx);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    return im;
+}
+
+// ============================================================================
+// Attivazioni
+// ============================================================================
 Eigen::MatrixXd Conv2DLayer::apply_activation(const Eigen::MatrixXd& z) const {
     if (activation_ == "relu") {
         return z.cwiseMax(0.0);
@@ -270,10 +331,8 @@ Eigen::MatrixXd Conv2DLayer::apply_activation(const Eigen::MatrixXd& z) const {
         return 1.0 / (1.0 + (-z).array().exp());
     } else if (activation_ == "tanh") {
         return z.array().tanh();
-    } else if (activation_ == "linear") {
-        return z;
     }
-    return z.cwiseMax(0.0);
+    return z;
 }
 
 Eigen::MatrixXd Conv2DLayer::apply_activation_derivative(const Eigen::MatrixXd& z) const {
@@ -283,14 +342,14 @@ Eigen::MatrixXd Conv2DLayer::apply_activation_derivative(const Eigen::MatrixXd& 
         Eigen::MatrixXd sig = 1.0 / (1.0 + (-z).array().exp());
         return sig.array() * (1.0 - sig.array());
     } else if (activation_ == "tanh") {
-        Eigen::MatrixXd tanh_z = z.array().tanh();
-        return 1.0 - tanh_z.array().square();
-    } else if (activation_ == "linear") {
-        return Eigen::MatrixXd::Ones(z.rows(), z.cols());
+        return 1.0 - z.array().tanh().square();
     }
-    return (z.array() > 0.0).cast<double>();
+    return Eigen::MatrixXd::Ones(z.rows(), z.cols());
 }
 
+// ============================================================================
+// Gestione pesi
+// ============================================================================
 Eigen::MatrixXd Conv2DLayer::get_weights() const {
     Eigen::MatrixXd weights(kernels_.rows(), kernels_.cols() + 1);
     weights.leftCols(kernels_.cols()) = kernels_;
@@ -310,6 +369,9 @@ int Conv2DLayer::get_parameter_count() const {
     return kernels_.size() + bias_.size();
 }
 
+// ============================================================================
+// Serializzazione
+// ============================================================================
 void Conv2DLayer::serialize(std::ostream& out) const {
     out << get_config() << std::endl;
     out.write(reinterpret_cast<const char*>(&input_size_), sizeof(int));
@@ -355,7 +417,6 @@ void Conv2DLayer::deserialize(std::istream& in) {
         in.read(reinterpret_cast<char*>(&bias_(i)), sizeof(double));
     }
     
-    // Inizializza gradienti
     weights_gradient_.resize(filters_, kernel_elements_);
     weights_gradient_.setZero();
     bias_gradient_.resize(filters_);

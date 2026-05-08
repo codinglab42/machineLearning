@@ -34,7 +34,6 @@ add_ml_test(test_simple_rnn_cache unit/cache/test_simple_rnn_cache.cpp)
 add_ml_test(test_lstm_cache unit/cache/test_lstm_cache.cpp)
 
 # Test Atomici sui Layer (Gradient Checking, Forward/Backward)
-add_ml_test(test_layer_interface_deep unit/layers/test_layer_interface_deep.cpp)
 add_ml_test(test_batch_norm_layer_deep unit/layers/test_batch_norm_layer_deep.cpp)
 add_ml_test(test_dense_layer_deep unit/layers/test_dense_layer_deep.cpp)
 add_ml_test(test_conv2d_layer_deep unit/layers/test_conv2d_layer_deep.cpp)

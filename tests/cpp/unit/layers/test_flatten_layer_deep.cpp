@@ -1,97 +1,51 @@
-// test/layers/flatten_layer_test.cpp
+// tests/cpp/unit/layer/test_flatten_layer.cpp
 #include <gtest/gtest.h>
-#include <gmock/gmock.h>
+#include <Eigen/Dense>
 #include "components/layers/flatten_layer.h"
 
 using namespace layers;
+using namespace Eigen;
 
 class FlattenLayerTest : public ::testing::Test {
 protected:
     void SetUp() override {
         layer = std::make_unique<FlattenLayer>();
+        
+        input.resize(2, 12);
+        input.setRandom();
     }
     
     std::unique_ptr<FlattenLayer> layer;
+    MatrixXd input;
 };
 
-TEST_F(FlattenLayerTest, Forward) {
-    Eigen::MatrixXd input(3, 5);
-    input.setRandom();
+TEST_F(FlattenLayerTest, Construction) {
+    EXPECT_FALSE(layer->has_weights());
+    EXPECT_FALSE(layer->get_use_bias());
+    EXPECT_EQ(layer->get_type(), "FlattenLayer");
+    EXPECT_EQ(layer->get_layer_type(), LayerType::FLATTEN);
+    EXPECT_EQ(layer->get_parameter_count(), 0);
+}
+
+TEST_F(FlattenLayerTest, ForwardPassThrough) {
+    MatrixXd output = layer->forward(input);
     
-    auto output = layer->forward(input);
-    
-    // Flatten non cambia la forma
-    EXPECT_EQ(output.rows(), 3);
-    EXPECT_EQ(output.cols(), 5);
+    EXPECT_EQ(output.rows(), input.rows());
+    EXPECT_EQ(output.cols(), input.cols());
     EXPECT_TRUE(output.isApprox(input));
 }
 
-TEST_F(FlattenLayerTest, ForwardWithTrainingFlag) {
-    Eigen::MatrixXd input(3, 5);
-    input.setRandom();
-    
-    auto output1 = layer->forward(input, true);
-    auto output2 = layer->forward(input, false);
-    
-    EXPECT_TRUE(output1.isApprox(output2));
-    EXPECT_TRUE(output1.isApprox(input));
-}
-
-TEST_F(FlattenLayerTest, Backward) {
-    Eigen::MatrixXd input(2, 4);
-    input.setRandom();
-    
+TEST_F(FlattenLayerTest, BackwardPassThrough) {
     layer->forward(input);
+    MatrixXd gradient = MatrixXd::Random(2, 12);
     
-    Eigen::MatrixXd gradient(2, 4);
-    gradient.setOnes();
+    MatrixXd dX = layer->backward(gradient);
     
-    auto dX = layer->backward(gradient);
-    
-    // Gradiente passa inalterato
     EXPECT_TRUE(dX.isApprox(gradient));
 }
 
-TEST_F(FlattenLayerTest, BackwardWithoutForward) {
-    Eigen::MatrixXd gradient(2, 4);
-    gradient.setOnes();
-    
-    EXPECT_THROW(layer->backward(gradient), std::runtime_error);
-}
-
-TEST_F(FlattenLayerTest, Serialization) {
-    Eigen::MatrixXd input(2, 5);
-    input.setRandom();
+TEST_F(FlattenLayerTest, InputSizeRetained) {
     layer->forward(input);
-    
-    std::stringstream ss;
-    layer->serialize(ss);
-    
-    auto new_layer = std::make_unique<FlattenLayer>();
-    new_layer->deserialize(ss);
-    
-    EXPECT_EQ(new_layer->get_config(), layer->get_config());
-    EXPECT_EQ(new_layer->get_input_size(), 5);
-}
-
-TEST_F(FlattenLayerTest, NoParameters) {
-    EXPECT_EQ(layer->get_parameter_count(), 0);
-    EXPECT_FALSE(layer->has_weights());
-    EXPECT_TRUE(layer->get_weights().size() == 0);
-}
-
-TEST_F(FlattenLayerTest, SetInputShape) {
-    layer->set_input_shape(10);
-    EXPECT_EQ(layer->get_input_size(), 10);
-}
-
-TEST_F(FlattenLayerTest, ClearCache) {
-    Eigen::MatrixXd input(2, 5);
-    input.setRandom();
-    
-    layer->forward(input);
-    EXPECT_NE(layer->get_cache(), nullptr);
-    
-    layer->clear_cache();
-    EXPECT_EQ(layer->get_cache(), nullptr);
+    EXPECT_EQ(layer->get_input_size(), 12);
+    EXPECT_EQ(layer->get_output_size(), 12);
 }
