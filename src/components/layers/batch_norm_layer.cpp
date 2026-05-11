@@ -97,9 +97,14 @@ Eigen::MatrixXd BatchNormLayer::backward(const Eigen::MatrixXd& gradient) {
     Eigen::VectorXd dgamma = (bn_cache->x_norm.array() * gradient.array()).matrix().colwise().sum();
     Eigen::VectorXd dbeta = gradient.colwise().sum();
     
-    // SALVA GRADIENTI (NON aggiornare pesi qui!)
-    weights_gradient_ = dgamma;
-    bias_gradient_ = dbeta;
+    // UNIFICA: get_weights() restituisce [input_size, 2] (gamma, beta)
+    // Quindi weights_gradient_ deve avere le stesse dimensioni
+    weights_gradient_.resize(dgamma.size(), 2);
+    weights_gradient_.col(0) = dgamma;
+    weights_gradient_.col(1) = dbeta;
+    
+    // bias_gradient_ non viene usato per BatchNorm (gamma e beta sono i "pesi")
+    bias_gradient_.resize(0);
     
     // 2. Gradiente rispetto all'input normalizzato (dx_norm)
     Eigen::MatrixXd dx_norm = gradient.array().rowwise() * gamma_.transpose().array();
@@ -124,9 +129,6 @@ Eigen::MatrixXd BatchNormLayer::backward(const Eigen::MatrixXd& gradient) {
         Eigen::MatrixXd dx = dx_centered1;
         dx.array() += bn_cache->x_centered.array().rowwise() * (dvar.array() * 2.0 / (batch_size - 1)).transpose();
         dx.array() += dmean.transpose().replicate(batch_size, 1).array() / batch_size;
-        
-        // NOTA: NON aggiornare gamma_ e beta_ qui!
-        // Saranno aggiornati dall'ottimizzatore nella NeuralNetwork
         
         return dx;
     }

@@ -28,7 +28,7 @@ public:
     bool has_weights() const override { return true; }
     
     // Getter pesi
-    Eigen::MatrixXd get_weights() const override { return weights_; }
+    Eigen::MatrixXd get_weights() const override;
     const Eigen::MatrixXd& get_weights_gradient() const override { return weights_gradient_; }
     
     // Setter pesi

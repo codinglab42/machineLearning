@@ -179,14 +179,10 @@ Eigen::MatrixXd Conv2DLayer::backward(const Eigen::MatrixXd& gradient) {
             Eigen::Map<Eigen::MatrixXd>(dOut.row(b).data(), spatial_size, filters_);
     }
     
-    // Calcola gradienti per bias
-    bias_gradient_ = dZ.colwise().sum();
-    
-    // Calcola gradienti per kernels usando le colonne salvate nella cache
+    // Calcola gradienti per kernels
     Eigen::MatrixXd dKernels = Eigen::MatrixXd::Zero(kernels_.rows(), kernels_.cols());
     
     for (int b = 0; b < batch_size; ++b) {
-        // RECUPERA le colonne dalla cache invece di ricalcolarle!
         Eigen::Map<Eigen::MatrixXd> cols(
             conv_cache->col_cache.row(b).data(),
             spatial_size,
@@ -194,7 +190,20 @@ Eigen::MatrixXd Conv2DLayer::backward(const Eigen::MatrixXd& gradient) {
         
         dKernels += dZ.block(b * spatial_size, 0, spatial_size, filters_).transpose() * cols;
     }
-    weights_gradient_ = dKernels;
+    
+    // Calcola gradienti per bias
+    Eigen::VectorXd dbias = dZ.colwise().sum();
+    
+    if (use_bias_) {
+        // UNIFICA: get_weights() restituisce [filters, kernel_elements + 1]
+        // Quindi weights_gradient_ deve avere le stesse dimensioni
+        weights_gradient_.resize(dKernels.rows(), dKernels.cols() + 1);
+        weights_gradient_.leftCols(dKernels.cols()) = dKernels;
+        weights_gradient_.col(dKernels.cols()) = dbias;
+        bias_gradient_.resize(0);  // Non serve più separatamente
+    } else {
+        weights_gradient_ = dKernels;
+    }
     
     // Calcola dX per l'input usando le colonne salvate
     Eigen::MatrixXd dX(batch_size, input_size_);
@@ -208,9 +217,7 @@ Eigen::MatrixXd Conv2DLayer::backward(const Eigen::MatrixXd& gradient) {
         
         Eigen::MatrixXd dZ_b = dZ.block(b * spatial_size, 0, spatial_size, filters_);
         Eigen::MatrixXd dCol = dZ_b * kernels_;
-        
-        // col2im ora riceve la matrice delle colonne invece di ricalcolarla
-        Eigen::MatrixXd dSample = col2im_from_cols(dCol, b);
+        Eigen::MatrixXd dSample = col2im(dCol, b, 0);
         dX.row(b) = dSample.transpose();
     }
     
@@ -351,18 +358,30 @@ Eigen::MatrixXd Conv2DLayer::apply_activation_derivative(const Eigen::MatrixXd& 
 // Gestione pesi
 // ============================================================================
 Eigen::MatrixXd Conv2DLayer::get_weights() const {
-    Eigen::MatrixXd weights(kernels_.rows(), kernels_.cols() + 1);
-    weights.leftCols(kernels_.cols()) = kernels_;
-    weights.col(kernels_.cols()) = bias_;
-    return weights;
+    if (use_bias_) {
+        // kernels_ [filters, kernel_elements], bias_ [filters]
+        // Restituisce [filters, kernel_elements + 1]
+        Eigen::MatrixXd weights_with_bias(kernels_.rows(), kernels_.cols() + 1);
+        weights_with_bias.leftCols(kernels_.cols()) = kernels_;
+        weights_with_bias.col(kernels_.cols()) = bias_;
+        return weights_with_bias;
+    }
+    return kernels_;
 }
 
 void Conv2DLayer::set_weights(const Eigen::MatrixXd& weights) {
-    if (weights.cols() != kernels_.cols() + 1) {
-        ML_THROW_PARAMETER_ERROR("weights", "invalid dimension", "Conv2DLayer");
+    if (use_bias_) {
+        if (weights.cols() != kernels_.cols() + 1) {
+            ML_THROW_PARAMETER_ERROR("weights", "invalid dimension", "Conv2DLayer");
+        }
+        kernels_ = weights.leftCols(kernels_.cols());
+        bias_ = weights.col(kernels_.cols());
+    } else {
+        if (weights.cols() != kernels_.cols()) {
+            ML_THROW_PARAMETER_ERROR("weights", "invalid dimension", "Conv2DLayer");
+        }
+        kernels_ = weights;
     }
-    kernels_ = weights.leftCols(kernels_.cols());
-    bias_ = weights.col(kernels_.cols());
 }
 
 int Conv2DLayer::get_parameter_count() const {
@@ -373,7 +392,11 @@ int Conv2DLayer::get_parameter_count() const {
 // Serializzazione
 // ============================================================================
 void Conv2DLayer::serialize(std::ostream& out) const {
-    out << get_config() << std::endl;
+    // Versione
+    uint32_t version = get_version();
+    out.write(reinterpret_cast<const char*>(&version), sizeof(version));
+    
+    // Scrivi configurazione
     out.write(reinterpret_cast<const char*>(&input_size_), sizeof(int));
     out.write(reinterpret_cast<const char*>(&input_height_), sizeof(int));
     out.write(reinterpret_cast<const char*>(&input_width_), sizeof(int));
@@ -381,22 +404,36 @@ void Conv2DLayer::serialize(std::ostream& out) const {
     out.write(reinterpret_cast<const char*>(&output_height_), sizeof(int));
     out.write(reinterpret_cast<const char*>(&output_width_), sizeof(int));
     out.write(reinterpret_cast<const char*>(&kernel_elements_), sizeof(int));
+    out.write(reinterpret_cast<const char*>(&filters_), sizeof(int));
+    out.write(reinterpret_cast<const char*>(&kernel_size_), sizeof(int));
+    out.write(reinterpret_cast<const char*>(&strides_), sizeof(int));
     
-    for (int i = 0; i < kernels_.rows(); ++i) {
-        for (int j = 0; j < kernels_.cols(); ++j) {
-            out.write(reinterpret_cast<const char*>(&kernels_(i, j)), sizeof(double));
-        }
-    }
+    size_t pad_len = padding_.size();
+    out.write(reinterpret_cast<const char*>(&pad_len), sizeof(size_t));
+    out.write(padding_.c_str(), pad_len);
     
-    for (int i = 0; i < bias_.size(); ++i) {
-        out.write(reinterpret_cast<const char*>(&bias_(i)), sizeof(double));
-    }
+    size_t act_len = activation_.size();
+    out.write(reinterpret_cast<const char*>(&act_len), sizeof(size_t));
+    out.write(activation_.c_str(), act_len);
+    
+    out.write(reinterpret_cast<const char*>(&use_bias_), sizeof(bool));
+    
+    // Serializza usando get_weights() che ora include i bias
+    Eigen::MatrixXd weights_to_save = get_weights();
+    int rows = weights_to_save.rows();
+    int cols = weights_to_save.cols();
+    out.write(reinterpret_cast<const char*>(&rows), sizeof(int));
+    out.write(reinterpret_cast<const char*>(&cols), sizeof(int));
+    out.write(reinterpret_cast<const char*>(weights_to_save.data()), 
+            rows * cols * sizeof(double));
 }
 
 void Conv2DLayer::deserialize(std::istream& in) {
-    std::string config;
-    std::getline(in, config);
+    // Leggi versione
+    uint32_t version;
+    in.read(reinterpret_cast<char*>(&version), sizeof(version));
     
+    // Leggi configurazione
     in.read(reinterpret_cast<char*>(&input_size_), sizeof(int));
     in.read(reinterpret_cast<char*>(&input_height_), sizeof(int));
     in.read(reinterpret_cast<char*>(&input_width_), sizeof(int));
@@ -404,24 +441,34 @@ void Conv2DLayer::deserialize(std::istream& in) {
     in.read(reinterpret_cast<char*>(&output_height_), sizeof(int));
     in.read(reinterpret_cast<char*>(&output_width_), sizeof(int));
     in.read(reinterpret_cast<char*>(&kernel_elements_), sizeof(int));
+    in.read(reinterpret_cast<char*>(&filters_), sizeof(int));
+    in.read(reinterpret_cast<char*>(&kernel_size_), sizeof(int));
+    in.read(reinterpret_cast<char*>(&strides_), sizeof(int));
     
-    kernels_.resize(filters_, kernel_elements_);
-    for (int i = 0; i < kernels_.rows(); ++i) {
-        for (int j = 0; j < kernels_.cols(); ++j) {
-            in.read(reinterpret_cast<char*>(&kernels_(i, j)), sizeof(double));
-        }
-    }
+    size_t pad_len;
+    in.read(reinterpret_cast<char*>(&pad_len), sizeof(size_t));
+    padding_.resize(pad_len);
+    in.read(&padding_[0], pad_len);
     
-    bias_.resize(filters_);
-    for (int i = 0; i < bias_.size(); ++i) {
-        in.read(reinterpret_cast<char*>(&bias_(i)), sizeof(double));
-    }
+    size_t act_len;
+    in.read(reinterpret_cast<char*>(&act_len), sizeof(size_t));
+    activation_.resize(act_len);
+    in.read(&activation_[0], act_len);
     
-    weights_gradient_.resize(filters_, kernel_elements_);
-    weights_gradient_.setZero();
-    bias_gradient_.resize(filters_);
-    bias_gradient_.setZero();
+    in.read(reinterpret_cast<char*>(&use_bias_), sizeof(bool));
     
+    // Leggi la matrice dei pesi
+    int rows, cols;
+    in.read(reinterpret_cast<char*>(&rows), sizeof(int));
+    in.read(reinterpret_cast<char*>(&cols), sizeof(int));
+    
+    Eigen::MatrixXd loaded_weights(rows, cols);
+    in.read(reinterpret_cast<char*>(loaded_weights.data()), rows * cols * sizeof(double));
+    
+    // Usa set_weights per decomporre
+    set_weights(loaded_weights);
+    
+    // Ricrea cache
     cache_ = std::make_shared<ConvCache>();
 }
 

@@ -43,6 +43,9 @@ add_ml_test(test_pooling_layer_deep unit/layers/test_pooling_layer_deep.cpp)
 add_ml_test(test_simple_rnn_layer_deep unit/layers/test_simple_rnn_layer_deep.cpp)
 add_ml_test(test_gru_layer_deep unit/layers/test_gru_layer_deep.cpp)
 add_ml_test(test_lstm_layer_deep unit/layers/test_lstm_layer_deep.cpp)
+add_ml_test(test_gradient_checking_layers_deep unit/layers/test_gradient_checking_layers_deep.cpp)
+
+
 
 # Test sugli optimizers
 add_ml_test(test_optimizers_deep unit/optimizers/test_optimizers_deep.cpp)
@@ -58,6 +61,7 @@ add_ml_test(test_math_utils_deep unit/utils/test_math_utils_deep.cpp)
 add_ml_test(test_linear_regression_model unit/models/test_linear_regression_model.cpp)
 add_ml_test(test_logistic_regression_model unit/models/test_logistic_regression_model.cpp)
 add_ml_test(test_neural_network_model unit/models/test_neural_network_model.cpp)
+add_ml_test(test_neural_network_serialization unit/models/test_neural_network_serialization.cpp)
 
 # Test per le Loss
 add_ml_test(test_loss unit/loss/test_loss.cpp)
@@ -67,6 +71,8 @@ add_ml_test(test_mean_squared_error_loss unit/loss/test_mean_squared_error_loss.
 add_ml_test(test_mean_absolute_error_loss unit/loss/test_mean_absolute_error_loss.cpp)
 add_ml_test(test_huber_loss unit/loss/test_huber_loss.cpp)
 add_ml_test(test_loss_factory_loss unit/loss/test_loss_factory_loss.cpp)
+add_ml_test(test_loss_function unit/loss/test_loss_function.cpp)
+
 
 # Test integration
 add_ml_test(test_linear_regression_integration integration/test_linear_regression_integration.cpp)
@@ -79,6 +85,7 @@ add_ml_test(test_neural_network_regularizer_integration integration/test_neural_
 add_ml_test(test_layer_optimizer_integration integration/test_layer_optimizer_integration.cpp)
 add_ml_test(test_end_to_end_integration integration/test_end_to_end_integration.cpp)
 add_ml_test(test_convergence_integration integration/test_convergence_integration.cpp)
+add_ml_test(test_convergence_xor integration/test_convergence_xor.cpp)
 add_ml_test(test_neural_network_minimal_and integration/test_neural_network_minimal_and.cpp)
 
 message(STATUS "✅ C++ tests configured")

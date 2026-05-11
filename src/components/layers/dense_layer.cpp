@@ -99,18 +99,23 @@ Eigen::MatrixXd DenseLayer::backward(const Eigen::MatrixXd& gradient) {
     // Calcola dZ = gradient * derivata_attivazione
     Eigen::MatrixXd dZ = gradient.array() * apply_activation_derivative(cache_->z_cache).array();
     
-    // Calcola gradienti per pesi e bias (salva per l'ottimizzatore)
-    weights_gradient_ = cache_->input_cache.transpose() * dZ;
+    // Calcola gradienti per pesi
+    Eigen::MatrixXd weight_grad = cache_->input_cache.transpose() * dZ;
     
     if (use_bias_) {
-        bias_gradient_ = dZ.colwise().sum();
+        // Calcola gradiente per bias
+        Eigen::VectorXd bias_grad = dZ.colwise().sum();
+        
+        // UNIFICA: gradiente pesi + bias in un'unica matrice [input_size, units + 1]
+        weights_gradient_.resize(weight_grad.rows(), weight_grad.cols() + 1);
+        weights_gradient_.leftCols(weight_grad.cols()) = weight_grad;
+        weights_gradient_.col(weight_grad.cols()) = bias_grad;
+    } else {
+        weights_gradient_ = weight_grad;
     }
     
     // Calcola gradiente per input (da propagare indietro)
     Eigen::MatrixXd dX = dZ * weights_.transpose();
-    
-    // NOTA: NON aggiornare weights_ e bias_ qui!
-    // Saranno aggiornati dall'ottimizzatore nella NeuralNetwork
     
     return dX;
 }
@@ -129,6 +134,19 @@ void DenseLayer::set_weights(const Eigen::MatrixXd& weights) {
         weights_ = weights;
     }
 }
+
+Eigen::MatrixXd DenseLayer::get_weights() const { 
+    if (use_bias_) {
+        // Restituisce [input_size, units + 1] - pesi + bias nell'ultima colonna
+        Eigen::MatrixXd weights_with_bias(weights_.rows(), weights_.cols() + 1);
+        weights_with_bias.leftCols(weights_.cols()) = weights_;
+        weights_with_bias.col(weights_.cols()) = bias_;
+        return weights_with_bias;
+    }
+    return weights_;
+}
+
+
 
 void DenseLayer::set_biases(const Eigen::VectorXd& biases) {
     if (use_bias_) {
@@ -189,11 +207,12 @@ void DenseLayer::serialize(std::ostream& out) const {
     out.write(reinterpret_cast<const char*>(&use_bias_), sizeof(bool));
     
     // Serializza pesi (solo i pesi, non i gradienti!)
-    int rows = weights_.rows();
-    int cols = weights_.cols();
+    Eigen::MatrixXd weights_to_save = get_weights();
+    int rows = weights_to_save.rows();
+    int cols = weights_to_save.cols();
     out.write(reinterpret_cast<const char*>(&rows), sizeof(int));
     out.write(reinterpret_cast<const char*>(&cols), sizeof(int));
-    out.write(reinterpret_cast<const char*>(weights_.data()), rows * cols * sizeof(double));
+    out.write(reinterpret_cast<const char*>(weights_to_save.data()), rows * cols * sizeof(double));
     
     if (use_bias_) {
         int bias_size = bias_.size();
@@ -217,15 +236,11 @@ void DenseLayer::deserialize(std::istream& in) {
     int rows, cols;
     in.read(reinterpret_cast<char*>(&rows), sizeof(int));
     in.read(reinterpret_cast<char*>(&cols), sizeof(int));
-    weights_.resize(rows, cols);
-    in.read(reinterpret_cast<char*>(weights_.data()), rows * cols * sizeof(double));
+
+    Eigen::MatrixXd loaded_weights(rows, cols);
+    in.read(reinterpret_cast<char*>(loaded_weights.data()), rows * cols * sizeof(double));
     
-    if (use_bias_) {
-        int bias_size;
-        in.read(reinterpret_cast<char*>(&bias_size), sizeof(int));
-        bias_.resize(bias_size);
-        in.read(reinterpret_cast<char*>(bias_.data()), bias_size * sizeof(double));
-    }
+    set_weights(loaded_weights);
     
     // Ricrea cache
     cache_ = std::make_shared<DenseCache>();

@@ -264,7 +264,7 @@ Eigen::MatrixXd LSTMLayer::backward(const Eigen::MatrixXd& gradient) {
                                     lstm_cache->hidden_states[0] : 
                                     Eigen::MatrixXd::Zero(batch_size, units_);
     
-    // Calcola gradienti (NON aggiornare pesi!)
+    // Calcola gradienti
     Eigen::MatrixXd dKernel_i = input.transpose() * dI;
     Eigen::MatrixXd dKernel_f = input.transpose() * dF;
     Eigen::MatrixXd dKernel_c = input.transpose() * dC_tilde;
@@ -275,33 +275,53 @@ Eigen::MatrixXd LSTMLayer::backward(const Eigen::MatrixXd& gradient) {
     Eigen::MatrixXd dRecurrent_c = prev_h.transpose() * dC_tilde;
     Eigen::MatrixXd dRecurrent_o = prev_h.transpose() * dO;
     
-    // Salva gradienti per l'ottimizzatore
     int total_rows = kernel_i.rows() + recurrent_i.rows();
-    int total_cols = 4 * units_ + (use_bias_ ? 4 : 0);
-    weights_gradient_.resize(total_rows, total_cols);
-    weights_gradient_.setZero();
-    
-    weights_gradient_.block(0, 0, dKernel_i.rows(), units_) = dKernel_i;
-    weights_gradient_.block(0, units_, dKernel_f.rows(), units_) = dKernel_f;
-    weights_gradient_.block(0, 2*units_, dKernel_c.rows(), units_) = dKernel_c;
-    weights_gradient_.block(0, 3*units_, dKernel_o.rows(), units_) = dKernel_o;
-    
-    weights_gradient_.block(kernel_i.rows(), 0, dRecurrent_i.rows(), units_) = dRecurrent_i;
-    weights_gradient_.block(kernel_i.rows(), units_, dRecurrent_f.rows(), units_) = dRecurrent_f;
-    weights_gradient_.block(kernel_i.rows(), 2*units_, dRecurrent_c.rows(), units_) = dRecurrent_c;
-    weights_gradient_.block(kernel_i.rows(), 3*units_, dRecurrent_o.rows(), units_) = dRecurrent_o;
     
     if (use_bias_) {
-        bias_gradient_.resize(4 * units_);
-        bias_gradient_.segment(0, units_) = dI.colwise().sum();
-        bias_gradient_.segment(units_, units_) = dF.colwise().sum();
-        bias_gradient_.segment(2*units_, units_) = dC_tilde.colwise().sum();
-        bias_gradient_.segment(3*units_, units_) = dO.colwise().sum();
+        // UNIFICA: get_weights() restituisce [input_size + units, 4*units + 4]
+        int total_cols = 4 * units_ + 4;
         
-        weights_gradient_.col(4*units_) = bias_gradient_.segment(0, units_);
-        weights_gradient_.col(4*units_ + 1) = bias_gradient_.segment(units_, units_);
-        weights_gradient_.col(4*units_ + 2) = bias_gradient_.segment(2*units_, units_);
-        weights_gradient_.col(4*units_ + 3) = bias_gradient_.segment(3*units_, units_);
+        Eigen::VectorXd dBias_i = dI.colwise().sum();
+        Eigen::VectorXd dBias_f = dF.colwise().sum();
+        Eigen::VectorXd dBias_c = dC_tilde.colwise().sum();
+        Eigen::VectorXd dBias_o = dO.colwise().sum();
+        
+        weights_gradient_.resize(total_rows, total_cols);
+        weights_gradient_.setZero();
+        
+        // Kernel gradients
+        weights_gradient_.block(0, 0, dKernel_i.rows(), units_) = dKernel_i;
+        weights_gradient_.block(0, units_, dKernel_f.rows(), units_) = dKernel_f;
+        weights_gradient_.block(0, 2*units_, dKernel_c.rows(), units_) = dKernel_c;
+        weights_gradient_.block(0, 3*units_, dKernel_o.rows(), units_) = dKernel_o;
+        
+        // Recurrent gradients
+        weights_gradient_.block(kernel_i.rows(), 0, dRecurrent_i.rows(), units_) = dRecurrent_i;
+        weights_gradient_.block(kernel_i.rows(), units_, dRecurrent_f.rows(), units_) = dRecurrent_f;
+        weights_gradient_.block(kernel_i.rows(), 2*units_, dRecurrent_c.rows(), units_) = dRecurrent_c;
+        weights_gradient_.block(kernel_i.rows(), 3*units_, dRecurrent_o.rows(), units_) = dRecurrent_o;
+        
+        // Bias gradients (ultime 4 colonne)
+        weights_gradient_.col(4*units_).head(dBias_i.size()) = dBias_i;
+        weights_gradient_.col(4*units_ + 1).head(dBias_f.size()) = dBias_f;
+        weights_gradient_.col(4*units_ + 2).head(dBias_c.size()) = dBias_c;
+        weights_gradient_.col(4*units_ + 3).head(dBias_o.size()) = dBias_o;
+        
+        bias_gradient_.resize(0);
+    } else {
+        int total_cols = 4 * units_;
+        weights_gradient_.resize(total_rows, total_cols);
+        weights_gradient_.setZero();
+        
+        weights_gradient_.block(0, 0, dKernel_i.rows(), units_) = dKernel_i;
+        weights_gradient_.block(0, units_, dKernel_f.rows(), units_) = dKernel_f;
+        weights_gradient_.block(0, 2*units_, dKernel_c.rows(), units_) = dKernel_c;
+        weights_gradient_.block(0, 3*units_, dKernel_o.rows(), units_) = dKernel_o;
+        
+        weights_gradient_.block(kernel_i.rows(), 0, dRecurrent_i.rows(), units_) = dRecurrent_i;
+        weights_gradient_.block(kernel_i.rows(), units_, dRecurrent_f.rows(), units_) = dRecurrent_f;
+        weights_gradient_.block(kernel_i.rows(), 2*units_, dRecurrent_c.rows(), units_) = dRecurrent_c;
+        weights_gradient_.block(kernel_i.rows(), 3*units_, dRecurrent_o.rows(), units_) = dRecurrent_o;
     }
     
     // dX deve avere dimensioni [batch_size, input_size]
@@ -313,59 +333,97 @@ Eigen::MatrixXd LSTMLayer::backward(const Eigen::MatrixXd& gradient) {
     return dX;
 }
 
+// include/components/layers/lstm_layer.h
+// Aggiungi/modifica questi metodi:
+
 Eigen::MatrixXd LSTMLayer::get_weights() const {
-    int total_rows = kernel_i.rows() + recurrent_i.rows();
-    int total_cols = 4 * units_ + (use_bias_ ? 4 : 0);
-    
-    Eigen::MatrixXd weights(total_rows, total_cols);
-    weights.setZero();
-    
-    weights.block(0, 0, kernel_i.rows(), units_) = kernel_i;
-    weights.block(0, units_, kernel_f.rows(), units_) = kernel_f;
-    weights.block(0, 2*units_, kernel_c.rows(), units_) = kernel_c;
-    weights.block(0, 3*units_, kernel_o.rows(), units_) = kernel_o;
-    
-    weights.block(kernel_i.rows(), 0, recurrent_i.rows(), units_) = recurrent_i;
-    weights.block(kernel_i.rows(), units_, recurrent_f.rows(), units_) = recurrent_f;
-    weights.block(kernel_i.rows(), 2*units_, recurrent_c.rows(), units_) = recurrent_c;
-    weights.block(kernel_i.rows(), 3*units_, recurrent_o.rows(), units_) = recurrent_o;
+    int total_rows = kernel_i.rows() + recurrent_i.rows();  // input_size + units
     
     if (use_bias_) {
-        weights.col(4*units_) = bias_i;
-        weights.col(4*units_ + 1) = bias_f;
-        weights.col(4*units_ + 2) = bias_c;
-        weights.col(4*units_ + 3) = bias_o;
+        // 4 gates: input, forget, cell, output
+        // Restituisce [input_size + units, 4*units + 4]
+        int total_cols = 4 * units_ + 4;
+        Eigen::MatrixXd weights(total_rows, total_cols);
+        weights.setZero();
+        
+        // Kernel weights per i 4 gate
+        weights.block(0, 0, kernel_i.rows(), units_) = kernel_i;
+        weights.block(0, units_, kernel_f.rows(), units_) = kernel_f;
+        weights.block(0, 2*units_, kernel_c.rows(), units_) = kernel_c;
+        weights.block(0, 3*units_, kernel_o.rows(), units_) = kernel_o;
+        
+        // Recurrent weights per i 4 gate
+        weights.block(kernel_i.rows(), 0, recurrent_i.rows(), units_) = recurrent_i;
+        weights.block(kernel_i.rows(), units_, recurrent_f.rows(), units_) = recurrent_f;
+        weights.block(kernel_i.rows(), 2*units_, recurrent_c.rows(), units_) = recurrent_c;
+        weights.block(kernel_i.rows(), 3*units_, recurrent_o.rows(), units_) = recurrent_o;
+        
+        // Bias nell'ultime 4 colonne
+        weights.col(4*units_).head(units_) = bias_i;
+        weights.col(4*units_ + 1).head(units_) = bias_f;
+        weights.col(4*units_ + 2).head(units_) = bias_c;
+        weights.col(4*units_ + 3).head(units_) = bias_o;
+        
+        return weights;
+    } else {
+        // Senza bias: [input_size + units, 4*units]
+        int total_cols = 4 * units_;
+        Eigen::MatrixXd weights(total_rows, total_cols);
+        weights.setZero();
+        
+        weights.block(0, 0, kernel_i.rows(), units_) = kernel_i;
+        weights.block(0, units_, kernel_f.rows(), units_) = kernel_f;
+        weights.block(0, 2*units_, kernel_c.rows(), units_) = kernel_c;
+        weights.block(0, 3*units_, kernel_o.rows(), units_) = kernel_o;
+        
+        weights.block(kernel_i.rows(), 0, recurrent_i.rows(), units_) = recurrent_i;
+        weights.block(kernel_i.rows(), units_, recurrent_f.rows(), units_) = recurrent_f;
+        weights.block(kernel_i.rows(), 2*units_, recurrent_c.rows(), units_) = recurrent_c;
+        weights.block(kernel_i.rows(), 3*units_, recurrent_o.rows(), units_) = recurrent_o;
+        
+        return weights;
     }
-    
-    return weights;
 }
 
 void LSTMLayer::set_weights(const Eigen::MatrixXd& weights) {
-    int expected_cols = 4 * units_ + (use_bias_ ? 4 : 0);
-    if (weights.cols() != expected_cols) {
-        ML_THROW_PARAMETER_ERROR("weights", "invalid dimensions", "LSTMLayer");
-    }
-    
-    kernel_i = weights.block(0, 0, input_size_, units_);
-    kernel_f = weights.block(0, units_, input_size_, units_);
-    kernel_c = weights.block(0, 2*units_, input_size_, units_);
-    kernel_o = weights.block(0, 3*units_, input_size_, units_);
-    
-    recurrent_i = weights.block(input_size_, 0, units_, units_);
-    recurrent_f = weights.block(input_size_, units_, units_, units_);
-    recurrent_c = weights.block(input_size_, 2*units_, units_, units_);
-    recurrent_o = weights.block(input_size_, 3*units_, units_, units_);
-    
-    // Verifica dimensioni
-    if (kernel_i.rows() != input_size_ || kernel_i.cols() != units_) {
-        ML_THROW_PARAMETER_ERROR("weights", "kernel dimensions mismatch", "LSTMLayer");
-    }
-    
     if (use_bias_) {
-        bias_i = weights.col(4*units_);
-        bias_f = weights.col(4*units_ + 1);
-        bias_c = weights.col(4*units_ + 2);
-        bias_o = weights.col(4*units_ + 3);
+        int expected_cols = 4 * units_ + 4;
+        if (weights.cols() != expected_cols) {
+            ML_THROW_PARAMETER_ERROR("weights", "invalid dimensions", "LSTMLayer");
+        }
+        
+        // Estrai kernel weights
+        kernel_i = weights.block(0, 0, input_size_, units_);
+        kernel_f = weights.block(0, units_, input_size_, units_);
+        kernel_c = weights.block(0, 2*units_, input_size_, units_);
+        kernel_o = weights.block(0, 3*units_, input_size_, units_);
+        
+        // Estrai recurrent weights
+        recurrent_i = weights.block(input_size_, 0, units_, units_);
+        recurrent_f = weights.block(input_size_, units_, units_, units_);
+        recurrent_c = weights.block(input_size_, 2*units_, units_, units_);
+        recurrent_o = weights.block(input_size_, 3*units_, units_, units_);
+        
+        // Estrai bias
+        bias_i = weights.col(4*units_).head(units_);
+        bias_f = weights.col(4*units_ + 1).head(units_);
+        bias_c = weights.col(4*units_ + 2).head(units_);
+        bias_o = weights.col(4*units_ + 3).head(units_);
+    } else {
+        int expected_cols = 4 * units_;
+        if (weights.cols() != expected_cols) {
+            ML_THROW_PARAMETER_ERROR("weights", "invalid dimensions", "LSTMLayer");
+        }
+        
+        kernel_i = weights.block(0, 0, input_size_, units_);
+        kernel_f = weights.block(0, units_, input_size_, units_);
+        kernel_c = weights.block(0, 2*units_, input_size_, units_);
+        kernel_o = weights.block(0, 3*units_, input_size_, units_);
+        
+        recurrent_i = weights.block(input_size_, 0, units_, units_);
+        recurrent_f = weights.block(input_size_, units_, units_, units_);
+        recurrent_c = weights.block(input_size_, 2*units_, units_, units_);
+        recurrent_o = weights.block(input_size_, 3*units_, units_, units_);
     }
 }
 
@@ -400,7 +458,11 @@ void LSTMLayer::set_biases(const Eigen::VectorXd& biases) {
 }
 
 void LSTMLayer::serialize(std::ostream& out) const {
-    // Serializza configurazione in binario
+    // Versione
+    uint32_t version = get_version();
+    out.write(reinterpret_cast<const char*>(&version), sizeof(version));
+    
+    // Scrivi configurazione
     out.write(reinterpret_cast<const char*>(&units_), sizeof(int));
     out.write(reinterpret_cast<const char*>(&input_size_), sizeof(int));
     
@@ -414,39 +476,21 @@ void LSTMLayer::serialize(std::ostream& out) const {
     
     out.write(reinterpret_cast<const char*>(&use_bias_), sizeof(bool));
     
-    // Serializza matrici
-    auto serialize_matrix = [&](const Eigen::MatrixXd& mat) {
-        int rows = mat.rows();
-        int cols = mat.cols();
-        out.write(reinterpret_cast<const char*>(&rows), sizeof(int));
-        out.write(reinterpret_cast<const char*>(&cols), sizeof(int));
-        out.write(reinterpret_cast<const char*>(mat.data()), rows * cols * sizeof(double));
-    };
-    
-    serialize_matrix(kernel_i);
-    serialize_matrix(kernel_f);
-    serialize_matrix(kernel_c);
-    serialize_matrix(kernel_o);
-    
-    serialize_matrix(recurrent_i);
-    serialize_matrix(recurrent_f);
-    serialize_matrix(recurrent_c);
-    serialize_matrix(recurrent_o);
-    
-    if (use_bias_) {
-        auto serialize_vector = [&](const Eigen::VectorXd& vec) {
-            int size = vec.size();
-            out.write(reinterpret_cast<const char*>(&size), sizeof(int));
-            out.write(reinterpret_cast<const char*>(vec.data()), size * sizeof(double));
-        };
-        serialize_vector(bias_i);
-        serialize_vector(bias_f);
-        serialize_vector(bias_c);
-        serialize_vector(bias_o);
-    }
+    // Serializza usando get_weights() che ora include i bias
+    Eigen::MatrixXd weights_to_save = get_weights();
+    int rows = weights_to_save.rows();
+    int cols = weights_to_save.cols();
+    out.write(reinterpret_cast<const char*>(&rows), sizeof(int));
+    out.write(reinterpret_cast<const char*>(&cols), sizeof(int));
+    out.write(reinterpret_cast<const char*>(weights_to_save.data()), 
+            rows * cols * sizeof(double));
 }
 
 void LSTMLayer::deserialize(std::istream& in) {
+    // Leggi versione
+    uint32_t version;
+    in.read(reinterpret_cast<char*>(&version), sizeof(version));
+    
     // Leggi configurazione
     in.read(reinterpret_cast<char*>(&units_), sizeof(int));
     in.read(reinterpret_cast<char*>(&input_size_), sizeof(int));
@@ -462,6 +506,14 @@ void LSTMLayer::deserialize(std::istream& in) {
     in.read(&recurrent_activation_[0], rec_act_len);
     
     in.read(reinterpret_cast<char*>(&use_bias_), sizeof(bool));
+    
+    // Leggi la matrice dei pesi
+    int rows, cols;
+    in.read(reinterpret_cast<char*>(&rows), sizeof(int));
+    in.read(reinterpret_cast<char*>(&cols), sizeof(int));
+    
+    Eigen::MatrixXd loaded_weights(rows, cols);
+    in.read(reinterpret_cast<char*>(loaded_weights.data()), rows * cols * sizeof(double));
     
     // Ridimensiona matrici
     kernel_i.resize(input_size_, units_);
@@ -480,37 +532,8 @@ void LSTMLayer::deserialize(std::istream& in) {
         bias_o.resize(units_);
     }
     
-    // Leggi matrici
-    auto deserialize_matrix = [&](Eigen::MatrixXd& mat) {
-        int rows, cols;
-        in.read(reinterpret_cast<char*>(&rows), sizeof(int));
-        in.read(reinterpret_cast<char*>(&cols), sizeof(int));
-        mat.resize(rows, cols);
-        in.read(reinterpret_cast<char*>(mat.data()), rows * cols * sizeof(double));
-    };
-    
-    deserialize_matrix(kernel_i);
-    deserialize_matrix(kernel_f);
-    deserialize_matrix(kernel_c);
-    deserialize_matrix(kernel_o);
-    
-    deserialize_matrix(recurrent_i);
-    deserialize_matrix(recurrent_f);
-    deserialize_matrix(recurrent_c);
-    deserialize_matrix(recurrent_o);
-    
-    if (use_bias_) {
-        auto deserialize_vector = [&](Eigen::VectorXd& vec) {
-            int size;
-            in.read(reinterpret_cast<char*>(&size), sizeof(int));
-            vec.resize(size);
-            in.read(reinterpret_cast<char*>(vec.data()), size * sizeof(double));
-        };
-        deserialize_vector(bias_i);
-        deserialize_vector(bias_f);
-        deserialize_vector(bias_c);
-        deserialize_vector(bias_o);
-    }
+    // Usa set_weights per decomporre
+    set_weights(loaded_weights);
     
     // Resetta stato
     hidden_state_.resize(0, 0);
