@@ -457,6 +457,12 @@ void Conv2DLayer::deserialize(std::istream& in) {
     
     in.read(reinterpret_cast<char*>(&use_bias_), sizeof(bool));
     
+    // IMPORTANTE: Inizializza le matrici interne PRIMA di set_weights!
+    kernels_.resize(filters_, kernel_elements_);
+    if (use_bias_) {
+        bias_.resize(filters_);
+    }
+    
     // Leggi la matrice dei pesi
     int rows, cols;
     in.read(reinterpret_cast<char*>(&rows), sizeof(int));

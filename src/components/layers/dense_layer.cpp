@@ -232,7 +232,13 @@ void DenseLayer::deserialize(std::istream& in) {
     
     in.read(reinterpret_cast<char*>(&use_bias_), sizeof(bool));
     
-    // Deserializza pesi
+    // IMPORTANTE: Inizializza le matrici interne PRIMA di set_weights!
+    weights_.resize(input_size_, units_);
+    if (use_bias_) {
+        bias_.resize(units_);
+    }
+    
+    // Leggi la matrice dei pesi
     int rows, cols;
     in.read(reinterpret_cast<char*>(&rows), sizeof(int));
     in.read(reinterpret_cast<char*>(&cols), sizeof(int));

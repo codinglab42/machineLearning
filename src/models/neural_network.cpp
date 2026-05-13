@@ -342,19 +342,26 @@ namespace models {
                 for (auto& layer : layers_) {
                     if (!layer->has_weights()) continue;
 
-                    Eigen::MatrixXd w      = layer->get_weights();
+                    // Ora weights e weights_gradient hanno le STESSE dimensioni!
+                    Eigen::MatrixXd w = layer->get_weights();
                     Eigen::MatrixXd w_grad = layer->get_weights_gradient();
                     w_grad /= current_batch_sz;
+                    
+                    // Aggiungi regolarizzazione (escludendo l'ultima colonna se sono bias)
+                    if (regularizer_) {
+                        Eigen::MatrixXd weights_for_reg = w;
+                        if (layer->get_use_bias() && w.cols() > 0) {
+                            // Non regolarizzare l'ultima colonna (bias)
+                            weights_for_reg.rightCols(1).setZero();
+                        }
+                        w_grad += regularizer_->compute_gradient(weights_for_reg);
+                    }
+                    
+                    // Aggiorna pesi (inclusi i bias nell'ultima colonna!)
                     optimizer_->update(w, w_grad);
                     layer->set_weights(w);
-
-                    if (layer->get_use_bias()) {
-                        Eigen::VectorXd b      = layer->get_biases();
-                        Eigen::VectorXd b_grad = layer->get_bias_gradient();
-                        b_grad /= current_batch_sz;
-                        optimizer_->update(b, b_grad);
-                        layer->set_biases(b);
-                    }
+                    
+                    // NON serve più gestire i bias separatamente!
                 }
             }
 
@@ -441,38 +448,30 @@ namespace models {
             
             // UPDATE WEIGHTS - Usa l'ottimizzatore centralmente
             for (auto& layer : layers_) {
-                if (layer->has_weights()) {
-                    // Prende i gradienti calcolati nel backward
-                    Eigen::MatrixXd w_grad = layer->get_weights_gradient();
-                    Eigen::VectorXd b_grad = layer->get_bias_gradient();
-                    
-                    // Normalizza per batch size
-                    w_grad /= static_cast<double>(current_batch_size);
-                    b_grad /= static_cast<double>(current_batch_size);
-                    
-                    // Aggiungi regolarizzazione
-                    if (regularizer_) {
-                        Eigen::MatrixXd weights = layer->get_weights();
-                        w_grad += regularizer_->compute_gradient(weights);
-                        
-                        if (layer->get_use_bias()) {
-                            Eigen::VectorXd bias = layer->get_biases();
-                            b_grad += regularizer_->compute_gradient(bias);
-                        }
+                if (!layer->has_weights()) continue;
+                
+                // Ora weights e weights_gradient hanno le STESSE dimensioni!
+                Eigen::MatrixXd weights = layer->get_weights();
+                Eigen::MatrixXd w_grad = layer->get_weights_gradient();
+                
+                // Normalizza per batch size
+                w_grad /= static_cast<double>(current_batch_size);
+                
+                // Aggiungi regolarizzazione (escludendo l'ultima colonna se sono bias)
+                if (regularizer_) {
+                    Eigen::MatrixXd weights_for_reg = weights;
+                    if (layer->get_use_bias() && weights.cols() > 0) {
+                        // Non regolarizzare l'ultima colonna (bias)
+                        weights_for_reg.rightCols(1).setZero();
                     }
-                    
-                    // Aggiorna i pesi usando l'ottimizzatore
-                    Eigen::MatrixXd weights = layer->get_weights();
-                    optimizer_->update(weights, w_grad);
-                    layer->set_weights(weights);
-                    
-                    // Aggiorna i bias se presenti
-                    if (layer->get_use_bias()) {
-                        Eigen::VectorXd bias = layer->get_biases();
-                        optimizer_->update(bias, b_grad);
-                        layer->set_biases(bias);
-                    }
+                    w_grad += regularizer_->compute_gradient(weights_for_reg);
                 }
+                
+                // Aggiorna i pesi usando l'ottimizzatore
+                optimizer_->update(weights, w_grad);
+                layer->set_weights(weights);
+                
+                // NON serve più gestire i bias separatamente!
             }
         }
         

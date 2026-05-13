@@ -43,9 +43,8 @@ add_ml_test(test_pooling_layer_deep unit/layers/test_pooling_layer_deep.cpp)
 add_ml_test(test_simple_rnn_layer_deep unit/layers/test_simple_rnn_layer_deep.cpp)
 add_ml_test(test_gru_layer_deep unit/layers/test_gru_layer_deep.cpp)
 add_ml_test(test_lstm_layer_deep unit/layers/test_lstm_layer_deep.cpp)
-add_ml_test(test_gradient_checking_layers_deep unit/layers/test_gradient_checking_layers_deep.cpp)
-
-
+add_ml_test(test_gradient_dense_layer_deep unit/layers/test_gradient_dense_layer_deep.cpp)
+add_ml_test(test_gradient_conv2d_layer_gemini unit/layers/test_gradient_conv2d_layer_gemini.cpp)
 
 # Test sugli optimizers
 add_ml_test(test_optimizers_deep unit/optimizers/test_optimizers_deep.cpp)
@@ -73,6 +72,16 @@ add_ml_test(test_huber_loss unit/loss/test_huber_loss.cpp)
 add_ml_test(test_loss_factory_loss unit/loss/test_loss_factory_loss.cpp)
 add_ml_test(test_loss_function unit/loss/test_loss_function.cpp)
 
+# Test per la serializzzzazione
+add_ml_test(test_dense_layer_serialization unit/serialization/test_dense_layer_serialization.cpp)
+add_ml_test(test_conv2d_layer_serialization unit/serialization/test_conv2d_layer_serialization.cpp)
+add_ml_test(test_pooling_layer_serialization unit/serialization/test_pooling_layer_serialization.cpp)
+add_ml_test(test_batch_norm_layer_serialization unit/serialization/test_batch_norm_layer_serialization.cpp)
+add_ml_test(test_simple_rnn_layer_serialization unit/serialization/test_simple_rnn_layer_serialization.cpp)
+add_ml_test(test_lstm_layer_serialization unit/serialization/test_lstm_layer_serialization.cpp)
+add_ml_test(test_gru_layer_serialization unit/serialization/test_gru_layer_serialization.cpp)
+add_ml_test(test_dropout_layer_serialization unit/serialization/test_dropout_layer_serialization.cpp)
+add_ml_test(test_flatten_layer_serialization unit/serialization/test_flatten_layer_serialization.cpp)
 
 # Test integration
 add_ml_test(test_linear_regression_integration integration/test_linear_regression_integration.cpp)

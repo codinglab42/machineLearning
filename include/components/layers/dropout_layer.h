@@ -24,6 +24,7 @@ namespace layers {
         LayerType get_layer_type() const override { return LayerType::DROPOUT; }
         std::string get_config() const override;
         uint32_t get_version() const override { return 1; }
+        double get_rate() const { return rate_; }
         
         bool has_weights() const override { return false; }
         Eigen::MatrixXd get_weights() const override { return Eigen::MatrixXd(); }

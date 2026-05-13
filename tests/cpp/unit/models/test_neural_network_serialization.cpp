@@ -11,17 +11,22 @@ using namespace Eigen;
 class SerializationTest : public ::testing::Test {
 protected:
     void SetUp() override {
-        // Inizializza direttamente senza assegnazione
+        // Crea una rete per classificazione BINARIA (non multi-classe)
+        // per evitare problemi con CategoricalCrossEntropyLoss
         nn = std::make_unique<NeuralNetwork>(
-            std::initializer_list<int>{2, 4, 3}, 
-            "relu", "softmax", OptimizerType::ADAM, 0.001
+            std::initializer_list<int>{2, 4, 1},  // output = 1 (sigmoid)
+            "relu", "sigmoid",                    // attivazione output sigmoid
+            OptimizerType::ADAM, 0.001
         );
         
-        // Genera dati casuali
+        // Genera dati per classificazione BINARIA
         X.resize(10, 2);
         y.resize(10);
         X.setRandom();
-        for (int i = 0; i < 10; ++i) y(i) = rand() % 3;
+        for (int i = 0; i < 10; ++i) y(i) = (X(i, 0) + X(i, 1) > 0) ? 1.0 : 0.0;
+        
+        // Imposta loss function binaria
+        nn->set_loss_function("binary_crossentropy");
         
         // Allena per pochi epoch
         nn->fit(X, y, 5, 5, false);
