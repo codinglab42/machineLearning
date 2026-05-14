@@ -96,10 +96,14 @@ Eigen::MatrixXd Conv2DLayer::forward(const Eigen::MatrixXd& input, bool training
             input.rows(), input.cols(), "Conv2DLayer");
     }
     
+    // Se la cache non esiste OPPURE non è configurata, ricreala e configurala
     if (!cache_) {
+        std::cout << "Creating new cache" << std::endl;
         cache_ = std::make_shared<ConvCache>();
     }
     
+    // IMPORTANTE: Configura sempre la cache con i parametri attuali del layer
+    // Anche se la cache esiste già, potrebbe essere stata creata ma non configurata
     int batch_size = input.rows();
     int output_size = get_output_size();
     int spatial_size = output_height_ * output_width_;
@@ -113,28 +117,20 @@ Eigen::MatrixXd Conv2DLayer::forward(const Eigen::MatrixXd& input, bool training
     cache_->input_cache = input;
     cache_->output_cache.resize(batch_size, output_size);
     cache_->z_cache.resize(batch_size, output_size);
-    
-    // Pre-allocazione della col_cache
     cache_->col_cache.resize(batch_size, col_size);
     
     Eigen::MatrixXd output(batch_size, output_size);
     
     for (int b = 0; b < batch_size; ++b) {
-        // Estrai il campione come vettore colonna
         Eigen::MatrixXd sample = input.row(b).transpose();
-        
-        // Calcola le colonne UNA SOLA VOLTA e le SALVA nella cache
         Eigen::MatrixXd cols = im2col(sample, b, 0);
         
-        // Salva nella cache per il backward (evita ricalcolo!)
         Eigen::Map<Eigen::RowVectorXd> col_cache_row(cache_->col_cache.row(b).data(), col_size);
         col_cache_row = Eigen::Map<Eigen::RowVectorXd>(cols.data(), col_size);
         
-        // Convoluzione
         Eigen::MatrixXd conv = cols * kernels_.transpose();
         conv.rowwise() += bias_.transpose();
         
-        // Output
         Eigen::Map<Eigen::RowVectorXd> output_row(conv.data(), output_size);
         output.row(b) = output_row;
         
@@ -389,14 +385,18 @@ int Conv2DLayer::get_parameter_count() const {
 }
 
 // ============================================================================
-// Serializzazione
+// SERIALIZZAZIONE
 // ============================================================================
 void Conv2DLayer::serialize(std::ostream& out) const {
-    // Versione
+    //std::cout << "\n=== Conv2DLayer::serialize ===" << std::endl;
+    //std::cout << "input_size_: " << input_size_ << std::endl;
+    //std::cout << "filters_: " << filters_ << std::endl;
+    //std::cout << "kernel_elements_: " << kernel_elements_ << std::endl;
+    //std::cout << "use_bias_: " << use_bias_ << std::endl;
+    
     uint32_t version = get_version();
     out.write(reinterpret_cast<const char*>(&version), sizeof(version));
     
-    // Scrivi configurazione
     out.write(reinterpret_cast<const char*>(&input_size_), sizeof(int));
     out.write(reinterpret_cast<const char*>(&input_height_), sizeof(int));
     out.write(reinterpret_cast<const char*>(&input_width_), sizeof(int));
@@ -410,30 +410,33 @@ void Conv2DLayer::serialize(std::ostream& out) const {
     
     size_t pad_len = padding_.size();
     out.write(reinterpret_cast<const char*>(&pad_len), sizeof(size_t));
-    out.write(padding_.c_str(), pad_len);
+    out.write(padding_.data(), pad_len);
     
     size_t act_len = activation_.size();
     out.write(reinterpret_cast<const char*>(&act_len), sizeof(size_t));
-    out.write(activation_.c_str(), act_len);
+    out.write(activation_.data(), act_len);
     
     out.write(reinterpret_cast<const char*>(&use_bias_), sizeof(bool));
     
-    // Serializza usando get_weights() che ora include i bias
-    Eigen::MatrixXd weights_to_save = get_weights();
+    // USIAMO ROW-MAJOR PER LA MASSIMA COMPATIBILITÀ DI MEMORIA
+    Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> weights_to_save = get_weights();
     int rows = weights_to_save.rows();
     int cols = weights_to_save.cols();
+    //std::cout << "weights_to_save rows: " << rows << ", cols: " << cols << std::endl;
+    //std::cout << "weights_to_save sum: " << weights_to_save.sum() << std::endl;
+    
     out.write(reinterpret_cast<const char*>(&rows), sizeof(int));
     out.write(reinterpret_cast<const char*>(&cols), sizeof(int));
-    out.write(reinterpret_cast<const char*>(weights_to_save.data()), 
-            rows * cols * sizeof(double));
+    out.write(reinterpret_cast<const char*>(weights_to_save.data()), rows * cols * sizeof(double));
 }
 
 void Conv2DLayer::deserialize(std::istream& in) {
-    // Leggi versione
+    //std::cout << "\n=== Conv2DLayer::deserialize ===" << std::endl;
+    
     uint32_t version;
     in.read(reinterpret_cast<char*>(&version), sizeof(version));
+    //std::cout << "version: " << version << std::endl;
     
-    // Leggi configurazione
     in.read(reinterpret_cast<char*>(&input_size_), sizeof(int));
     in.read(reinterpret_cast<char*>(&input_height_), sizeof(int));
     in.read(reinterpret_cast<char*>(&input_width_), sizeof(int));
@@ -445,38 +448,67 @@ void Conv2DLayer::deserialize(std::istream& in) {
     in.read(reinterpret_cast<char*>(&kernel_size_), sizeof(int));
     in.read(reinterpret_cast<char*>(&strides_), sizeof(int));
     
+    //std::cout << "DEBUG POST-LOAD:" << std::endl;
+    //std::cout << "input_channels_: " << input_channels_ << std::endl;
+    //std::cout << "input_height_: " << input_height_ << std::endl;
+    //std::cout << "input_width_: " << input_width_ << std::endl;
+    //std::cout << "strides_: " << strides_ << std::endl;
+    //std::cout << "padding_: " << padding_ << std::endl;
+    //std::cout << "Letto input_size_: " << input_size_ << std::endl;
+    //std::cout << "Letto filters_: " << filters_ << std::endl;
+    //std::cout << "Letto kernel_elements_: " << kernel_elements_ << std::endl;
+    
     size_t pad_len;
     in.read(reinterpret_cast<char*>(&pad_len), sizeof(size_t));
-    padding_.resize(pad_len);
-    in.read(&padding_[0], pad_len);
+    std::vector<char> pad_buf(pad_len);
+    in.read(pad_buf.data(), pad_len);
+    padding_.assign(pad_buf.data(), pad_len);
+    //std::cout << "padding_: " << padding_ << std::endl;
     
     size_t act_len;
     in.read(reinterpret_cast<char*>(&act_len), sizeof(size_t));
-    activation_.resize(act_len);
-    in.read(&activation_[0], act_len);
+    std::vector<char> act_buf(act_len);
+    in.read(act_buf.data(), act_len);
+    activation_.assign(act_buf.data(), act_len);
+    //std::cout << "activation_: " << activation_ << std::endl;
     
     in.read(reinterpret_cast<char*>(&use_bias_), sizeof(bool));
+    //std::cout << "use_bias_: " << use_bias_ << std::endl;
     
-    // IMPORTANTE: Inizializza le matrici interne PRIMA di set_weights!
-    kernels_.resize(filters_, kernel_elements_);
-    if (use_bias_) {
-        bias_.resize(filters_);
-    }
-    
-    // Leggi la matrice dei pesi
     int rows, cols;
     in.read(reinterpret_cast<char*>(&rows), sizeof(int));
     in.read(reinterpret_cast<char*>(&cols), sizeof(int));
+    //std::cout << "Letto weights rows: " << rows << ", cols: " << cols << std::endl;
     
-    Eigen::MatrixXd loaded_weights(rows, cols);
+    // LEGGI FORZANDO ROW-MAJOR
+    Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> loaded_weights(rows, cols);
     in.read(reinterpret_cast<char*>(loaded_weights.data()), rows * cols * sizeof(double));
+    //std::cout << "Loaded weights sum: " << loaded_weights.sum() << std::endl;
     
-    // Usa set_weights per decomporre
+    // Inizializza kernels_ e bias_ prima di chiamare set_weights
+    kernels_.resize(filters_, kernel_elements_);
+    if (use_bias_) bias_.resize(filters_);
+    
     set_weights(loaded_weights);
     
-    // Ricrea cache
-    cache_ = std::make_shared<ConvCache>();
+    // Verifica che i pesi siano stati impostati correttamente
+    Eigen::MatrixXd check_weights = get_weights();
+    //std::cout << "After set_weights - check_weights sum: " << check_weights.sum() << std::endl;
+    
+    // Re-inizializza i gradienti con la dimensione corretta
+    int grad_cols = kernel_elements_ + (use_bias_ ? 1 : 0);
+    weights_gradient_.resize(filters_, grad_cols);
+    weights_gradient_.setZero();
+    bias_gradient_.resize(0);
+    
+    // Ricalcola le dimensioni di output
+    compute_output_dimensions();
+    //std::cout << "output_height_: " << output_height_ << ", output_width_: " << output_width_ << std::endl;
+    
+    //cache_ = std::make_shared<ConvCache>();
+    cache_ = nullptr;
 }
+
 
 std::string Conv2DLayer::get_config() const {
     std::ostringstream oss;
