@@ -92,6 +92,8 @@ namespace models {
                  int epochs, int batch_size, bool verbose);
         void fit(const Eigen::MatrixXd& X, const Eigen::MatrixXd& y,
                  int epochs, int batch_size, bool verbose);
+
+        void build(int n_features, int n_classes);
     
         // PREDICT - const corretto
         Eigen::VectorXd predict(const Eigen::MatrixXd& X) const override;

@@ -6,12 +6,6 @@
 
 namespace layers {
 
-FlattenLayer::FlattenLayer() : input_size_(0) {
-    weights_gradient_.resize(0, 0);
-    bias_gradient_.resize(0);
-    cache_ = nullptr;
-}
-
 Eigen::MatrixXd FlattenLayer::forward(const Eigen::MatrixXd& input) {
     return forward(input, false);
 }
@@ -67,6 +61,11 @@ std::string FlattenLayer::get_config() const {
 
 void FlattenLayer::set_input_shape(int input_size) { 
     input_size_ = input_size; 
+}
+
+void FlattenLayer::initialize_weights() {
+    // FlattenLayer non ha pesi da inizializzare
+    // Implementazione vuota
 }
 
 } // namespace layers

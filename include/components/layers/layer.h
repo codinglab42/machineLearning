@@ -35,6 +35,7 @@ public:
     
     // Gestione pesi (ORA SONO SOLO QUI!)
     virtual bool has_weights() const = 0;
+    virtual void initialize_weights() = 0;
     virtual Eigen::MatrixXd get_weights() const = 0;
     virtual void set_weights(const Eigen::MatrixXd& weights) = 0;
     virtual void set_weights_gradient(const Eigen::MatrixXd& gradient) = 0;
@@ -67,6 +68,11 @@ public:
     // Serializzazione
     virtual void serialize(std::ostream& out) const = 0;
     virtual void deserialize(std::istream& in) = 0;
+
+protected:
+
+    int input_size_ = 0;
+    int output_size_ = 0;
 };
 
 } // namespace layers

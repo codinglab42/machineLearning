@@ -12,6 +12,7 @@ namespace layers {
 
 class SimpleRNNLayer : public RecurrentLayer {
 public:
+    SimpleRNNLayer() = default;
     SimpleRNNLayer(int units, int input_size, 
                   const std::string& activation = "tanh",
                   bool use_bias = true);
@@ -28,7 +29,7 @@ public:
     // GESTIONE PESI
     // ========================================================================
     bool has_weights() const override { return true; }
-    
+    void initialize_weights() override;
     // Getter pesi
     Eigen::MatrixXd get_weights() const override;
     const Eigen::MatrixXd& get_weights_gradient() const override { return weights_gradient_; }
@@ -123,6 +124,7 @@ private:
     int input_size_;
     std::string activation_;
     bool use_bias_;
+    bool return_sequences_ = false;
     
     // Stato
     Eigen::MatrixXd hidden_state_;  // Stato nascosto corrente [batch, units]

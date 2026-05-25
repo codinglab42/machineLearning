@@ -57,6 +57,10 @@ TEST_F(DenseLayerTest, BackwardShape) {
 }
 
 TEST_F(DenseLayerTest, BackwardComputesGradients) {
+
+
+    layer->initialize_weights();
+
     MatrixXd output = layer->forward(input, true);
     MatrixXd gradient = MatrixXd::Ones(2, 3);
     

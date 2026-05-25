@@ -1,4 +1,3 @@
-// src/components/layers/gru_layer.cpp
 #include <random>
 #include <memory>
 #include <Eigen/Dense>
@@ -8,6 +7,10 @@
 #include <cmath>
 
 namespace layers {
+
+// ============================================================================
+// COSTRUTTORI
+// ============================================================================
 
 GRULayer::GRULayer(int units, int input_size, 
                    const std::string& activation,
@@ -20,35 +23,26 @@ GRULayer::GRULayer(int units, int input_size,
     ML_CHECK_PARAM(input_size > 0, "input_size", "must be > 0", "GRULayer");
     
     double scale = std::sqrt(2.0 / (input_size + units));
-    
-    // Inizializza pesi per i 3 gate
-    kernel_r.resize(input_size, units);
-    kernel_z.resize(input_size, units);
-    kernel_h.resize(input_size, units);
-    
-    recurrent_r.resize(units, units);
-    recurrent_z.resize(units, units);
-    recurrent_h.resize(units, units);
-    
     std::random_device rd;
     std::mt19937 gen(rd());
     std::normal_distribution<double> dist(0.0, scale);
     
-    auto initialize_matrix = [&](Eigen::MatrixXd& mat) {
-        for (int i = 0; i < mat.rows(); ++i) {
-            for (int j = 0; j < mat.cols(); ++j) {
+    auto init = [&](Eigen::MatrixXd& mat, int rows, int cols) {
+        mat.resize(rows, cols);
+        for (int i = 0; i < rows; ++i)
+            for (int j = 0; j < cols; ++j)
                 mat(i, j) = dist(gen);
-            }
-        }
     };
     
-    initialize_matrix(kernel_r);
-    initialize_matrix(kernel_z);
-    initialize_matrix(kernel_h);
+    // Kernel weights (input to hidden) per i 3 gate
+    init(kernel_r, input_size, units);
+    init(kernel_z, input_size, units);
+    init(kernel_h, input_size, units);
     
-    initialize_matrix(recurrent_r);
-    initialize_matrix(recurrent_z);
-    initialize_matrix(recurrent_h);
+    // Recurrent weights (hidden to hidden) per i 3 gate
+    init(recurrent_r, units, units);
+    init(recurrent_z, units, units);
+    init(recurrent_h, units, units);
     
     if (use_bias_) {
         bias_r.setZero(units);
@@ -58,48 +52,119 @@ GRULayer::GRULayer(int units, int input_size,
     
     hidden_state_.resize(0, 0);
     cache_ = nullptr;
-
     weights_gradient_.resize(0, 0);
     bias_gradient_.resize(0);
 }
 
+// ============================================================================
+// DIMENSIONI
+// ============================================================================
+
 void GRULayer::set_input_shape(int input_size) {
     ML_CHECK_PARAM(input_size > 0, "input_size", "must be > 0", "GRULayer");
     
-    if (input_size_ != input_size) {
-        input_size_ = input_size;
-        
-        double scale = std::sqrt(2.0 / (input_size + units_));
-        std::random_device rd;
-        std::mt19937 gen(rd());
-        std::normal_distribution<double> dist(0.0, scale);
-        
-        auto initialize_matrix = [&](Eigen::MatrixXd& mat, int rows, int cols) {
-            mat.resize(rows, cols);
-            for (int i = 0; i < rows; ++i) {
-                for (int j = 0; j < cols; ++j) {
-                    mat(i, j) = dist(gen);
-                }
-            }
-        };
-        
-        // Ridimensiona i kernel
-        initialize_matrix(kernel_r, input_size, units_);
-        initialize_matrix(kernel_z, input_size, units_);
-        initialize_matrix(kernel_h, input_size, units_);
-        
-        // I pesi ricorrenti rimangono [units, units]
-        // I bias rimangono [units]
+    if (input_size_ == input_size && kernel_r.size() > 0) {
+        return;
+    }
+    
+    input_size_ = input_size;
+    output_size_ = units_;
+    
+    // Ridimensiona kernel weights
+    kernel_r.resize(input_size_, units_);
+    kernel_z.resize(input_size_, units_);
+    kernel_h.resize(input_size_, units_);
+    
+    // Ridimensiona recurrent weights
+    recurrent_r.resize(units_, units_);
+    recurrent_z.resize(units_, units_);
+    recurrent_h.resize(units_, units_);
+    
+    // Ridimensiona bias
+    if (use_bias_) {
+        bias_r.resize(units_);
+        bias_z.resize(units_);
+        bias_h.resize(units_);
+        bias_r.setZero();
+        bias_z.setZero();
+        bias_h.setZero();
+    }
+    
+    // Ridimensiona gradienti
+    int total_rows = (input_size_ + units_) * 3;
+    int total_cols = 3 * units_ + (use_bias_ ? 3 : 0);
+    weights_gradient_.resize(total_rows, total_cols);
+    weights_gradient_.setZero();
+    
+    if (use_bias_) {
+        bias_gradient_.resize(3 * units_);
+        bias_gradient_.setZero();
+    }
+    
+    // Ridimensiona stato nascosto
+    hidden_state_.resize(1, units_);
+    hidden_state_.setZero();
+}
+
+// ============================================================================
+// INIZIALIZZAZIONE PESI
+// ============================================================================
+
+void GRULayer::initialize_weights() {
+    ML_CHECK_PARAM(input_size_ > 0, "input_size", "must be > 0", "GRULayer");
+    ML_CHECK_PARAM(units_ > 0, "units", "must be > 0", "GRULayer");
+    
+    double scale = std::sqrt(2.0 / input_size_);
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::normal_distribution<double> dist(0.0, scale);
+    
+    auto init = [&](Eigen::MatrixXd& mat) {
+        for (int i = 0; i < mat.rows(); ++i)
+            for (int j = 0; j < mat.cols(); ++j)
+                mat(i, j) = dist(gen);
+    };
+    
+    init(kernel_r);
+    init(kernel_z);
+    init(kernel_h);
+    
+    double rec_scale = std::sqrt(1.0 / units_);
+    std::normal_distribution<double> rec_dist(0.0, rec_scale);
+    
+    auto init_rec = [&](Eigen::MatrixXd& mat) {
+        for (int i = 0; i < mat.rows(); ++i)
+            for (int j = 0; j < mat.cols(); ++j)
+                mat(i, j) = rec_dist(gen);
+    };
+    
+    init_rec(recurrent_r);
+    init_rec(recurrent_z);
+    init_rec(recurrent_h);
+    
+    if (use_bias_) {
+        bias_r.setZero();
+        bias_z.setZero();
+        bias_h.setZero();
     }
 }
 
+// ============================================================================
+// STATO
+// ============================================================================
+
 void GRULayer::reset_state() {
     hidden_state_.resize(0, 0);
+    if (cache_) cache_->clear();
 }
 
 Eigen::MatrixXd GRULayer::get_hidden_state() const {
     return hidden_state_;
 }
+
+// ============================================================================
+// FUNZIONI DI ATTIVAZIONE
+// ============================================================================
 
 Eigen::MatrixXd GRULayer::sigmoid(const Eigen::MatrixXd& x) const {
     return 1.0 / (1.0 + (-x).array().exp());
@@ -119,17 +184,21 @@ Eigen::MatrixXd GRULayer::tanh_derivative(const Eigen::MatrixXd& x) const {
     return 1.0 - t.array().square();
 }
 
+// ============================================================================
+// FORWARD PASS
+// ============================================================================
+
 Eigen::MatrixXd GRULayer::forward(const Eigen::MatrixXd& input) {
     return forward(input, false);
 }
 
 Eigen::MatrixXd GRULayer::forward(const Eigen::MatrixXd& input, bool training) {
     ML_CHECK_NOT_EMPTY(input, "input", "GRULayer");
+    ML_CHECK_PARAM(input_size_ > 0, "input_size", "layer not initialized", "GRULayer");
     
     if (input.cols() != input_size_) {
-        ML_THROW_DIMENSION_MISMATCH("forward input",
-            input.rows(), input_size_,
-            input.rows(), input.cols(), "GRULayer");
+        ML_THROW_DIMENSION_MISMATCH("forward input", input.rows(), input_size_,
+                                    input.rows(), input.cols(), "GRULayer");
     }
     
     if (!cache_) {
@@ -137,12 +206,11 @@ Eigen::MatrixXd GRULayer::forward(const Eigen::MatrixXd& input, bool training) {
     }
     
     int batch_size = input.rows();
-    int timesteps = 1;
     
     cache_->input_cache = input;
     cache_->output_cache.resize(batch_size, units_);
-    cache_->timesteps = timesteps;
     cache_->batch_size = batch_size;
+    cache_->timesteps = 1;
     cache_->input_size = input_size_;
     cache_->hidden_size = units_;
     cache_->training = training;
@@ -161,7 +229,7 @@ Eigen::MatrixXd GRULayer::forward(const Eigen::MatrixXd& input, bool training) {
         hidden_state_ = Eigen::MatrixXd::Zero(batch_size, units_);
     }
     
-    // Calcolo dei gate GRU
+    // Calcolo reset gate (r_t) e update gate (z_t)
     Eigen::MatrixXd z_r = input * kernel_r + hidden_state_ * recurrent_r;
     Eigen::MatrixXd z_z = input * kernel_z + hidden_state_ * recurrent_z;
     
@@ -170,10 +238,10 @@ Eigen::MatrixXd GRULayer::forward(const Eigen::MatrixXd& input, bool training) {
         z_z.rowwise() += bias_z.transpose();
     }
     
-    Eigen::MatrixXd r_t = sigmoid(z_r);  // Reset gate
-    Eigen::MatrixXd z_t = sigmoid(z_z);  // Update gate
+    Eigen::MatrixXd r_t = sigmoid(z_r);
+    Eigen::MatrixXd z_t = sigmoid(z_z);
     
-    // Calcolo candidato stato nascosto
+    // Calcolo candidate hidden (h_tilde)
     Eigen::MatrixXd h_prev_weighted = r_t.array() * hidden_state_.array();
     Eigen::MatrixXd z_h = input * kernel_h + h_prev_weighted * recurrent_h;
     
@@ -181,11 +249,10 @@ Eigen::MatrixXd GRULayer::forward(const Eigen::MatrixXd& input, bool training) {
         z_h.rowwise() += bias_h.transpose();
     }
     
-    Eigen::MatrixXd h_tilde = tanh(z_h);  // Candidate hidden
+    Eigen::MatrixXd h_tilde = tanh(z_h);
     
-    // Aggiornamento stato nascosto
-    Eigen::MatrixXd h_t = (1.0 - z_t.array()) * hidden_state_.array() + 
-                          z_t.array() * h_tilde.array();
+    // Aggiornamento hidden state
+    Eigen::MatrixXd h_t = (1.0 - z_t.array()) * hidden_state_.array() + z_t.array() * h_tilde.array();
     
     if (training) {
         cache_->hidden_states.push_back(h_t);
@@ -203,26 +270,28 @@ Eigen::MatrixXd GRULayer::forward(const Eigen::MatrixXd& input, bool training) {
     return h_t;
 }
 
+// ============================================================================
+// BACKWARD PASS
+// ============================================================================
+
 Eigen::MatrixXd GRULayer::backward(const Eigen::MatrixXd& gradient) {
-    if (!cache_) {
-        ML_THROW_FITTING_ERROR("GRULayer", "cache not initialized. Call forward first.");
+    if (!cache_ || !cache_->training) {
+        return gradient;
     }
     
     auto gru_cache = get_specific_cache();
-    
-    if (!gru_cache->training) {
+    if (!gru_cache) {
         return gradient;
     }
     
     int batch_size = gru_cache->batch_size;
     
     if (gradient.rows() != batch_size || gradient.cols() != units_) {
-        ML_THROW_DIMENSION_MISMATCH("backward gradient",
-            batch_size, units_,
-            gradient.rows(), gradient.cols(), "GRULayer");
+        ML_THROW_DIMENSION_MISMATCH("backward gradient", batch_size, units_,
+                                    gradient.rows(), gradient.cols(), "GRULayer");
     }
     
-    const Eigen::MatrixXd& h_t = gru_cache->hidden_states[0];
+    // Recupera valori dalla cache
     const Eigen::MatrixXd& r_t = gru_cache->reset_gates[0];
     const Eigen::MatrixXd& z_t = gru_cache->update_gates[0];
     const Eigen::MatrixXd& h_tilde = gru_cache->candidate_hidden[0];
@@ -234,272 +303,271 @@ Eigen::MatrixXd GRULayer::backward(const Eigen::MatrixXd& gradient) {
                                     gru_cache->hidden_states[0] : 
                                     Eigen::MatrixXd::Zero(batch_size, units_);
     
+    const Eigen::MatrixXd& input = gru_cache->input_cache;
+    
     Eigen::MatrixXd dH = gradient;
     
+    // Gradiente per update gate
     Eigen::MatrixXd dZ_t = dH.array() * (h_tilde - prev_h).array() * sigmoid_derivative(z_z).array();
+    
+    // Gradiente per candidate hidden
     Eigen::MatrixXd dH_tilde = dH.array() * z_t.array() * tanh_derivative(z_h).array();
     
+    // Gradiente per reset gate
     Eigen::MatrixXd dR_t = (dH_tilde * recurrent_h.transpose()).array() * 
                            prev_h.array() * sigmoid_derivative(z_r).array();
     
-    const Eigen::MatrixXd& input = gru_cache->input_cache;
-    
+    // Gradienti per kernel weights
     Eigen::MatrixXd dKernel_r = input.transpose() * dR_t;
     Eigen::MatrixXd dKernel_z = input.transpose() * dZ_t;
     Eigen::MatrixXd dKernel_h = input.transpose() * dH_tilde;
     
+    // Gradienti per recurrent weights
     Eigen::MatrixXd h_weighted = r_t.array() * prev_h.array();
     Eigen::MatrixXd dRecurrent_r = prev_h.transpose() * dR_t;
     Eigen::MatrixXd dRecurrent_z = prev_h.transpose() * dZ_t;
     Eigen::MatrixXd dRecurrent_h = h_weighted.transpose() * dH_tilde;
     
-    int total_rows = kernel_r.rows() + recurrent_r.rows();
+    // Aggiorna weights_gradient_
+    int total_rows = (input_size_ + units_) * 3;
+    int total_cols = 3 * units_ + (use_bias_ ? 3 : 0);
+    weights_gradient_.resize(total_rows, total_cols);
+    weights_gradient_.setZero();
     
+    // Kernel gradients
+    weights_gradient_.block(0, 0, dKernel_r.rows(), units_) = dKernel_r;
+    weights_gradient_.block(0, units_, dKernel_z.rows(), units_) = dKernel_z;
+    weights_gradient_.block(0, 2 * units_, dKernel_h.rows(), units_) = dKernel_h;
+    
+    // Recurrent gradients
+    weights_gradient_.block(kernel_r.rows(), 0, dRecurrent_r.rows(), units_) = dRecurrent_r;
+    weights_gradient_.block(kernel_r.rows(), units_, dRecurrent_z.rows(), units_) = dRecurrent_z;
+    weights_gradient_.block(kernel_r.rows(), 2 * units_, dRecurrent_h.rows(), units_) = dRecurrent_h;
+    
+    // Bias gradients
     if (use_bias_) {
-        // UNIFICA: get_weights() restituisce [input_size + units, 3*units + 3]
-        int total_cols = 3 * units_ + 3;
-        
-        Eigen::VectorXd dBias_r = dR_t.colwise().sum();
-        Eigen::VectorXd dBias_z = dZ_t.colwise().sum();
-        Eigen::VectorXd dBias_h = dH_tilde.colwise().sum();
-        
-        weights_gradient_.resize(total_rows, total_cols);
-        weights_gradient_.setZero();
-        
-        // Kernel gradients
-        weights_gradient_.block(0, 0, dKernel_r.rows(), units_) = dKernel_r;
-        weights_gradient_.block(0, units_, dKernel_z.rows(), units_) = dKernel_z;
-        weights_gradient_.block(0, 2*units_, dKernel_h.rows(), units_) = dKernel_h;
-        
-        // Recurrent gradients
-        weights_gradient_.block(kernel_r.rows(), 0, dRecurrent_r.rows(), units_) = dRecurrent_r;
-        weights_gradient_.block(kernel_r.rows(), units_, dRecurrent_z.rows(), units_) = dRecurrent_z;
-        weights_gradient_.block(kernel_r.rows(), 2*units_, dRecurrent_h.rows(), units_) = dRecurrent_h;
-        
-        // Bias gradients (ultime 3 colonne)
-        weights_gradient_.col(3*units_).head(dBias_r.size()) = dBias_r;
-        weights_gradient_.col(3*units_ + 1).head(dBias_z.size()) = dBias_z;
-        weights_gradient_.col(3*units_ + 2).head(dBias_h.size()) = dBias_h;
-        
-        bias_gradient_.resize(0);
-    } else {
-        int total_cols = 3 * units_;
-        weights_gradient_.resize(total_rows, total_cols);
-        weights_gradient_.setZero();
-        
-        weights_gradient_.block(0, 0, dKernel_r.rows(), units_) = dKernel_r;
-        weights_gradient_.block(0, units_, dKernel_z.rows(), units_) = dKernel_z;
-        weights_gradient_.block(0, 2*units_, dKernel_h.rows(), units_) = dKernel_h;
-        
-        weights_gradient_.block(kernel_r.rows(), 0, dRecurrent_r.rows(), units_) = dRecurrent_r;
-        weights_gradient_.block(kernel_r.rows(), units_, dRecurrent_z.rows(), units_) = dRecurrent_z;
-        weights_gradient_.block(kernel_r.rows(), 2*units_, dRecurrent_h.rows(), units_) = dRecurrent_h;
+        weights_gradient_.col(3 * units_).head(batch_size) = dR_t.colwise().sum();
+        weights_gradient_.col(3 * units_ + 1).head(batch_size) = dZ_t.colwise().sum();
+        weights_gradient_.col(3 * units_ + 2).head(batch_size) = dH_tilde.colwise().sum();
     }
     
-    // dX deve avere dimensioni [batch_size, input_size]
+    // Gradiente rispetto all'input
     Eigen::MatrixXd dX = dR_t * kernel_r.transpose() + 
-                        dZ_t * kernel_z.transpose() + 
-                        dH_tilde * kernel_h.transpose();
+                         dZ_t * kernel_z.transpose() + 
+                         dH_tilde * kernel_h.transpose();
     
     return dX;
 }
 
-// include/components/layers/gru_layer.h
-// Aggiungi/modifica questi metodi:
+// ============================================================================
+// GETTER/SETTER PESI
+// ============================================================================
 
 Eigen::MatrixXd GRULayer::get_weights() const {
-    int total_rows = kernel_r.rows() + recurrent_r.rows();  // input_size + units
+    int total_rows = (input_size_ + units_) * 3;
+    int total_cols = 3 * units_ + (use_bias_ ? 3 : 0);
+    Eigen::MatrixXd weights(total_rows, total_cols);
+    weights.setZero();
+    
+    int row = 0;
+    auto copy = [&](const Eigen::MatrixXd& mat) {
+        weights.block(row, 0, mat.rows(), mat.cols()) = mat;
+        row += mat.rows();
+    };
+    
+    copy(kernel_r);
+    copy(kernel_z);
+    copy(kernel_h);
+    copy(recurrent_r);
+    copy(recurrent_z);
+    copy(recurrent_h);
     
     if (use_bias_) {
-        // 3 gates: reset, update, candidate
-        // Restituisce [input_size + units, 3*units + 3]
-        int total_cols = 3 * units_ + 3;
-        Eigen::MatrixXd weights(total_rows, total_cols);
-        weights.setZero();
-        
-        // Kernel weights per i 3 gate
-        weights.block(0, 0, kernel_r.rows(), units_) = kernel_r;
-        weights.block(0, units_, kernel_z.rows(), units_) = kernel_z;
-        weights.block(0, 2*units_, kernel_h.rows(), units_) = kernel_h;
-        
-        // Recurrent weights per i 3 gate
-        weights.block(kernel_r.rows(), 0, recurrent_r.rows(), units_) = recurrent_r;
-        weights.block(kernel_r.rows(), units_, recurrent_z.rows(), units_) = recurrent_z;
-        weights.block(kernel_r.rows(), 2*units_, recurrent_h.rows(), units_) = recurrent_h;
-        
-        // Bias nell'ultime 3 colonne
-        weights.col(3*units_).head(units_) = bias_r;
-        weights.col(3*units_ + 1).head(units_) = bias_z;
-        weights.col(3*units_ + 2).head(units_) = bias_h;
-        
-        return weights;
-    } else {
-        // Senza bias: [input_size + units, 3*units]
-        int total_cols = 3 * units_;
-        Eigen::MatrixXd weights(total_rows, total_cols);
-        weights.setZero();
-        
-        weights.block(0, 0, kernel_r.rows(), units_) = kernel_r;
-        weights.block(0, units_, kernel_z.rows(), units_) = kernel_z;
-        weights.block(0, 2*units_, kernel_h.rows(), units_) = kernel_h;
-        
-        weights.block(kernel_r.rows(), 0, recurrent_r.rows(), units_) = recurrent_r;
-        weights.block(kernel_r.rows(), units_, recurrent_z.rows(), units_) = recurrent_z;
-        weights.block(kernel_r.rows(), 2*units_, recurrent_h.rows(), units_) = recurrent_h;
-        
-        return weights;
+        weights.col(3 * units_).head(units_) = bias_r;
+        weights.col(3 * units_ + 1).head(units_) = bias_z;
+        weights.col(3 * units_ + 2).head(units_) = bias_h;
     }
+    
+    return weights;
 }
 
-void GRULayer::set_weights(const Eigen::MatrixXd& weights){
-    if (use_bias_) {
-        int expected_cols = 3 * units_ + 3;
-        if (weights.cols() != expected_cols) {
-            ML_THROW_PARAMETER_ERROR("weights", "invalid dimensions", "GRULayer");
-        }
-        
-        // Estrai kernel weights
-        kernel_r = weights.block(0, 0, input_size_, units_);
-        kernel_z = weights.block(0, units_, input_size_, units_);
-        kernel_h = weights.block(0, 2*units_, input_size_, units_);
-        
-        // Estrai recurrent weights
-        recurrent_r = weights.block(input_size_, 0, units_, units_);
-        recurrent_z = weights.block(input_size_, units_, units_, units_);
-        recurrent_h = weights.block(input_size_, 2*units_, units_, units_);
-        
-        // Estrai bias
-        bias_r = weights.col(3*units_).head(units_);
-        bias_z = weights.col(3*units_ + 1).head(units_);
-        bias_h = weights.col(3*units_ + 2).head(units_);
-    } else {
-        int expected_cols = 3 * units_;
-        if (weights.cols() != expected_cols) {
-            ML_THROW_PARAMETER_ERROR("weights", "invalid dimensions", "GRULayer");
-        }
-        
-        kernel_r = weights.block(0, 0, input_size_, units_);
-        kernel_z = weights.block(0, units_, input_size_, units_);
-        kernel_h = weights.block(0, 2*units_, input_size_, units_);
-        
-        recurrent_r = weights.block(input_size_, 0, units_, units_);
-        recurrent_z = weights.block(input_size_, units_, units_, units_);
-        recurrent_h = weights.block(input_size_, 2*units_, units_, units_);
+void GRULayer::set_weights(const Eigen::MatrixXd& weights) {
+    int row = 0;
+    auto extract = [&](Eigen::MatrixXd& mat, int rows, int cols) {
+        mat = weights.block(row, 0, rows, cols);
+        row += rows;
+    };
+    
+    extract(kernel_r, input_size_, units_);
+    extract(kernel_z, input_size_, units_);
+    extract(kernel_h, input_size_, units_);
+    extract(recurrent_r, units_, units_);
+    extract(recurrent_z, units_, units_);
+    extract(recurrent_h, units_, units_);
+    
+    if (use_bias_ && weights.cols() > 3 * units_) {
+        bias_r = weights.col(3 * units_).head(units_);
+        bias_z = weights.col(3 * units_ + 1).head(units_);
+        bias_h = weights.col(3 * units_ + 2).head(units_);
     }
-}
-
-int GRULayer::get_parameter_count() const {
-    return kernel_r.size() + kernel_z.size() + kernel_h.size() +
-           recurrent_r.size() + recurrent_z.size() + recurrent_h.size() +
-           (use_bias_ ? bias_r.size() + bias_z.size() + bias_h.size() : 0);
 }
 
 Eigen::VectorXd GRULayer::get_biases() const {
     if (!use_bias_) return Eigen::VectorXd();
-    
-    Eigen::VectorXd all_biases(3 * units_);
-    all_biases.segment(0, units_) = bias_r;
-    all_biases.segment(units_, units_) = bias_z;
-    all_biases.segment(2*units_, units_) = bias_h;
-    return all_biases;
+    Eigen::VectorXd biases(3 * units_);
+    biases.segment(0, units_) = bias_r;
+    biases.segment(units_, units_) = bias_z;
+    biases.segment(2 * units_, units_) = bias_h;
+    return biases;
 }
 
 void GRULayer::set_biases(const Eigen::VectorXd& biases) {
     if (!use_bias_) return;
-    
     if (biases.size() != 3 * units_) {
         ML_THROW_PARAMETER_ERROR("biases", "size must be 3*units", "GRULayer");
     }
-    
     bias_r = biases.segment(0, units_);
     bias_z = biases.segment(units_, units_);
-    bias_h = biases.segment(2*units_, units_);
+    bias_h = biases.segment(2 * units_, units_);
 }
 
-// src/components/layers/gru_layer.cpp
+int GRULayer::get_parameter_count() const {
+    return 3 * (input_size_ * units_ + units_ * units_) + (use_bias_ ? 3 * units_ : 0);
+}
+
+// ============================================================================
+// SERIALIZZAZIONE
+// ============================================================================
 
 void GRULayer::serialize(std::ostream& out) const {
-    // Versione
-    uint32_t version = get_version();
-    out.write(reinterpret_cast<const char*>(&version), sizeof(version));
+    int32_t in_size = input_size_, u = units_;
+    out.write(reinterpret_cast<const char*>(&in_size), sizeof(int32_t));
+    out.write(reinterpret_cast<const char*>(&u), sizeof(int32_t));
     
-    // Scrivi configurazione
-    out.write(reinterpret_cast<const char*>(&units_), sizeof(int));
-    out.write(reinterpret_cast<const char*>(&input_size_), sizeof(int));
+    auto write_str = [&](const std::string& s) {
+        int32_t len = static_cast<int32_t>(s.size());
+        out.write(reinterpret_cast<const char*>(&len), sizeof(int32_t));
+        out.write(s.c_str(), len);
+    };
     
-    bool has_bias = use_bias_;
-    out.write(reinterpret_cast<const char*>(&has_bias), sizeof(bool));
+    write_str(activation_);
+    write_str(recurrent_activation_);
     
-    size_t act_len = activation_.size();
-    out.write(reinterpret_cast<const char*>(&act_len), sizeof(size_t));
-    out.write(activation_.c_str(), act_len);
+    int8_t use_bias_flag = use_bias_ ? 1 : 0;
+    out.write(reinterpret_cast<const char*>(&use_bias_flag), sizeof(int8_t));
     
-    size_t rec_act_len = recurrent_activation_.size();
-    out.write(reinterpret_cast<const char*>(&rec_act_len), sizeof(size_t));
-    out.write(recurrent_activation_.c_str(), rec_act_len);
+    auto write_mat = [&](const Eigen::MatrixXd& m) {
+        int32_t rows = static_cast<int32_t>(m.rows());
+        int32_t cols = static_cast<int32_t>(m.cols());
+        out.write(reinterpret_cast<const char*>(&rows), sizeof(int32_t));
+        out.write(reinterpret_cast<const char*>(&cols), sizeof(int32_t));
+        out.write(reinterpret_cast<const char*>(m.data()), rows * cols * sizeof(double));
+    };
     
-    // Serializza usando get_weights() che ora include i bias
-    Eigen::MatrixXd weights_to_save = get_weights();
-    int rows = weights_to_save.rows();
-    int cols = weights_to_save.cols();
-    out.write(reinterpret_cast<const char*>(&rows), sizeof(int));
-    out.write(reinterpret_cast<const char*>(&cols), sizeof(int));
-    out.write(reinterpret_cast<const char*>(weights_to_save.data()), 
-            rows * cols * sizeof(double));
+    // Scrivi kernel weights
+    write_mat(kernel_r);
+    write_mat(kernel_z);
+    write_mat(kernel_h);
+    
+    // Scrivi recurrent weights
+    write_mat(recurrent_r);
+    write_mat(recurrent_z);
+    write_mat(recurrent_h);
+    
+    // Scrivi bias
+    if (use_bias_) {
+        write_mat(bias_r);
+        write_mat(bias_z);
+        write_mat(bias_h);
+    }
+    
+    if (!out.good()) {
+        throw ml_exception::SerializationException("Failed to write GRULayer", "GRULayer");
+    }
 }
 
 void GRULayer::deserialize(std::istream& in) {
-    // Leggi versione
-    uint32_t version;
-    in.read(reinterpret_cast<char*>(&version), sizeof(version));
+    int32_t in_size, u;
+    in.read(reinterpret_cast<char*>(&in_size), sizeof(int32_t));
+    in.read(reinterpret_cast<char*>(&u), sizeof(int32_t));
     
-    // Leggi configurazione
-    in.read(reinterpret_cast<char*>(&units_), sizeof(int));
-    in.read(reinterpret_cast<char*>(&input_size_), sizeof(int));
-    
-    bool has_bias;
-    in.read(reinterpret_cast<char*>(&has_bias), sizeof(bool));
-    use_bias_ = has_bias;
-    
-    size_t act_len;
-    in.read(reinterpret_cast<char*>(&act_len), sizeof(size_t));
-    activation_.resize(act_len);
-    in.read(&activation_[0], act_len);
-    
-    size_t rec_act_len;
-    in.read(reinterpret_cast<char*>(&rec_act_len), sizeof(size_t));
-    recurrent_activation_.resize(rec_act_len);
-    in.read(&recurrent_activation_[0], rec_act_len);
-    
-    // Leggi la matrice dei pesi
-    int rows, cols;
-    in.read(reinterpret_cast<char*>(&rows), sizeof(int));
-    in.read(reinterpret_cast<char*>(&cols), sizeof(int));
-    
-    Eigen::MatrixXd loaded_weights(rows, cols);
-    in.read(reinterpret_cast<char*>(loaded_weights.data()), rows * cols * sizeof(double));
-    
-    // Ridimensiona matrici
-    kernel_r.resize(input_size_, units_);
-    kernel_z.resize(input_size_, units_);
-    kernel_h.resize(input_size_, units_);
-    recurrent_r.resize(units_, units_);
-    recurrent_z.resize(units_, units_);
-    recurrent_h.resize(units_, units_);
-    
-    if (use_bias_) {
-        bias_r.resize(units_);
-        bias_z.resize(units_);
-        bias_h.resize(units_);
+    if (in_size <= 0 || u <= 0) {
+        throw ml_exception::DeserializationException(
+            "Invalid dimensions: input_size=" + std::to_string(in_size) +
+            ", units=" + std::to_string(u), "GRULayer");
     }
     
-    // Usa set_weights per decomporre
-    set_weights(loaded_weights);
+    input_size_ = in_size;
+    units_ = u;
+    output_size_ = u;
     
-    // Resetta stato
-    hidden_state_.resize(0, 0);
+    auto read_str = [&]() {
+        int32_t len;
+        in.read(reinterpret_cast<char*>(&len), sizeof(int32_t));
+        std::vector<char> buf(len + 1, '\0');
+        in.read(buf.data(), len);
+        return std::string(buf.data());
+    };
+    
+    activation_ = read_str();
+    recurrent_activation_ = read_str();
+    
+    int8_t use_bias_flag;
+    in.read(reinterpret_cast<char*>(&use_bias_flag), sizeof(int8_t));
+    use_bias_ = (use_bias_flag != 0);
+    
+    auto read_mat = [&]() {
+        int32_t rows, cols;
+        in.read(reinterpret_cast<char*>(&rows), sizeof(int32_t));
+        in.read(reinterpret_cast<char*>(&cols), sizeof(int32_t));
+        Eigen::MatrixXd m(rows, cols);
+        in.read(reinterpret_cast<char*>(m.data()), rows * cols * sizeof(double));
+        return m;
+    };
+    
+    // Leggi kernel weights
+    kernel_r = read_mat();
+    kernel_z = read_mat();
+    kernel_h = read_mat();
+    
+    // Leggi recurrent weights
+    recurrent_r = read_mat();
+    recurrent_z = read_mat();
+    recurrent_h = read_mat();
+    
+    // Leggi bias
+    if (use_bias_) {
+        bias_r = read_mat();
+        bias_z = read_mat();
+        bias_h = read_mat();
+    }
+    
+    // Alloca gradienti
+    int total_rows = (input_size_ + units_) * 3;
+    int total_cols = 3 * units_ + (use_bias_ ? 3 : 0);
+    weights_gradient_.resize(total_rows, total_cols);
+    weights_gradient_.setZero();
+    
+    if (use_bias_) {
+        bias_gradient_.resize(3 * units_);
+        bias_gradient_.setZero();
+    }
+    
+    // Inizializza stato
+    hidden_state_.resize(1, units_);
+    hidden_state_.setZero();
+    
+    // Ricrea cache
     cache_ = std::make_shared<GRUCache>();
+    
+    if (!in.good() && !in.eof()) {
+        throw ml_exception::DeserializationException("Stream error", "GRULayer");
+    }
 }
+
+// ============================================================================
+// CONFIG
+// ============================================================================
 
 std::string GRULayer::get_config() const {
     std::ostringstream oss;

@@ -295,22 +295,22 @@
             throw ml_exception::FileNotFoundException(filename, model_type); \
     } while(0)
 
-#define ML_THROW_DESERIALIZATION_ERROR(reason, model_type) \
-    throw ml_exception::DeserializationException(reason, model_type)
-
-#define ML_THROW_DESERIALIZATION_ERROR_FILE(filename, reason, model_type) \
-    throw ml_exception::DeserializationException(filename, reason, model_type)
-
 #define ML_THROW_SERIALIZATION_ERROR(reason, model_type) \
-    throw ml_exception::SerializationException(reason, model_type)
+    throw ml_exception::SerializationException(std::string(reason), std::string(model_type))
 
 #define ML_THROW_SERIALIZATION_ERROR_FILE(filename, reason, model_type) \
-    throw ml_exception::SerializationException(filename, reason, model_type)
+    throw ml_exception::SerializationException(std::string(reason), std::string(model_type), std::string(filename))
+
+#define ML_THROW_DESERIALIZATION_ERROR(reason, model_type) \
+    throw ml_exception::DeserializationException(std::string(reason), std::string(model_type))
+
+#define ML_THROW_DESERIALIZATION_ERROR_FILE(filename, reason, model_type) \
+    throw ml_exception::DeserializationException(std::string(reason), std::string(model_type), std::string(filename))
 
 #define ML_CHECK_DESERIALIZATION(condition, reason, model_type) \
     do { \
         if (!(condition)) \
-            throw ml_exception::DeserializationException(reason, model_type); \
+            throw ml_exception::DeserializationException(std::string(reason), std::string(model_type)); \
     } while(0)
 
 #define ML_THROW_MATH_ERROR(operation, reason) \
@@ -320,6 +320,13 @@
     do { \
         if (!(condition)) \
             ML_THROW_MATH_ERROR(operation, reason); \
+    } while(0)
+
+#define ML_CHECK_STATE(condition, function_name, message) \
+    do { \
+        if (!(condition)) \
+            throw ml_exception::MLException( \
+                std::string(function_name) + ": " + std::string(message)); \
     } while(0)
 
 #endif // EXCEPTION_MACROS_H

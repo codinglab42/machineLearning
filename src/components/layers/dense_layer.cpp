@@ -10,7 +10,7 @@
 namespace layers {
 
 DenseLayer::DenseLayer(int units, const std::string& activation, bool use_bias)
-    : units_(units), activation_(activation), use_bias_(use_bias), input_size_(0) {
+    : units_(units), activation_(activation), use_bias_(use_bias) {
     
     ML_CHECK_PARAM(units > 0, "units", "must be > 0", "DenseLayer");
     cache_ = nullptr;
@@ -23,12 +23,43 @@ DenseLayer::DenseLayer(int units, const std::string& activation, bool use_bias)
 void DenseLayer::set_input_shape(int input_size) {
     ML_CHECK_PARAM(input_size > 0, "input_size", "must be > 0", "DenseLayer");
     
+    // Se non è cambiato, esci (utile per deserializzazione)
+    if (input_size_ == input_size && weights_.size() > 0) {
+        return;
+    }
+    
     input_size_ = input_size;
+    output_size_ = units_;
+    
+    // Solo ridimensiona, non inizializzare ancora!
+    weights_.resize(input_size, units_);
+    
+    if (use_bias_) {
+        bias_.resize(units_);
+        bias_.setZero();  // Bias a zero di default
+    }
+    
+    // Resetta gradienti
+    weights_gradient_.resize(input_size, units_);
+    weights_gradient_.setZero();
+    
+    if (use_bias_) {
+        bias_gradient_.resize(units_);
+        bias_gradient_.setZero();
+    }
+    
+    // Cache
+    if (!cache_) {
+        cache_ = std::make_shared<DenseCache>();
+    }
+}
+
+void DenseLayer::initialize_weights() {
+    ML_CHECK_PARAM(input_size_ > 0, "input_size", "must be > 0", "DenseLayer");
+    ML_CHECK_PARAM(units_ > 0, "units", "must be > 0", "DenseLayer");
     
     // Inizializzazione Xavier
-    double scale = std::sqrt(6.0 / (input_size + units_));
-    
-    weights_.resize(input_size, units_);
+    double scale = std::sqrt(6.0 / (input_size_ + units_));
     
     std::random_device rd;
     std::mt19937 gen(rd());
@@ -40,15 +71,10 @@ void DenseLayer::set_input_shape(int input_size) {
         }
     }
     
-    if (use_bias_) {
-        bias_.setZero(units_);
-    }
-    
-    // Inizializza cache
-    if (!cache_) {
-        cache_ = std::make_shared<DenseCache>();
-    }
+    // Bias già zero, ma se vuoi inizializzarli diversamente:
+    // if (use_bias_) { bias_.setRandom() * scale; }
 }
+
 
 Eigen::MatrixXd DenseLayer::forward(const Eigen::MatrixXd& input) {
     return forward(input, false);
@@ -96,25 +122,31 @@ Eigen::MatrixXd DenseLayer::backward(const Eigen::MatrixXd& gradient) {
             gradient.rows(), gradient.cols(), "DenseLayer");
     }
     
-    // Calcola dZ = gradient * derivata_attivazione
-    Eigen::MatrixXd dZ = gradient.array() * apply_activation_derivative(cache_->z_cache).array();
+    // CALCOLA dZ - per activation "linear" la derivata è 1
+    Eigen::MatrixXd dZ;
+    if (activation_ == "linear") {
+        dZ = gradient;  // derivata di linear è 1
+    } else {
+        dZ = gradient.array() * apply_activation_derivative(cache_->z_cache).array();
+    }
     
     // Calcola gradienti per pesi
     Eigen::MatrixXd weight_grad = cache_->input_cache.transpose() * dZ;
     
     if (use_bias_) {
-        // Calcola gradiente per bias
         Eigen::VectorXd bias_grad = dZ.colwise().sum();
         
-        // UNIFICA: gradiente pesi + bias in un'unica matrice [input_size, units + 1]
+        // Unifica pesi e bias
         weights_gradient_.resize(weight_grad.rows(), weight_grad.cols() + 1);
         weights_gradient_.leftCols(weight_grad.cols()) = weight_grad;
         weights_gradient_.col(weight_grad.cols()) = bias_grad;
+        
+        bias_gradient_ = bias_grad;
     } else {
         weights_gradient_ = weight_grad;
     }
     
-    // Calcola gradiente per input (da propagare indietro)
+    // Calcola gradiente per input
     Eigen::MatrixXd dX = dZ * weights_.transpose();
     
     return dX;
@@ -122,14 +154,19 @@ Eigen::MatrixXd DenseLayer::backward(const Eigen::MatrixXd& gradient) {
 
 void DenseLayer::set_weights(const Eigen::MatrixXd& weights) {
     if (use_bias_) {
-        if (weights.cols() != weights_.cols() + 1) {
-            ML_THROW_PARAMETER_ERROR("weights", "invalid dimensions", "DenseLayer");
+        // weights deve avere colonne = units + 1 (ultima colonna è bias)
+        if (weights.cols() != units_ + 1) {
+            ML_THROW_PARAMETER_ERROR("weights", 
+                "expected " + std::to_string(units_ + 1) + " columns, got " + std::to_string(weights.cols()), 
+                "DenseLayer");
         }
-        weights_ = weights.leftCols(weights_.cols());
-        bias_ = weights.col(weights_.cols());
+        weights_ = weights.leftCols(units_);
+        bias_ = weights.col(units_);
     } else {
-        if (weights.cols() != weights_.cols()) {
-            ML_THROW_PARAMETER_ERROR("weights", "invalid dimensions", "DenseLayer");
+        if (weights.cols() != units_) {
+            ML_THROW_PARAMETER_ERROR("weights", 
+                "expected " + std::to_string(units_) + " columns, got " + std::to_string(weights.cols()), 
+                "DenseLayer");
         }
         weights_ = weights;
     }
@@ -137,7 +174,6 @@ void DenseLayer::set_weights(const Eigen::MatrixXd& weights) {
 
 Eigen::MatrixXd DenseLayer::get_weights() const { 
     if (use_bias_) {
-        // Restituisce [input_size, units + 1] - pesi + bias nell'ultima colonna
         Eigen::MatrixXd weights_with_bias(weights_.rows(), weights_.cols() + 1);
         weights_with_bias.leftCols(weights_.cols()) = weights_;
         weights_with_bias.col(weights_.cols()) = bias_;
@@ -145,8 +181,6 @@ Eigen::MatrixXd DenseLayer::get_weights() const {
     }
     return weights_;
 }
-
-
 
 void DenseLayer::set_biases(const Eigen::VectorXd& biases) {
     if (use_bias_) {
@@ -196,60 +230,144 @@ Eigen::MatrixXd DenseLayer::apply_activation_derivative(const Eigen::MatrixXd& z
 }
 
 void DenseLayer::serialize(std::ostream& out) const {
-    // Usiamo un formato binario semplice e robusto
-    out.write(reinterpret_cast<const char*>(&input_size_), sizeof(int));
-    out.write(reinterpret_cast<const char*>(&units_), sizeof(int));
+    // 1. Scrivi dimensioni (int32_t)
+    int32_t input_size = input_size_;
+    int32_t units = units_;
+    out.write(reinterpret_cast<const char*>(&input_size), sizeof(int32_t));
+    out.write(reinterpret_cast<const char*>(&units), sizeof(int32_t));
     
-    size_t act_len = activation_.size();
-    out.write(reinterpret_cast<const char*>(&act_len), sizeof(size_t));
+    // 2. Scrivi activation (int32_t per lunghezza)
+    int32_t act_len = static_cast<int32_t>(activation_.size());
+    out.write(reinterpret_cast<const char*>(&act_len), sizeof(int32_t));
     out.write(activation_.c_str(), act_len);
     
-    out.write(reinterpret_cast<const char*>(&use_bias_), sizeof(bool));
+    // 3. Scrivi use_bias (int8_t)
+    int8_t use_bias_flag = use_bias_ ? 1 : 0;
+    out.write(reinterpret_cast<const char*>(&use_bias_flag), sizeof(int8_t));
     
-    // Serializza pesi (solo i pesi, non i gradienti!)
-    Eigen::MatrixXd weights_to_save = get_weights();
-    int rows = weights_to_save.rows();
-    int cols = weights_to_save.cols();
-    out.write(reinterpret_cast<const char*>(&rows), sizeof(int));
-    out.write(reinterpret_cast<const char*>(&cols), sizeof(int));
-    out.write(reinterpret_cast<const char*>(weights_to_save.data()), rows * cols * sizeof(double));
+    // 4. Scrivi weights
+    int32_t rows = weights_.rows();
+    int32_t cols = weights_.cols();
+    out.write(reinterpret_cast<const char*>(&rows), sizeof(int32_t));
+    out.write(reinterpret_cast<const char*>(&cols), sizeof(int32_t));
+    out.write(reinterpret_cast<const char*>(weights_.data()), 
+             rows * cols * sizeof(double));
     
+    // 5. Scrivi bias (se presente)
     if (use_bias_) {
-        int bias_size = bias_.size();
-        out.write(reinterpret_cast<const char*>(&bias_size), sizeof(int));
-        out.write(reinterpret_cast<const char*>(bias_.data()), bias_size * sizeof(double));
+        int32_t bias_rows = bias_.rows();
+        int32_t bias_cols = bias_.cols();
+        out.write(reinterpret_cast<const char*>(&bias_rows), sizeof(int32_t));
+        out.write(reinterpret_cast<const char*>(&bias_cols), sizeof(int32_t));
+        out.write(reinterpret_cast<const char*>(bias_.data()), 
+                 bias_rows * bias_cols * sizeof(double));
+    }
+    
+    if (!out.good()) {
+        ML_THROW_SERIALIZATION_ERROR("Failed to write DenseLayer", "DenseLayer");
     }
 }
 
+
 void DenseLayer::deserialize(std::istream& in) {
-    in.read(reinterpret_cast<char*>(&input_size_), sizeof(int));
-    in.read(reinterpret_cast<char*>(&units_), sizeof(int));
+    // 1. Leggi dimensioni (usa int32_t)
+    int32_t input_size, units;
+    in.read(reinterpret_cast<char*>(&input_size), sizeof(int32_t));
+    in.read(reinterpret_cast<char*>(&units), sizeof(int32_t));
     
-    size_t act_len;
-    in.read(reinterpret_cast<char*>(&act_len), sizeof(size_t));
-    activation_.resize(act_len);
-    in.read(&activation_[0], act_len);
-    
-    in.read(reinterpret_cast<char*>(&use_bias_), sizeof(bool));
-    
-    // IMPORTANTE: Inizializza le matrici interne PRIMA di set_weights!
-    weights_.resize(input_size_, units_);
-    if (use_bias_) {
-        bias_.resize(units_);
+    if (input_size <= 0 || units <= 0) {
+        ML_THROW_DESERIALIZATION_ERROR(
+            "Invalid dimensions: input_size=" + std::to_string(input_size) +
+            ", units=" + std::to_string(units), "DenseLayer");
     }
     
-    // Leggi la matrice dei pesi
-    int rows, cols;
-    in.read(reinterpret_cast<char*>(&rows), sizeof(int));
-    in.read(reinterpret_cast<char*>(&cols), sizeof(int));
-
+    input_size_ = input_size;
+    units_ = units;
+    output_size_ = units;  // Importante!
+    
+    // 2. Leggi activation (usa int32_t per lunghezza)
+    int32_t act_len;
+    in.read(reinterpret_cast<char*>(&act_len), sizeof(int32_t));
+    
+    if (act_len < 0 || act_len > 1024) {
+        ML_THROW_DESERIALIZATION_ERROR(
+            "Invalid activation length: " + std::to_string(act_len), "DenseLayer");
+    }
+    
+    std::vector<char> buffer(act_len + 1, '\0');
+    in.read(buffer.data(), act_len);
+    activation_ = std::string(buffer.data());
+    
+    // 3. Leggi use_bias (usa int8_t invece di bool per dimensione fissa)
+    int8_t use_bias_flag;
+    in.read(reinterpret_cast<char*>(&use_bias_flag), sizeof(int8_t));
+    use_bias_ = (use_bias_flag != 0);
+    
+    // 4. Alloca le matrici con le dimensioni corrette PRIMA di leggere i pesi
+    // Alloca strutture
+    weights_.resize(input_size_, units_);
+    weights_gradient_.resize(input_size_, units_);
+    weights_gradient_.setZero();
+    
+    if (use_bias_) {
+        bias_.resize(units_);
+        bias_gradient_.resize(units_);
+        bias_gradient_.setZero();
+    }
+    
+    // 5. Leggi la matrice dei pesi
+    int32_t rows, cols;
+    in.read(reinterpret_cast<char*>(&rows), sizeof(int32_t));
+    in.read(reinterpret_cast<char*>(&cols), sizeof(int32_t));
+    
+    // Validazione dimensioni
+    if (rows != input_size_ || cols != units_) {
+        ML_THROW_DESERIALIZATION_ERROR(
+            "Weight dimensions mismatch: expected " + 
+            std::to_string(input_size_) + "x" + std::to_string(units_) +
+            ", got " + std::to_string(rows) + "x" + std::to_string(cols), "DenseLayer");
+    }
+    
     Eigen::MatrixXd loaded_weights(rows, cols);
     in.read(reinterpret_cast<char*>(loaded_weights.data()), rows * cols * sizeof(double));
     
-    set_weights(loaded_weights);
+    // Assegna direttamente, senza chiamare set_weights
+    if (use_bias_) {
+        // Se loaded_weights ha una colonna in più, contiene anche bias
+        if (cols == units_ + 1) {
+            weights_ = loaded_weights.leftCols(units_);
+            bias_ = loaded_weights.col(units_);
+        } else {
+            weights_ = loaded_weights;
+            // bias_ rimane zero
+        }
+    } else {
+        weights_ = loaded_weights;
+    }
     
-    // Ricrea cache
+    // 6. Leggi bias (se presente)
+    // Leggi bias (solo se serializzato separatamente)
+    if (use_bias_) {
+        int32_t bias_rows, bias_cols;
+        if (in.peek() != EOF) {
+            in.read(reinterpret_cast<char*>(&bias_rows), sizeof(int32_t));
+            in.read(reinterpret_cast<char*>(&bias_cols), sizeof(int32_t));
+            
+            if (bias_rows == 1 && bias_cols == units_) {
+                Eigen::MatrixXd loaded_bias(bias_rows, bias_cols);
+                in.read(reinterpret_cast<char*>(loaded_bias.data()), bias_rows * bias_cols * sizeof(double));
+                bias_ = loaded_bias.row(0);
+            }
+        }
+    }
+    
+    // 7. Ricrea cache
     cache_ = std::make_shared<DenseCache>();
+    
+    // 8. Verifica finale
+    if (!in.good() && !in.eof()) {
+        ML_THROW_SERIALIZATION_ERROR("Stream error while reading DenseLayer", "DenseLayer");
+    }
 }
 
 std::string DenseLayer::get_config() const {

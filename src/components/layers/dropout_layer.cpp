@@ -94,4 +94,9 @@ void DropoutLayer::set_input_shape(int input_size) {
     input_size_ = input_size; 
 }
 
+void DropoutLayer::initialize_weights() {
+    // Dropout non ha pesi da inizializzare
+    // Implementazione vuota
+}
+
 } // namespace layers

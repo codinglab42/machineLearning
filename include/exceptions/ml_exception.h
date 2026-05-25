@@ -190,14 +190,10 @@ namespace ml_exception {
     
     class DeserializationException : public MLException {
     public:
-        explicit DeserializationException(const std::string& reason,
-                                         const std::string& model_type)
-            : MLException(build_message(reason), model_type),
-              reason_(reason) {}
-        
-        DeserializationException(const std::string& filename,
-                                const std::string& reason,
-                                const std::string& model_type)
+               
+        DeserializationException(const std::string& reason,
+                                const std::string& model_type,
+                                const std::string& filename = "")
             : MLException(build_message(filename, reason), model_type),
               filename_(filename),
               reason_(reason) {}
@@ -225,17 +221,13 @@ namespace ml_exception {
 
     class SerializationException : public MLException {
     public:
-        explicit SerializationException(const std::string& reason,
-                                       const std::string& model_type = "")
-            : MLException(build_message(reason), model_type),
-              reason_(reason) {}
-        
-        SerializationException(const std::string& filename,
-                              const std::string& reason,
-                              const std::string& model_type = "")
-            : MLException(build_message(filename, reason), model_type),
-              filename_(filename),
-              reason_(reason) {}
+        SerializationException(
+            const std::string& reason, 
+            const std::string& model_type,
+            const std::string& filename = ""  // default vuoto
+        ) : MLException(build_message(filename, reason), model_type),
+            filename_(filename),
+            reason_(reason) {}
         
         const std::string& get_filename() const { return filename_; }
         const std::string& get_reason() const { return reason_; }

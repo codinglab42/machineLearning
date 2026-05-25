@@ -11,6 +11,7 @@ namespace layers {
 
     class Conv2DLayer : public Layer {
     public:
+        Conv2DLayer();
         Conv2DLayer(int filters, int kernel_size, int strides = 1,
                    const std::string& padding = "valid",
                    const std::string& activation = "relu");
@@ -29,6 +30,7 @@ namespace layers {
         uint32_t get_version() const override { return 1; }
         
         bool has_weights() const override { return true; }
+        void initialize_weights() override;
         Eigen::MatrixXd get_weights() const override;
         void set_weights(const Eigen::MatrixXd& weights) override;
         int get_parameter_count() const override;

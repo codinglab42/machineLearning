@@ -12,6 +12,7 @@ namespace layers {
 
 class DenseLayer : public Layer {
 public:
+    DenseLayer() = default;
     DenseLayer(int units, const std::string& activation = "relu", bool use_bias = true);
     ~DenseLayer() override = default;
 
@@ -26,6 +27,7 @@ public:
     // GESTIONE PESI (proprietà del layer)
     // ========================================================================
     bool has_weights() const override { return true; }
+    void initialize_weights() override;
     
     // Getter pesi
     Eigen::MatrixXd get_weights() const override;
@@ -105,11 +107,9 @@ private:
     Eigen::MatrixXd weights_gradient_;  // [input_size, units]
     Eigen::VectorXd bias_gradient_;     // [units]
     
-    // Configurazione
-    int units_;
+    int units_ = 0;
     std::string activation_;
-    bool use_bias_;
-    int input_size_;
+    bool use_bias_ = true;
 };
 
 } // namespace layers

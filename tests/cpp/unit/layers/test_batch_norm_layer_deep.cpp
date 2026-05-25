@@ -40,17 +40,17 @@ TEST_F(BatchNormLayerTest, ForwardShape) {
 }
 
 TEST_F(BatchNormLayerTest, ForwardTrainingMode) {
+    // Inizializza i pesi prima del forward
+    layer->initialize_weights();  // ← AGGIUNGI QUESTO!
+    
     MatrixXd output = layer->forward(input, true);
     
-    // Check that output is normalized (mean ~0, std ~1 per feature)
-    // Con 4 samples, la deviazione standard può variare molto
     for (int f = 0; f < features; ++f) {
         double mean = output.col(f).mean();
         double std = std::sqrt((output.col(f).array() - mean).square().mean());
         
         EXPECT_NEAR(mean, 0.0, 1e-6);
-        // Con batch size piccolo, tolleranza più larga
-        EXPECT_NEAR(std, 1.0, 0.5);  // 0.5 invece di 0.1
+        EXPECT_NEAR(std, 1.0, 0.5);
     }
 }
 

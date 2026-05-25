@@ -23,6 +23,7 @@ namespace layers {
         virtual std::string get_config() const override = 0;
         
         virtual bool has_weights() const override = 0;
+        virtual void initialize_weights() override = 0;
         virtual Eigen::MatrixXd get_weights() const override = 0;
         virtual void set_weights(const Eigen::MatrixXd& weights) override = 0;
         virtual int get_parameter_count() const override = 0;

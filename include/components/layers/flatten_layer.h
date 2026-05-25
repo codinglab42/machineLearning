@@ -9,7 +9,7 @@ namespace layers {
 
     class FlattenLayer : public Layer {
     public:
-        FlattenLayer();
+        FlattenLayer() = default;
         ~FlattenLayer() override = default;
 
         Eigen::MatrixXd forward(const Eigen::MatrixXd& input) override;
@@ -25,6 +25,7 @@ namespace layers {
         uint32_t get_version() const override { return 1; }
         
         bool has_weights() const override { return false; }
+        void initialize_weights() override;
         Eigen::MatrixXd get_weights() const override { return Eigen::MatrixXd(); }
         void set_weights(const Eigen::MatrixXd& weights) override {}
         int get_parameter_count() const override { return 0; }
@@ -50,11 +51,12 @@ namespace layers {
         bool get_use_bias() const { return use_bias_; }
         
     private:
+
         std::shared_ptr<FlattenCache> get_specific_cache() const {
             return std::dynamic_pointer_cast<FlattenCache>(cache_);
         }
         
-        int input_size_;
+        int input_size_ = 0;
         std::shared_ptr<FlattenCache> cache_;
 
         bool use_bias_;

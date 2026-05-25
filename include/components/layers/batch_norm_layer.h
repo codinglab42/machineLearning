@@ -25,6 +25,7 @@ namespace layers {
         uint32_t get_version() const override { return 1; }
         
         bool has_weights() const override { return true; }
+        void initialize_weights() override;
         Eigen::MatrixXd get_weights() const override;
         void set_weights(const Eigen::MatrixXd& weights) override;
         int get_parameter_count() const override;

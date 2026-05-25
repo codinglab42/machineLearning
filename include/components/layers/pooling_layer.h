@@ -35,6 +35,7 @@ public:
     
     // Gestione pesi (Pooling non ha pesi)
     bool has_weights() const override { return false; }
+    void initialize_weights() override;
     Eigen::MatrixXd get_weights() const override { return Eigen::MatrixXd(); }
     void set_weights(const Eigen::MatrixXd& weights) override { (void)weights; }
     void set_weights_gradient(const Eigen::MatrixXd& gradient) override { (void)gradient; }

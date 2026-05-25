@@ -11,7 +11,7 @@ BatchNormLayer::BatchNormLayer(double epsilon, double momentum)
     : epsilon_(epsilon), momentum_(momentum), input_size_(0), use_bias_(true) {
     
     ML_CHECK_PARAM(epsilon > 0, "epsilon", "must be > 0", "BatchNormLayer");
-    ML_CHECK_PARAM(momentum > 0 && momentum < 1, "momentum", "must be in (0, 1)", "BatchNormLayer");
+    ML_CHECK_PARAM(momentum > 0 && momentum <= 1, "momentum", "must be in (0,1]", "BatchNormLayer");
     
     cache_ = nullptr;
     weights_gradient_.resize(0, 0);
@@ -21,18 +21,31 @@ BatchNormLayer::BatchNormLayer(double epsilon, double momentum)
 void BatchNormLayer::set_input_shape(int input_size) {
     ML_CHECK_PARAM(input_size > 0, "input_size", "must be > 0", "BatchNormLayer");
     
+    if (input_size_ == input_size && gamma_.size() > 0) {
+        return;
+    }
+    
     input_size_ = input_size;
     
-    gamma_ = Eigen::VectorXd::Ones(input_size);
-    beta_ = Eigen::VectorXd::Zero(input_size);
-    running_mean_ = Eigen::VectorXd::Zero(input_size);
-    running_var_ = Eigen::VectorXd::Ones(input_size);
+    // Solo ridimensiona, NON inizializzare i valori!
+    gamma_.resize(input_size);
+    beta_.resize(input_size);
+    running_mean_.resize(input_size);
+    running_var_.resize(input_size);
     
-    // Inizializza gradienti
     weights_gradient_.resize(input_size, 1);
     weights_gradient_.setZero();
     bias_gradient_.resize(input_size);
     bias_gradient_.setZero();
+}
+
+void BatchNormLayer::initialize_weights() {
+    ML_CHECK_PARAM(input_size_ > 0, "input_size", "must be > 0", "BatchNormLayer");
+    
+    gamma_.setOnes();
+    beta_.setZero();
+    running_mean_.setZero();
+    running_var_.setOnes();  // ← CRUCIALE! Inizializza a 1, non 0!
 }
 
 Eigen::MatrixXd BatchNormLayer::forward(const Eigen::MatrixXd& input) {
@@ -158,58 +171,91 @@ int BatchNormLayer::get_parameter_count() const {
 }
 
 void BatchNormLayer::serialize(std::ostream& out) const {
-    out << get_config() << std::endl;
-    out.write(reinterpret_cast<const char*>(&input_size_), sizeof(int));
+    // 1. Scrivi input_size (int32_t)
+    int32_t input_size = input_size_;
+    out.write(reinterpret_cast<const char*>(&input_size), sizeof(int32_t));
+    
+    // 2. Scrivi epsilon
     out.write(reinterpret_cast<const char*>(&epsilon_), sizeof(double));
+    
+    // 3. Scrivi momentum
     out.write(reinterpret_cast<const char*>(&momentum_), sizeof(double));
     
-    for (int i = 0; i < gamma_.size(); ++i) {
-        out.write(reinterpret_cast<const char*>(&gamma_(i)), sizeof(double));
-    }
-    for (int i = 0; i < beta_.size(); ++i) {
-        out.write(reinterpret_cast<const char*>(&beta_(i)), sizeof(double));
-    }
-    for (int i = 0; i < running_mean_.size(); ++i) {
-        out.write(reinterpret_cast<const char*>(&running_mean_(i)), sizeof(double));
-    }
-    for (int i = 0; i < running_var_.size(); ++i) {
-        out.write(reinterpret_cast<const char*>(&running_var_(i)), sizeof(double));
+    // 4. Scrivi gamma
+    out.write(reinterpret_cast<const char*>(gamma_.data()), input_size_ * sizeof(double));
+    
+    // 5. Scrivi beta
+    out.write(reinterpret_cast<const char*>(beta_.data()), input_size_ * sizeof(double));
+    
+    // 6. Scrivi running_mean
+    out.write(reinterpret_cast<const char*>(running_mean_.data()), input_size_ * sizeof(double));
+    
+    // 7. Scrivi running_var
+    out.write(reinterpret_cast<const char*>(running_var_.data()), input_size_ * sizeof(double));
+    
+    // 8. Scrivi gradienti (opzionale)
+    // out.write(reinterpret_cast<const char*>(weights_gradient_.data()), input_size_ * sizeof(double));
+    // out.write(reinterpret_cast<const char*>(bias_gradient_.data()), input_size_ * sizeof(double));
+    
+    if (!out.good()) {
+        ML_THROW_SERIALIZATION_ERROR("Failed to write BatchNormLayer", "BatchNormLayer");
     }
 }
 
+
 void BatchNormLayer::deserialize(std::istream& in) {
-    std::string config;
-    std::getline(in, config);
+    // 1. Leggi input_size (int32_t)
+    int32_t input_size;
+    in.read(reinterpret_cast<char*>(&input_size), sizeof(int32_t));
     
-    in.read(reinterpret_cast<char*>(&input_size_), sizeof(int));
-    in.read(reinterpret_cast<char*>(&epsilon_), sizeof(double));
-    in.read(reinterpret_cast<char*>(&momentum_), sizeof(double));
+    if (input_size <= 0) {
+        ML_THROW_DESERIALIZATION_ERROR(
+            "Invalid input_size: " + std::to_string(input_size), "BatchNormLayer");
+    }
     
+    input_size_ = input_size;
+    
+    // 2. Leggi epsilon (double)
+    double epsilon;
+    in.read(reinterpret_cast<char*>(&epsilon), sizeof(double));
+    epsilon_ = epsilon;
+    
+    // 3. Leggi momentum (double)
+    double momentum;
+    in.read(reinterpret_cast<char*>(&momentum), sizeof(double));
+    momentum_ = momentum;
+    
+    // 4. ALLOCA strutture dati (NON inizializzare!)
     gamma_.resize(input_size_);
     beta_.resize(input_size_);
     running_mean_.resize(input_size_);
     running_var_.resize(input_size_);
     
-    for (int i = 0; i < gamma_.size(); ++i) {
-        in.read(reinterpret_cast<char*>(&gamma_(i)), sizeof(double));
-    }
-    for (int i = 0; i < beta_.size(); ++i) {
-        in.read(reinterpret_cast<char*>(&beta_(i)), sizeof(double));
-    }
-    for (int i = 0; i < running_mean_.size(); ++i) {
-        in.read(reinterpret_cast<char*>(&running_mean_(i)), sizeof(double));
-    }
-    for (int i = 0; i < running_var_.size(); ++i) {
-        in.read(reinterpret_cast<char*>(&running_var_(i)), sizeof(double));
-    }
-    
-    // Inizializza gradienti
     weights_gradient_.resize(input_size_, 1);
-    weights_gradient_.setZero();
     bias_gradient_.resize(input_size_);
-    bias_gradient_.setZero();
     
+    // 5. Leggi gamma
+    in.read(reinterpret_cast<char*>(gamma_.data()), input_size_ * sizeof(double));
+    
+    // 6. Leggi beta
+    in.read(reinterpret_cast<char*>(beta_.data()), input_size_ * sizeof(double));
+    
+    // 7. Leggi running_mean
+    in.read(reinterpret_cast<char*>(running_mean_.data()), input_size_ * sizeof(double));
+    
+    // 8. Leggi running_var
+    in.read(reinterpret_cast<char*>(running_var_.data()), input_size_ * sizeof(double));
+    
+    // 9. Leggi gradienti (opzionale, dipende se vuoi salvarli)
+    // in.read(reinterpret_cast<char*>(weights_gradient_.data()), input_size_ * sizeof(double));
+    // in.read(reinterpret_cast<char*>(bias_gradient_.data()), input_size_ * sizeof(double));
+    
+    // 10. Ricrea cache
     cache_ = std::make_shared<BatchNormCache>();
+    
+    if (!in.good() && !in.eof()) {
+        ML_THROW_DESERIALIZATION_ERROR("Stream error", "BatchNormLayer");
+    }
 }
 
 std::string BatchNormLayer::get_config() const {

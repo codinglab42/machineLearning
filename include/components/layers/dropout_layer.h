@@ -27,6 +27,7 @@ namespace layers {
         double get_rate() const { return rate_; }
         
         bool has_weights() const override { return false; }
+        void initialize_weights() override;
         Eigen::MatrixXd get_weights() const override { return Eigen::MatrixXd(); }
         void set_weights(const Eigen::MatrixXd& weights) override {}
         int get_parameter_count() const override { return 0; }

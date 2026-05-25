@@ -11,6 +11,7 @@ namespace layers {
 
     class GRULayer : public RecurrentLayer {
     public:
+        GRULayer() = default;
         GRULayer(int units, int input_size, 
                 const std::string& activation = "tanh",
                 const std::string& recurrent_activation = "sigmoid",
@@ -30,6 +31,7 @@ namespace layers {
         uint32_t get_version() const override { return 1; }
         
         bool has_weights() const override { return true; }
+        void initialize_weights() override;
         Eigen::MatrixXd get_weights() const override;
         void set_weights(const Eigen::MatrixXd& weights) override;
         int get_parameter_count() const override;
@@ -68,11 +70,11 @@ namespace layers {
             return std::dynamic_pointer_cast<GRUCache>(cache_);
         }
         
-        int units_;
-        int input_size_;
-        std::string activation_;
-        std::string recurrent_activation_;
-        bool use_bias_;
+        int units_ = 0;
+        int input_size_ = 0;
+        std::string activation_ = "tanh";
+        std::string recurrent_activation_ = "sigmoid";
+        bool use_bias_ = true;
 
         Eigen::MatrixXd weights_gradient_;
         Eigen::VectorXd bias_gradient_;

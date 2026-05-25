@@ -27,6 +27,9 @@ TEST_F(GradientCheckingTest, DenseLayerWithReLUGradient) {
     DenseLayer layer(3, "relu", true);
     layer.set_input_shape(4);
     
+    // Inizializza i pesi (altrimenti sono zero!)
+    layer.initialize_weights();  // ← AGGIUNGI QUESTO!
+    
     MatrixXd input(2, 4);
     MatrixXd target(2, 3);
     input.setRandom();

@@ -22,8 +22,8 @@ namespace models {
           verbose_(false),
           n_features_(0),
           n_classes_(0),
-          fitted_(false),
           batch_size_(32),
+          fitted_(false),
           epochs_(100),
           validation_split_(0.0),
           rng_(42) {
@@ -45,8 +45,8 @@ namespace models {
           verbose_(false),
           n_features_(layer_sizes.front()),
           n_classes_(layer_sizes.back()),
-          fitted_(false),
           batch_size_(32),
+          fitted_(false),
           epochs_(100),
           validation_split_(0.0),
           rng_(42) {
@@ -391,11 +391,14 @@ namespace models {
 
         verbose_    = verbose;
         n_features_ = X.cols();
-        n_classes_  = y.cols();
+        //n_classes_  = y.cols();
+        determine_problem_type(y);
 
         if (layers_.empty()) {
             initialize_layers(n_features_);
         }
+
+        build(n_features_,n_classes_);
 
         int n_samples = X.rows();
         std::vector<int> indices(n_samples);
@@ -502,6 +505,63 @@ namespace models {
         }
 
         fitted_ = true;
+    }
+
+    void NeuralNetwork::build(int n_features, int n_classes) {
+        // 1. Verifica che ci siano layer
+        if (layers_.empty()) {
+            throw ml_exception::MLException(
+                "NeuralNetwork::build: cannot build a network with no layers. "
+                "Use add_layer() first.");
+        }
+        
+        // 2. Validazione dimensioni
+        ML_CHECK_PARAM(n_features > 0, "n_features", "must be > 0", "NeuralNetwork");
+        ML_CHECK_PARAM(n_classes > 0, "n_classes", "must be > 0", "NeuralNetwork");
+        
+        // 3. Imposta le dimensioni della rete
+        n_features_ = n_features;
+        n_classes_ = n_classes;
+        
+        // 4. Propaga le dimensioni e inizializza i pesi
+        int current_dim = n_features_;
+        
+        for (size_t i = 0; i < layers_.size(); ++i) {
+            // Imposta l'input shape per il layer
+            layers_[i]->set_input_shape(current_dim);
+            
+            // Inizializza i pesi (se il layer li ha)
+            layers_[i]->initialize_weights();
+            
+            // Aggiorna la dimensione per il layer successivo
+            current_dim = layers_[i]->get_output_size();
+            
+            // Verifica che la dimensione sia valida dopo ogni layer
+            if (current_dim <= 0) {
+                throw ml_exception::MLException(
+                    "NeuralNetwork::build: layer " + std::to_string(i) + 
+                    " produced invalid output dimension: " + std::to_string(current_dim));
+            }
+        }
+        
+        // 5. Verifica opzionale: l'output dell'ultimo layer dovrebbe coincidere con n_classes
+        if (current_dim != n_classes_) {
+            // Avviso ma non errore (potrebbe essere regressione o configurazione speciale)
+            if (verbose_) {
+                std::cout << "Warning: NeuralNetwork::build - Last layer output (" 
+                        << current_dim << ") != n_classes (" << n_classes_ << ")" << std::endl;
+            }
+        }
+        
+        // 6. La rete è costruita ma non ancora addestrata
+        fitted_ = false;
+        
+        // 7. Log di successo (opzionale)
+        if (verbose_) {
+            std::cout << "✓ NeuralNetwork built successfully: " 
+                    << n_features_ << " -> " << current_dim 
+                    << " (expected output: " << n_classes_ << ")" << std::endl;
+        }
     }
 
     //===========================================================================
@@ -681,65 +741,255 @@ namespace models {
         return result;
     }
 
+    //===========================================================================
+// SERIALIZZAZIONE CORRETTA
+//===========================================================================
+
     void NeuralNetwork::serialize_binary(std::ostream& out) const {
-        out.write(reinterpret_cast<const char*>(&n_features_), sizeof(int));
-        out.write(reinterpret_cast<const char*>(&n_classes_),  sizeof(int));
-        out.write(reinterpret_cast<const char*>(&fitted_),     sizeof(bool));
-
-        size_t loss_name_len = loss_function_name_.size();
-        out.write(reinterpret_cast<const char*>(&loss_name_len), sizeof(size_t));
+        // Verifica che la rete sia in uno stato valido
+        if (n_features_ <= 0 || n_classes_ <= 0) {
+            throw std::runtime_error("NeuralNetwork::serialize_binary: "
+                "Network not initialized (n_features or n_classes = 0)");
+        }
+        
+        // 1. MAGIC NUMBER per verifica formato (opzionale ma consigliato)
+        uint32_t magic = 0x4E4E574F; // "NNWO" - Neural NetWork Object
+        out.write(reinterpret_cast<const char*>(&magic), sizeof(magic));
+        
+        // 2. Versione del formato
+        uint32_t version = 1;
+        out.write(reinterpret_cast<const char*>(&version), sizeof(version));
+        
+        // 3. Parametri base (usa tipi a dimensione fissa!)
+        int32_t n_features = static_cast<int32_t>(n_features_);
+        int32_t n_classes = static_cast<int32_t>(n_classes_);
+        out.write(reinterpret_cast<const char*>(&n_features), sizeof(int32_t));
+        out.write(reinterpret_cast<const char*>(&n_classes), sizeof(int32_t));
+        
+        int8_t fitted_flag = fitted_ ? 1 : 0;
+        out.write(reinterpret_cast<const char*>(&fitted_flag), sizeof(int8_t));
+        
+        // 4. Loss function (con lunghezza int32_t)
+        int32_t loss_name_len = static_cast<int32_t>(loss_function_name_.size());
+        out.write(reinterpret_cast<const char*>(&loss_name_len), sizeof(int32_t));
         out.write(loss_function_name_.c_str(), loss_name_len);
-
-        size_t num_layers = layers_.size();
-        out.write(reinterpret_cast<const char*>(&num_layers), sizeof(size_t));
-
+        
+        // 5. Learning rate
+        out.write(reinterpret_cast<const char*>(&learning_rate_), sizeof(double));
+        
+        // 6. Ottimizzatore
+        if (optimizer_) {
+            int32_t opt_type = static_cast<int32_t>(optimizer_->get_type());
+            out.write(reinterpret_cast<const char*>(&opt_type), sizeof(int32_t));
+            optimizer_->serialize(out);
+        } else {
+            int32_t opt_type = -1;
+            out.write(reinterpret_cast<const char*>(&opt_type), sizeof(int32_t));
+        }
+        
+        // 7. Regularizer
+        if (regularizer_) {
+            int32_t reg_type = static_cast<int32_t>(regularizer_->get_type());
+            out.write(reinterpret_cast<const char*>(&reg_type), sizeof(int32_t));
+            regularizer_->serialize(out);
+        } else {
+            int32_t reg_type = -1;
+            out.write(reinterpret_cast<const char*>(&reg_type), sizeof(int32_t));
+        }
+        
+        // 8. Numero di layer (int32_t)
+        int32_t num_layers = static_cast<int32_t>(layers_.size());
+        out.write(reinterpret_cast<const char*>(&num_layers), sizeof(int32_t));
+        
+        // 9. Per ogni layer: tipo + dati
         for (const auto& layer : layers_) {
-            std::string type     = layer->get_type();
-            size_t      type_len = type.size();
-            out.write(reinterpret_cast<const char*>(&type_len), sizeof(size_t));
-            out.write(type.c_str(), type_len);
+            if (!layer) {
+                throw std::runtime_error("NeuralNetwork::serialize_binary: null layer");
+            }
+            
+            // Scrivi il tipo con lunghezza int32_t
+            std::string layer_type = layer->get_type();
+            int32_t type_len = static_cast<int32_t>(layer_type.size());
+            out.write(reinterpret_cast<const char*>(&type_len), sizeof(int32_t));
+            out.write(layer_type.c_str(), type_len);
+            
+            // Il layer si serializza da solo (DEVE usare int32_t per le dimensioni)
             layer->serialize(out);
+        }
+        
+        if (!out.good()) {
+            throw std::runtime_error("NeuralNetwork::serialize_binary: stream error");
         }
     }
 
     void NeuralNetwork::deserialize_binary(std::istream& in) {
-        in.read(reinterpret_cast<char*>(&n_features_), sizeof(int));
-        in.read(reinterpret_cast<char*>(&n_classes_),  sizeof(int));
-        in.read(reinterpret_cast<char*>(&fitted_),     sizeof(bool));
-
-        size_t loss_name_len;
-        in.read(reinterpret_cast<char*>(&loss_name_len), sizeof(size_t));
+        if (!in.good()) {
+            throw std::runtime_error("NeuralNetwork::deserialize_binary: input stream not good");
+        }
+        
+        // 1. Leggi magic number
+        uint32_t magic;
+        in.read(reinterpret_cast<char*>(&magic), sizeof(magic));
+        if (magic != 0x4E4E574F) {
+            throw std::runtime_error("NeuralNetwork::deserialize_binary: invalid file format");
+        }
+        
+        // 2. Leggi versione
+        uint32_t version;
+        in.read(reinterpret_cast<char*>(&version), sizeof(version));
+        if (version != 1) {
+            throw std::runtime_error("NeuralNetwork::deserialize_binary: unsupported version");
+        }
+        
+        // 3. Leggi parametri base
+        int32_t n_features, n_classes;
+        in.read(reinterpret_cast<char*>(&n_features), sizeof(int32_t));
+        in.read(reinterpret_cast<char*>(&n_classes), sizeof(int32_t));
+        
+        if (n_features <= 0 || n_features > 1000000) {
+            throw std::runtime_error("NeuralNetwork::deserialize_binary: invalid n_features");
+        }
+        if (n_classes <= 0 || n_classes > 1000000) {
+            throw std::runtime_error("NeuralNetwork::deserialize_binary: invalid n_classes");
+        }
+        
+        n_features_ = n_features;
+        n_classes_ = n_classes;
+        
+        int8_t fitted_flag;
+        in.read(reinterpret_cast<char*>(&fitted_flag), sizeof(int8_t));
+        fitted_ = (fitted_flag != 0);
+        
+        // 4. Leggi loss function
+        int32_t loss_name_len;
+        in.read(reinterpret_cast<char*>(&loss_name_len), sizeof(int32_t));
+        if (loss_name_len < 0 || loss_name_len > 1024) {
+            throw std::runtime_error("NeuralNetwork::deserialize_binary: invalid loss name length");
+        }
         std::vector<char> loss_name_buf(loss_name_len + 1, '\0');
         in.read(loss_name_buf.data(), loss_name_len);
         loss_function_name_ = std::string(loss_name_buf.data());
-        loss_function_      = loss::LossFactory::create(loss_function_name_);
-
-        size_t num_layers;
-        in.read(reinterpret_cast<char*>(&num_layers), sizeof(size_t));
-
+        loss_function_ = loss::LossFactory::create(loss_function_name_);
+        
+        // 5. Leggi learning rate
+        in.read(reinterpret_cast<char*>(&learning_rate_), sizeof(double));
+        
+        // 6. Leggi ottimizzatore
+        int32_t opt_type;
+        in.read(reinterpret_cast<char*>(&opt_type), sizeof(int32_t));
+        if (opt_type >= 0) {
+            optimizer_ = OptimizerFactory::create(static_cast<OptimizerType>(opt_type), learning_rate_);
+            if (optimizer_) {
+                optimizer_->deserialize(in);
+            }
+        }
+        
+        // 7. Leggi regularizer
+        int32_t reg_type;
+        in.read(reinterpret_cast<char*>(&reg_type), sizeof(int32_t));
+        if (reg_type >= 0) {
+            regularizer_ = RegularizerFactory::create(static_cast<RegularizerType>(reg_type), 0.01);
+            if (regularizer_) {
+                regularizer_->deserialize(in);
+            }
+        }
+        
+        // 8. Leggi numero di layer
+        int32_t num_layers;
+        in.read(reinterpret_cast<char*>(&num_layers), sizeof(int32_t));
+        if (num_layers < 0 || num_layers > 10000) {
+            throw std::runtime_error("NeuralNetwork::deserialize_binary: invalid number of layers");
+        }
+        
+        // 9. Pulisci e ricostruisci i layer
         layers_.clear();
-        for (size_t i = 0; i < num_layers; ++i) {
-            size_t type_len;
-            in.read(reinterpret_cast<char*>(&type_len), sizeof(size_t));
+        forward_cache_.clear();
+        layers_.reserve(num_layers);
+        forward_cache_.resize(num_layers);
+        
+        // 10. Leggi ogni layer
+        for (int32_t i = 0; i < num_layers; ++i) {
+            // Leggi tipo (lunghezza int32_t)
+            int32_t type_len;
+            in.read(reinterpret_cast<char*>(&type_len), sizeof(int32_t));
+            if (type_len < 0 || type_len > 256) {
+                throw std::runtime_error("NeuralNetwork::deserialize_binary: invalid layer type length");
+            }
+            
             std::vector<char> type_buf(type_len + 1, '\0');
             in.read(type_buf.data(), type_len);
-            std::string type(type_buf.data());
-
+            std::string layer_type(type_buf.data());
+            
+            // Crea il layer - ORA usa deserialize che legge le dimensioni reali
             std::unique_ptr<layers::Layer> layer;
-
-            if      (type == "DenseLayer")     layer = std::make_unique<layers::DenseLayer>(1, "relu", true);
-            else if (type == "Conv2DLayer")    layer = std::make_unique<layers::Conv2DLayer>(1, 3);
-            else if (type == "FlattenLayer")   layer = std::make_unique<layers::FlattenLayer>();
-            else if (type == "DropoutLayer")   layer = std::make_unique<layers::DropoutLayer>(0.5);
-            else if (type == "BatchNormLayer") layer = std::make_unique<layers::BatchNormLayer>();
-            else if (type == "SimpleRNNLayer") layer = std::make_unique<layers::SimpleRNNLayer>(1, 1);
-            else if (type == "LSTMLayer")      layer = std::make_unique<layers::LSTMLayer>(1, 1);
-            else if (type == "GRULayer")       layer = std::make_unique<layers::GRULayer>(1, 1);
-            else if (type == "Pooling")        layer = std::make_unique<layers::PoolingLayer>(2, 2, layers::PoolingLayer::MAX, 1);
-            else throw std::runtime_error("Unknown layer type during deserialization: " + type);
-
-            layer->deserialize(in);
+            
+            // IMPORTANTE: Ogni layer DEVE avere un costruttore default
+            // e il metodo deserialize DEVE leggere TUTTI i parametri (incluse dimensioni)
+            if (layer_type == "DenseLayer") {
+                auto dense = std::make_unique<layers::DenseLayer>();  // Costruttore default
+                dense->deserialize(in);  // Legge input_size, output_size, activation, weights, bias
+                layer = std::move(dense);
+            }
+            else if (layer_type == "Conv2DLayer") {
+                auto conv = std::make_unique<layers::Conv2DLayer>();
+                conv->deserialize(in);
+                layer = std::move(conv);
+            }
+            else if (layer_type == "FlattenLayer") {
+                auto flatten = std::make_unique<layers::FlattenLayer>();
+                flatten->deserialize(in);
+                layer = std::move(flatten);
+            }
+            else if (layer_type == "DropoutLayer") {
+                auto dropout = std::make_unique<layers::DropoutLayer>();
+                dropout->deserialize(in);
+                layer = std::move(dropout);
+            }
+            else if (layer_type == "BatchNormLayer") {
+                auto bn = std::make_unique<layers::BatchNormLayer>();
+                bn->deserialize(in);
+                layer = std::move(bn);
+            }
+            else if (layer_type == "SimpleRNNLayer") {
+                auto rnn = std::make_unique<layers::SimpleRNNLayer>();
+                rnn->deserialize(in);
+                layer = std::move(rnn);
+            }
+            else if (layer_type == "LSTMLayer") {
+                auto lstm = std::make_unique<layers::LSTMLayer>();
+                lstm->deserialize(in);
+                layer = std::move(lstm);
+            }
+            else if (layer_type == "GRULayer") {
+                auto gru = std::make_unique<layers::GRULayer>();
+                gru->deserialize(in);
+                layer = std::move(gru);
+            }
+            else if (layer_type == "PoolingLayer") {
+                auto pool = std::make_unique<layers::PoolingLayer>();
+                pool->deserialize(in);
+                layer = std::move(pool);
+            }
+            else {
+                throw std::runtime_error("NeuralNetwork::deserialize_binary: unknown layer type: " + layer_type);
+            }
+            
+            if (!layer) {
+                throw std::runtime_error("NeuralNetwork::deserialize_binary: failed to create layer: " + layer_type);
+            }
+            
             layers_.push_back(std::move(layer));
+        }
+        
+        // 11. Ricostruisci le connessioni tra layer (input shapes)
+        int expected_input = n_features_;
+        for (size_t i = 0; i < layers_.size(); ++i) {
+            layers_[i]->set_input_shape(expected_input);
+            expected_input = layers_[i]->get_output_size();
+        }
+        
+        if (!in.good() && !in.eof()) {
+            throw std::runtime_error("NeuralNetwork::deserialize_binary: stream error");
         }
     }
 

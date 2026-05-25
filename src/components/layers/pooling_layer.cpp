@@ -34,6 +34,11 @@ void PoolingLayer::set_input_shape(int input_size) {
     input_width_ = input_height_;
 }
 
+void PoolingLayer::initialize_weights() {
+    // PoolingLayer non ha pesi da inizializzare
+    // Implementazione vuota
+}
+
 int PoolingLayer::get_output_height() const {
     if (input_height_ <= 0) return -1;
     return (input_height_ - pool_size_) / stride_ + 1;
