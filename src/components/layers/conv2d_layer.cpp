@@ -133,24 +133,30 @@ int Conv2DLayer::get_output_size() const {
 // ============================================================================
 
 Eigen::MatrixXd Conv2DLayer::apply_activation(const Eigen::MatrixXd& z) const {
+    Eigen::MatrixXd z_clipped = z.cwiseMax(-10.0).cwiseMin(10.0);
+    
     if (activation_ == "relu") {
         return z.cwiseMax(0.0);
     } else if (activation_ == "sigmoid") {
-        return 1.0 / (1.0 + (-z).array().exp());
+        return (1.0 / (1.0 + (-z_clipped).array().exp())).matrix();
     } else if (activation_ == "tanh") {
-        return z.array().tanh();
+        return z_clipped.array().tanh().matrix();
     }
     return z;
 }
 
 Eigen::MatrixXd Conv2DLayer::apply_activation_derivative(const Eigen::MatrixXd& z) const {
+    // ⭐ Clip anche per la derivata!
+    Eigen::MatrixXd z_clipped = z.cwiseMax(-10.0).cwiseMin(10.0);
+    
     if (activation_ == "relu") {
-        return (z.array() > 0.0).cast<double>();
+        return (z.array() > 0.0).cast<double>().matrix();
     } else if (activation_ == "sigmoid") {
-        Eigen::MatrixXd sig = 1.0 / (1.0 + (-z).array().exp());
-        return sig.array() * (1.0 - sig.array());
+        Eigen::MatrixXd sig = (1.0 / (1.0 + (-z_clipped).array().exp())).matrix();
+        return (sig.array() * (1.0 - sig.array())).matrix();
     } else if (activation_ == "tanh") {
-        return 1.0 - z.array().tanh().square();
+        Eigen::MatrixXd tanh_z = z_clipped.array().tanh().matrix();
+        return (1.0 - tanh_z.array().square()).matrix();
     }
     return Eigen::MatrixXd::Ones(z.rows(), z.cols());
 }

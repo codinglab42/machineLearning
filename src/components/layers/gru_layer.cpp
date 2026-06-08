@@ -167,21 +167,25 @@ Eigen::MatrixXd GRULayer::get_hidden_state() const {
 // ============================================================================
 
 Eigen::MatrixXd GRULayer::sigmoid(const Eigen::MatrixXd& x) const {
-    return 1.0 / (1.0 + (-x).array().exp());
+    Eigen::MatrixXd x_clipped = x.cwiseMax(-10.0).cwiseMin(10.0);
+    return (1.0 / (1.0 + (-x_clipped).array().exp())).matrix();
 }
 
 Eigen::MatrixXd GRULayer::sigmoid_derivative(const Eigen::MatrixXd& x) const {
+    // ⭐ Usa la sigmoid già clippata
     Eigen::MatrixXd sig = sigmoid(x);
-    return sig.array() * (1.0 - sig.array());
+    return (sig.array() * (1.0 - sig.array())).matrix();
 }
 
 Eigen::MatrixXd GRULayer::tanh(const Eigen::MatrixXd& x) const {
-    return x.array().tanh();
+    Eigen::MatrixXd x_clipped = x.cwiseMax(-10.0).cwiseMin(10.0);
+    return x_clipped.array().tanh().matrix();
 }
 
 Eigen::MatrixXd GRULayer::tanh_derivative(const Eigen::MatrixXd& x) const {
+    // ⭐ Usa la tanh già clippata
     Eigen::MatrixXd t = tanh(x);
-    return 1.0 - t.array().square();
+    return (1.0 - t.array().square()).matrix();
 }
 
 // ============================================================================

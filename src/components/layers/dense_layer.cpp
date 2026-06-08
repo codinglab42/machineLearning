@@ -39,8 +39,13 @@ void DenseLayer::set_input_shape(int input_size) {
         bias_.setZero();  // Bias a zero di default
     }
     
-    // Resetta gradienti
-    weights_gradient_.resize(input_size, units_);
+    // ⭐ IMPORTANTE: weights_gradient_ deve avere DIMENSIONI CORRETTE
+    if (use_bias_) {
+        // Quando c'è bias, weights_gradient_ deve avere una colonna in più
+        weights_gradient_.resize(input_size, units_ + 1);
+    } else {
+        weights_gradient_.resize(input_size, units_);
+    }
     weights_gradient_.setZero();
     
     if (use_bias_) {
@@ -59,11 +64,11 @@ void DenseLayer::initialize_weights() {
     ML_CHECK_PARAM(units_ > 0, "units", "must be > 0", "DenseLayer");
     
     // Inizializzazione Xavier
-    double scale = std::sqrt(6.0 / (input_size_ + units_));
+    double scale = std::sqrt(2.0 / (input_size_ + units_));
     
     std::random_device rd;
     std::mt19937 gen(rd());
-    std::uniform_real_distribution<double> dist(-scale, scale);
+    std::normal_distribution<double> dist(0.0, scale);
     
     for (int i = 0; i < weights_.rows(); ++i) {
         for (int j = 0; j < weights_.cols(); ++j) {
@@ -71,8 +76,7 @@ void DenseLayer::initialize_weights() {
         }
     }
     
-    // Bias già zero, ma se vuoi inizializzarli diversamente:
-    // if (use_bias_) { bias_.setRandom() * scale; }
+    if (use_bias_) { bias_.setZero(); }
 }
 
 
@@ -136,13 +140,21 @@ Eigen::MatrixXd DenseLayer::backward(const Eigen::MatrixXd& gradient) {
     if (use_bias_) {
         Eigen::VectorXd bias_grad = dZ.colwise().sum();
         
-        // Unifica pesi e bias
-        weights_gradient_.resize(weight_grad.rows(), weight_grad.cols() + 1);
+        // ⭐ Non ridimensionare weights_gradient_ qui!
+        // Deve già avere le dimensioni corrette da set_input_shape()
+        if (weights_gradient_.rows() != weight_grad.rows() || 
+            weights_gradient_.cols() != weight_grad.cols() + 1) {
+            weights_gradient_.resize(weight_grad.rows(), weight_grad.cols() + 1);
+        }
         weights_gradient_.leftCols(weight_grad.cols()) = weight_grad;
         weights_gradient_.col(weight_grad.cols()) = bias_grad;
         
         bias_gradient_ = bias_grad;
     } else {
+        if (weights_gradient_.rows() != weight_grad.rows() || 
+            weights_gradient_.cols() != weight_grad.cols()) {
+            weights_gradient_.resize(weight_grad.rows(), weight_grad.cols());
+        }
         weights_gradient_ = weight_grad;
     }
     
@@ -196,16 +208,19 @@ int DenseLayer::get_parameter_count() const {
 }
 
 Eigen::MatrixXd DenseLayer::apply_activation(const Eigen::MatrixXd& z) const {
+    // Clip per stabilità
+    Eigen::MatrixXd z_clipped = z.cwiseMax(-10.0).cwiseMin(10.0);
+    
     if (activation_ == "relu") {
         return z.cwiseMax(0.0);
     } else if (activation_ == "sigmoid") {
-        return 1.0 / (1.0 + (-z).array().exp());
+        return (1.0 / (1.0 + (-z_clipped).array().exp())).matrix();
     } else if (activation_ == "tanh") {
-        return z.array().tanh();
+        return z_clipped.array().tanh().matrix();
     } else if (activation_ == "softmax") {
-        Eigen::MatrixXd exp_z = z.array().exp();
+        Eigen::MatrixXd exp_z = z_clipped.array().exp().matrix();
         Eigen::VectorXd sum = exp_z.rowwise().sum();
-        return exp_z.array().colwise() / sum.array();
+        return (exp_z.array().colwise() / sum.array()).matrix();
     } else if (activation_ == "linear") {
         return z;
     }
@@ -213,20 +228,24 @@ Eigen::MatrixXd DenseLayer::apply_activation(const Eigen::MatrixXd& z) const {
 }
 
 Eigen::MatrixXd DenseLayer::apply_activation_derivative(const Eigen::MatrixXd& z) const {
+    // ⭐ Clip anche per la derivata!
+    Eigen::MatrixXd z_clipped = z.cwiseMax(-10.0).cwiseMin(10.0);
+    
     if (activation_ == "relu") {
-        return (z.array() > 0.0).cast<double>();
+        return (z.array() > 0.0).cast<double>().matrix();
     } else if (activation_ == "sigmoid") {
-        Eigen::MatrixXd sig = 1.0 / (1.0 + (-z).array().exp());
-        return sig.array() * (1.0 - sig.array());
+        Eigen::MatrixXd sig = (1.0 / (1.0 + (-z_clipped).array().exp())).matrix();
+        return (sig.array() * (1.0 - sig.array())).matrix();
     } else if (activation_ == "tanh") {
-        Eigen::MatrixXd tanh_z = z.array().tanh();
-        return 1.0 - tanh_z.array().square();
+        Eigen::MatrixXd tanh_z = z_clipped.array().tanh().matrix();
+        return (1.0 - tanh_z.array().square()).matrix();
     } else if (activation_ == "linear") {
         return Eigen::MatrixXd::Ones(z.rows(), z.cols());
     } else if (activation_ == "softmax") {
+        // Per softmax, la derivata è Jacobiana, ma per semplicità
         return Eigen::MatrixXd::Ones(z.rows(), z.cols());
     }
-    return (z.array() > 0.0).cast<double>();
+    return (z.array() > 0.0).cast<double>().matrix();
 }
 
 void DenseLayer::serialize(std::ostream& out) const {

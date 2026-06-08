@@ -44,7 +44,9 @@ Eigen::MatrixXd BinaryCrossEntropyLoss::gradient(const Eigen::MatrixXd& y_true,
     ML_CHECK_XY_SIZE(y_true.rows(), y_pred.rows(), "BinaryCrossEntropyLoss");
     
     Eigen::MatrixXd clipped_pred = y_pred.array().max(1e-7).min(1.0 - 1e-7);
-    Eigen::MatrixXd grad = clipped_pred - y_true;
+
+    int n = y_true.rows();
+    Eigen::MatrixXd grad = (clipped_pred - y_true)/n;
     
     ML_CHECK_NO_NAN(grad, "BinaryCrossEntropyLoss", "gradient");
     ML_CHECK_NO_INF(grad, "BinaryCrossEntropyLoss", "gradient");

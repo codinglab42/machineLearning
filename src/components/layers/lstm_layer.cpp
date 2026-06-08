@@ -189,11 +189,15 @@ Eigen::MatrixXd LSTMLayer::get_cell_state() const {
 // FUNZIONI DI ATTIVAZIONE
 // ============================================================================
 
+// In lstm_layer.cpp
+
 Eigen::MatrixXd LSTMLayer::apply_activation(const Eigen::MatrixXd& z, const std::string& activation) const {
+    Eigen::MatrixXd z_clipped = z.cwiseMax(-10.0).cwiseMin(10.0);
+    
     if (activation == "tanh") {
-        return z.array().tanh();
+        return z_clipped.array().tanh().matrix();
     } else if (activation == "sigmoid") {
-        return 1.0 / (1.0 + (-z).array().exp());
+        return (1.0 / (1.0 + (-z_clipped).array().exp())).matrix();
     } else if (activation == "relu") {
         return z.cwiseMax(0.0);
     }
@@ -201,14 +205,17 @@ Eigen::MatrixXd LSTMLayer::apply_activation(const Eigen::MatrixXd& z, const std:
 }
 
 Eigen::MatrixXd LSTMLayer::apply_activation_derivative(const Eigen::MatrixXd& z, const std::string& activation) const {
+    // ⭐ Clip anche per la derivata!
+    Eigen::MatrixXd z_clipped = z.cwiseMax(-10.0).cwiseMin(10.0);
+    
     if (activation == "tanh") {
-        Eigen::MatrixXd tanh_z = z.array().tanh();
-        return 1.0 - tanh_z.array().square();
+        Eigen::MatrixXd tanh_z = z_clipped.array().tanh().matrix();
+        return (1.0 - tanh_z.array().square()).matrix();
     } else if (activation == "sigmoid") {
-        Eigen::MatrixXd sig = 1.0 / (1.0 + (-z).array().exp());
-        return sig.array() * (1.0 - sig.array());
+        Eigen::MatrixXd sig = (1.0 / (1.0 + (-z_clipped).array().exp())).matrix();
+        return (sig.array() * (1.0 - sig.array())).matrix();
     } else if (activation == "relu") {
-        return (z.array() > 0.0).cast<double>();
+        return (z.array() > 0.0).cast<double>().matrix();
     }
     return Eigen::MatrixXd::Ones(z.rows(), z.cols());
 }

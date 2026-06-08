@@ -260,32 +260,35 @@ Eigen::MatrixXd SimpleRNNLayer::backward(const Eigen::MatrixXd& gradient) {
 // ATTIVAZIONI
 // ============================================================================
 
+// In simple_rnn_layer.cpp
+
 Eigen::MatrixXd SimpleRNNLayer::apply_activation(const Eigen::MatrixXd& z) const {
+    Eigen::MatrixXd z_clipped = z.cwiseMax(-10.0).cwiseMin(10.0);
+    
     if (activation_ == "tanh") {
-        return z.array().tanh();
+        return z_clipped.array().tanh().matrix();
     } else if (activation_ == "relu") {
         return z.cwiseMax(0.0);
     } else if (activation_ == "sigmoid") {
-        return 1.0 / (1.0 + (-z).array().exp());
-    } else if (activation_ == "linear") {
-        return z;
+        return (1.0 / (1.0 + (-z_clipped).array().exp())).matrix();
     }
-    return z.array().tanh();
+    return z_clipped.array().tanh().matrix();
 }
 
 Eigen::MatrixXd SimpleRNNLayer::apply_activation_derivative(const Eigen::MatrixXd& z) const {
+    // ⭐ Clip anche per la derivata!
+    Eigen::MatrixXd z_clipped = z.cwiseMax(-10.0).cwiseMin(10.0);
+    
     if (activation_ == "tanh") {
-        Eigen::MatrixXd tanh_z = z.array().tanh();
-        return 1.0 - tanh_z.array().square();
+        Eigen::MatrixXd tanh_z = z_clipped.array().tanh().matrix();
+        return (1.0 - tanh_z.array().square()).matrix();
     } else if (activation_ == "relu") {
-        return (z.array() > 0.0).cast<double>();
+        return (z.array() > 0.0).cast<double>().matrix();
     } else if (activation_ == "sigmoid") {
-        Eigen::MatrixXd sig = 1.0 / (1.0 + (-z).array().exp());
-        return sig.array() * (1.0 - sig.array());
-    } else if (activation_ == "linear") {
-        return Eigen::MatrixXd::Ones(z.rows(), z.cols());
+        Eigen::MatrixXd sig = (1.0 / (1.0 + (-z_clipped).array().exp())).matrix();
+        return (sig.array() * (1.0 - sig.array())).matrix();
     }
-    return 1.0 - z.array().tanh().square();
+    return (1.0 - z_clipped.array().tanh().square()).matrix();
 }
 
 // ============================================================================

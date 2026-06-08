@@ -288,6 +288,8 @@ namespace models {
             add_dense_layer(1, n_classes_ == 2 ? "sigmoid" : "linear");
         }
 
+        build(n_features_, n_classes_);
+
         int n_samples = X.rows();
         std::vector<int> indices(n_samples);
         std::iota(indices.begin(), indices.end(), 0);
@@ -381,24 +383,31 @@ namespace models {
     // ORA USA L'OTTIMIZZATORE come il fit con VectorXd
     // ---------------------------------------------------------------------------
     void NeuralNetwork::fit(const Eigen::MatrixXd& X, const Eigen::MatrixXd& y,
-                            int epochs, int batch_size, bool verbose) {
+                        int epochs, int batch_size, bool verbose) {
 
         ML_CHECK_NOT_EMPTY(X, "X", "NeuralNetwork");
         ML_CHECK_NOT_EMPTY(y, "y", "NeuralNetwork");
-        ML_CHECK_XY_SIZE(X.rows(), y.rows(), "NeuralNetwork");
+        ML_CHECK_XY_SIZE_MATRIX(X.rows(), y.rows(), "NeuralNetwork");
         ML_CHECK_PARAM(epochs > 0,     "epochs",     "must be > 0", "NeuralNetwork");
         ML_CHECK_PARAM(batch_size > 0, "batch_size", "must be > 0", "NeuralNetwork");
 
         verbose_    = verbose;
         n_features_ = X.cols();
-        //n_classes_  = y.cols();
-        determine_problem_type(y);
+        n_classes_  = y.cols();  // ← FONDAMENTALE!
 
         if (layers_.empty()) {
-            initialize_layers(n_features_);
+            // Crea un layer di output appropriato
+            if (n_classes_ == 1) {
+                add_dense_layer(1, "linear", true);
+            } else {
+                add_dense_layer(n_classes_, "softmax", false);
+            }
         }
 
-        build(n_features_,n_classes_);
+        // Costruisci la rete se necessario
+        if (!fitted_) {
+            build(n_features_, n_classes_);
+        }
 
         int n_samples = X.rows();
         std::vector<int> indices(n_samples);
@@ -409,98 +418,69 @@ namespace models {
         loss_history_.reserve(epochs);
 
         for (int epoch = 0; epoch < epochs; ++epoch) {
-            std::shuffle(indices.begin(), indices.end(),
-                        std::mt19937(static_cast<unsigned int>(epoch)));
+            std::shuffle(indices.begin(), indices.end(), rng_);
 
             double epoch_loss = 0.0;
-        
-        for (int i = 0; i < n_samples; i += batch_size) {
-            int end = std::min(i + batch_size, n_samples);
-            int current_batch_size = end - i;
-            
-            // Build batch
-            Eigen::MatrixXd X_batch(current_batch_size, X.cols());
-            Eigen::MatrixXd y_batch(current_batch_size, y.cols());
-            
-            for (int j = i; j < end; ++j) {
-                X_batch.row(j - i) = X.row(indices[j]);
-                y_batch.row(j - i) = y.row(indices[j]);
-            }
-            
-            // FORWARD PASS
-            Eigen::MatrixXd y_pred = forward_pass(X_batch, true);
-            
-            // Compute loss
-            double batch_loss = compute_loss(y_batch, y_pred);
-            epoch_loss += batch_loss * current_batch_size;
-            
-            // Compute gradient from loss
-            Eigen::MatrixXd gradient = loss_function_->gradient(y_batch, y_pred);
-            
-            // Gradient clipping
-            double norm = gradient.norm();
-            if (norm > 1.0 && norm > 0) {
-                gradient *= (1.0 / norm);
-            }
-            
-            // BACKWARD PASS - Calcola gradienti per tutti i layer
-            // I layer salvano i gradienti internamente
-            for (int j = static_cast<int>(layers_.size()) - 1; j >= 0; --j) {
-                gradient = layers_[j]->backward(gradient);
-            }
-            
-            // UPDATE WEIGHTS - Usa l'ottimizzatore centralmente
-            for (auto& layer : layers_) {
-                if (!layer->has_weights()) continue;
-                
-                // Ora weights e weights_gradient hanno le STESSE dimensioni!
-                Eigen::MatrixXd weights = layer->get_weights();
-                Eigen::MatrixXd w_grad = layer->get_weights_gradient();
-                
-                // Normalizza per batch size
-                w_grad /= static_cast<double>(current_batch_size);
-                
-                // Aggiungi regolarizzazione (escludendo l'ultima colonna se sono bias)
-                if (regularizer_) {
-                    Eigen::MatrixXd weights_for_reg = weights;
-                    if (layer->get_use_bias() && weights.cols() > 0) {
-                        // Non regolarizzare l'ultima colonna (bias)
-                        weights_for_reg.rightCols(1).setZero();
-                    }
-                    w_grad += regularizer_->compute_gradient(weights_for_reg);
-                }
-                
-                // Aggiorna i pesi usando l'ottimizzatore
-                optimizer_->update(weights, w_grad);
-                layer->set_weights(weights);
-                
-                // NON serve più gestire i bias separatamente!
-            }
-        }
-        
-        epoch_loss /= n_samples;
-        loss_history_.push_back(epoch_loss);
 
-            // Accuracy per classificazione multi-class
-            if (n_classes_ > 1) {
-                int correct = 0;
-                Eigen::MatrixXd predictions = forward_pass(X, false);
-                for (int i = 0; i < X.rows(); ++i) {
-                    Eigen::Index pred_idx, true_idx;
-                    predictions.row(i).maxCoeff(&pred_idx);
-                    y.row(i).maxCoeff(&true_idx);
-                    if (pred_idx == true_idx) correct++;
+            for (int i = 0; i < n_samples; i += batch_size) {
+                int end = std::min(i + batch_size, n_samples);
+                int current_batch_size = end - i;
+
+                Eigen::MatrixXd X_batch(current_batch_size, X.cols());
+                Eigen::MatrixXd y_batch(current_batch_size, y.cols());
+
+                for (int j = i; j < end; ++j) {
+                    X_batch.row(j - i) = X.row(indices[j]);
+                    y_batch.row(j - i) = y.row(indices[j]);
                 }
-                accuracy_history_.push_back(
-                    static_cast<double>(correct) / X.rows());
+
+                // Forward pass
+                Eigen::MatrixXd y_pred = forward_pass(X_batch, true);
+
+                // Loss
+                double batch_loss = compute_loss(y_batch, y_pred);
+                epoch_loss += batch_loss * current_batch_size;
+
+                // Gradient
+                Eigen::MatrixXd gradient = loss_function_->gradient(y_batch, y_pred);
+
+                // Gradient clipping
+                double norm = gradient.norm();
+                if (norm > 1.0 && norm > 0) {
+                    gradient *= (1.0 / norm);
+                }
+
+                // Backward pass
+                for (int j = static_cast<int>(layers_.size()) - 1; j >= 0; --j) {
+                    gradient = layers_[j]->backward(gradient);
+                }
+
+                // Update weights
+                for (auto& layer : layers_) {
+                    if (!layer->has_weights()) continue;
+
+                    Eigen::MatrixXd weights = layer->get_weights();
+                    Eigen::MatrixXd w_grad = layer->get_weights_gradient();
+                    w_grad /= static_cast<double>(current_batch_size);
+
+                    if (regularizer_) {
+                        Eigen::MatrixXd weights_for_reg = weights;
+                        if (layer->get_use_bias() && weights.cols() > 0) {
+                            weights_for_reg.rightCols(1).setZero();
+                        }
+                        w_grad += regularizer_->compute_gradient(weights_for_reg);
+                    }
+
+                    optimizer_->update(weights, w_grad);
+                    layer->set_weights(weights);
+                }
             }
+
+            epoch_loss /= n_samples;
+            loss_history_.push_back(epoch_loss);
 
             if (verbose_ && epoch % 10 == 0) {
-                std::cout << "Epoch " << epoch << "  Loss: " << epoch_loss;
-                if (!accuracy_history_.empty()) {
-                    std::cout << "  Acc: " << accuracy_history_.back();
-                }
-                std::cout << std::endl;
+                std::cout << "Epoch " << epoch << "  Loss: " << epoch_loss << std::endl;
             }
         }
 
