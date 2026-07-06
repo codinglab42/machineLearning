@@ -70,17 +70,22 @@ TEST_F(GradientCheckingTest, DebugDenseLayerWeights) {
     DenseLayer layer(3, "linear", true);
     layer.set_input_shape(4);
     
-    // get_weights ora restituisce 4x4 (pesi + bias)
+    // get_weights ora restituisce 4x3 (solo pesi puri)
     MatrixXd weights = layer.get_weights();
     std::cout << "get_weights: " << weights.rows() << "x" << weights.cols() << std::endl;
     EXPECT_EQ(weights.rows(), 4);
-    EXPECT_EQ(weights.cols(), 4);
+    EXPECT_EQ(weights.cols(), 3); // Cambiato da 4 a 3
     
-    // set_weights NON deve lanciare eccezioni (il test era sbagliato)
+    // set_weights accetta la matrice 4x3
     EXPECT_NO_THROW(layer.set_weights(weights));
     
-    // Verifica che i pesi siano stati impostati
+    // Verifica che i pesi siano stati impostati correttamente
     MatrixXd new_weights = layer.get_weights();
     EXPECT_EQ(new_weights.rows(), 4);
-    EXPECT_EQ(new_weights.cols(), 4);
+    EXPECT_EQ(new_weights.cols(), 3); // Cambiato da 4 a 3
+    
+    // Controllo addizionale per i bias separati
+    Eigen::VectorXd bias = layer.get_biases();
+    EXPECT_EQ(bias.size(), 3);
+    EXPECT_NO_THROW(layer.set_biases(bias));
 }

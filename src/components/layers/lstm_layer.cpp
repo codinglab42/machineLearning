@@ -76,10 +76,6 @@ LSTMLayer::LSTMLayer(int units, int input_size,
 void LSTMLayer::set_input_shape(int input_size) {
     ML_CHECK_PARAM(input_size > 0, "input_size", "must be > 0", "LSTMLayer");
     
-    if (input_size_ == input_size && kernel_i_.size() > 0) {
-        return;
-    }
-    
     input_size_ = input_size;
     output_size_ = units_;
     
@@ -103,15 +99,16 @@ void LSTMLayer::set_input_shape(int input_size) {
         bias_o_.resize(units_);
     }
     
-    // Ridimensiona gradienti
+    // ALLOCAZIONE GRADIENTI PURA (Garantita ad ogni setup)
     int total_rows = (input_size_ + units_) * 4;
-    int total_cols = units_ + (use_bias_ ? 1 : 0);
-    weights_gradient_.resize(total_rows, total_cols);
+    weights_gradient_.resize(total_rows, units_); 
     weights_gradient_.setZero();
     
     if (use_bias_) {
         bias_gradient_.resize(units_ * 4);
         bias_gradient_.setZero();
+    } else {
+        bias_gradient_.resize(0);
     }
     
     // Ridimensiona stati
@@ -311,60 +308,135 @@ Eigen::MatrixXd LSTMLayer::forward(const Eigen::MatrixXd& input, bool training) 
 // ============================================================================
 
 Eigen::MatrixXd LSTMLayer::backward(const Eigen::MatrixXd& gradient) {
-    if (!cache_ || !cache_->training) {
+    //std::cout << "\n[DEBUG LSTM] --- Entrato in backward ---" << std::endl;
+    if (!cache_) {
+        //std::cout << "[DEBUG LSTM] Errore: cache_ è nullptr!" << std::endl;
+        return gradient;
+    }
+    if (!cache_->training) {
+        //std::cout << "[DEBUG LSTM] Info: training è false, ritorno gradient." << std::endl;
         return gradient;
     }
     
-    auto lstm_cache = std::dynamic_pointer_cast<LSTMCache>(cache_);
+    auto lstm_cache = get_specific_cache();
     if (!lstm_cache) {
+        //std::cout << "[DEBUG LSTM] Errore: lstm_cache (dynamic_cast) è nullptr!" << std::endl;
         return gradient;
     }
     
     int batch_size = lstm_cache->batch_size;
-    
+    //std::cout << "[DEBUG LSTM] Batch size della cache: " << batch_size << ", Units: " << units_ << std::endl;
+    //std::cout << "[DEBUG LSTM] Gradiente in input shape: " << gradient.rows() << "x" << gradient.cols() << std::endl;
+
     if (gradient.rows() != batch_size || gradient.cols() != units_) {
         ML_THROW_DIMENSION_MISMATCH("backward gradient", batch_size, units_,
                                     gradient.rows(), gradient.cols(), "LSTMLayer");
     }
     
-    // Recupera valori dalla cache
+    // Controllo che i vettori nella cache non siano vuoti
+    //std::cout << "[DEBUG LSTM] Verifico taglie vettori in cache..." << std::endl;
+    //std::cout << "  input_gates size: " << lstm_cache->input_gates.size() << std::endl;
+    //std::cout << "  forget_gates size: " << lstm_cache->forget_gates.size() << std::endl;
+    //std::cout << "  cell_candidates size: " << lstm_cache->cell_candidates.size() << std::endl;
+    //std::cout << "  output_gates size: " << lstm_cache->output_gates.size() << std::endl;
+    //std::cout << "  cell_states size: " << lstm_cache->cell_states.size() << std::endl;
+
+    if (lstm_cache->input_gates.empty()) {
+        //std::cout << "[DEBUG LSTM] CRITICO: input_gates è vuoto!" << std::endl;
+        return gradient;
+    }
+
     const Eigen::MatrixXd& i_t = lstm_cache->input_gates[0];
     const Eigen::MatrixXd& f_t = lstm_cache->forget_gates[0];
     const Eigen::MatrixXd& c_t = lstm_cache->cell_candidates[0];
     const Eigen::MatrixXd& o_t = lstm_cache->output_gates[0];
     const Eigen::MatrixXd& prev_cell = lstm_cache->cell_states[0];
+    const Eigen::MatrixXd& X = lstm_cache->input_cache;
     
-    // Gradiente rispetto all'output
-    Eigen::MatrixXd dH = gradient;
+    //std::cout << "[DEBUG LSTM] Formato matrici estratte dalla cache:" << std::endl;
+    //std::cout << "  i_t: " << i_t.rows() << "x" << i_t.cols() << std::endl;
+    //std::cout << "  f_t: " << f_t.rows() << "x" << f_t.cols() << std::endl;
+    //std::cout << "  c_t: " << c_t.rows() << "x" << c_t.cols() << std::endl;
+    //std::cout << "  o_t: " << o_t.rows() << "x" << o_t.cols() << std::endl;
+    //std::cout << "  prev_cell: " << prev_cell.rows() << "x" << prev_cell.cols() << std::endl;
+    //std::cout << "  X (input): " << X.rows() << "x" << X.cols() << std::endl;
+
+    Eigen::MatrixXd dH = gradient; 
     
-    // Calcolo gradiente per output gate
-    Eigen::MatrixXd dO = dH.array() * apply_activation(cell_state_, activation_).array();
+    //std::cout << "[DEBUG LSTM] Calcolo current_cell..." << std::endl;
+    Eigen::MatrixXd current_cell = f_t.array() * prev_cell.array() + i_t.array() * c_t.array();
+    //std::cout << "  current_cell shape: " << current_cell.rows() << "x" << current_cell.cols() << std::endl;
+    
+    //std::cout << "[DEBUG LSTM] Calcolo dO..." << std::endl;
+    Eigen::MatrixXd act_cell = apply_activation(current_cell, activation_);
+    Eigen::MatrixXd dO = dH.array() * act_cell.array();
     dO = dO.array() * apply_activation_derivative(o_t, recurrent_activation_).array();
     
-    // Gradiente per cell state
+    //std::cout << "[DEBUG LSTM] Calcolo dC..." << std::endl;
     Eigen::MatrixXd dC = dH.array() * o_t.array();
-    dC = dC.array() * apply_activation_derivative(cell_state_, activation_).array();
+    dC = dC.array() * apply_activation_derivative(current_cell, activation_).array();
     
-    // Gradiente per forget gate
+    //std::cout << "[DEBUG LSTM] Calcolo dF, dI, dCell..." << std::endl;
     Eigen::MatrixXd dF = dC.array() * prev_cell.array();
     dF = dF.array() * apply_activation_derivative(f_t, recurrent_activation_).array();
     
-    // Gradiente per input gate
     Eigen::MatrixXd dI = dC.array() * c_t.array();
     dI = dI.array() * apply_activation_derivative(i_t, recurrent_activation_).array();
     
-    // Gradiente per cell candidate
     Eigen::MatrixXd dCell = dC.array() * i_t.array();
     dCell = dCell.array() * apply_activation_derivative(c_t, activation_).array();
     
-    // Aggiorna gradienti dei pesi (da accumulare)
-    // Per semplicità, qui calcoliamo solo il gradiente rispetto all'input
+    //std::cout << "[DEBUG LSTM] Calcolo dK_i, dK_f, dK_c, dK_o..." << std::endl;
+    Eigen::MatrixXd dK_i = X.transpose() * dI;
+    Eigen::MatrixXd dK_f = X.transpose() * dF;
+    Eigen::MatrixXd dK_c = X.transpose() * dCell;
+    Eigen::MatrixXd dK_o = X.transpose() * dO;
+    
+    //std::cout << "[DEBUG LSTM] Calcolo dR_i, dR_f, dR_c, dR_o..." << std::endl;
+    Eigen::MatrixXd prev_hidden = Eigen::MatrixXd::Zero(batch_size, units_);
+    if (lstm_cache->hidden_states.size() > 1) {
+        prev_hidden = lstm_cache->hidden_states[0]; 
+    }
+    Eigen::MatrixXd dR_i = prev_hidden.transpose() * dI;
+    Eigen::MatrixXd dR_f = prev_hidden.transpose() * dF;
+    Eigen::MatrixXd dR_c = prev_hidden.transpose() * dCell;
+    Eigen::MatrixXd dR_o = prev_hidden.transpose() * dO;
+    
+    //std::cout << "[DEBUG LSTM] Assemblaggio weights_gradient_. Dimensione attuale: " 
+    //          << weights_gradient_.rows() << "x" << weights_gradient_.cols() << std::endl;
+              
+    int current_row = 0;
+    weights_gradient_.block(current_row, 0, input_size_, units_) = dK_i; current_row += input_size_;
+    weights_gradient_.block(current_row, 0, input_size_, units_) = dK_f; current_row += input_size_;
+    weights_gradient_.block(current_row, 0, input_size_, units_) = dK_c; current_row += input_size_;
+    weights_gradient_.block(current_row, 0, input_size_, units_) = dK_o; current_row += input_size_;
+    
+    weights_gradient_.block(current_row, 0, units_, units_) = dR_i; current_row += units_;
+    weights_gradient_.block(current_row, 0, units_, units_) = dR_f; current_row += units_;
+    weights_gradient_.block(current_row, 0, units_, units_) = dR_c; current_row += units_;
+    weights_gradient_.block(current_row, 0, units_, units_) = dR_o; current_row += units_;
+    
+    //std::cout << "[DEBUG LSTM] Calcolo bias_gradient_..." << std::endl;
+    if (use_bias_) {
+        //std::cout << "  bias_gradient_ size attuale: " << bias_gradient_.size() << std::endl;
+        if (bias_gradient_.size() != units_ * 4) {
+            bias_gradient_.resize(units_ * 4);
+        }
+        bias_gradient_.head(units_) = dI.colwise().sum().transpose();
+        bias_gradient_.segment(units_, units_) = dF.colwise().sum().transpose();
+        bias_gradient_.segment(units_ * 2, units_) = dCell.colwise().sum().transpose();
+        bias_gradient_.segment(units_ * 3, units_) = dO.colwise().sum().transpose();
+    }
+    
+    //std::cout << "[DEBUG LSTM] Calcolo dX finale..." << std::endl;
     Eigen::MatrixXd dX = dI * kernel_i_.transpose() + 
                          dF * kernel_f_.transpose() + 
                          dCell * kernel_c_.transpose() + 
                          dO * kernel_o_.transpose();
     
+    //std::cout << "[DEBUG LSTM] Fine backward con successo. dX size: " << dX.rows() << "x" << dX.cols() << std::endl;
     return dX;
+
 }
 
 // ============================================================================
@@ -373,8 +445,7 @@ Eigen::MatrixXd LSTMLayer::backward(const Eigen::MatrixXd& gradient) {
 
 Eigen::MatrixXd LSTMLayer::get_weights() const {
     int total_rows = (input_size_ + units_) * 4;
-    int total_cols = units_ + (use_bias_ ? 1 : 0);
-    Eigen::MatrixXd weights(total_rows, total_cols);
+    Eigen::MatrixXd weights(total_rows, units_); // <-- Solo unità pure, niente colonna bias
     weights.setZero();
     
     int row = 0;
@@ -392,17 +463,15 @@ Eigen::MatrixXd LSTMLayer::get_weights() const {
     copy(recurrent_c_);
     copy(recurrent_o_);
     
-    if (use_bias_) {
-        weights.col(units_).head(units_) = bias_i_;
-        weights.col(units_).segment(units_, units_) = bias_f_;
-        weights.col(units_).segment(units_ * 2, units_) = bias_c_;
-        weights.col(units_).segment(units_ * 3, units_) = bias_o_;
-    }
-    
     return weights;
 }
 
 void LSTMLayer::set_weights(const Eigen::MatrixXd& weights) {
+    int expected_rows = (input_size_ + units_) * 4;
+    if (weights.rows() != expected_rows || weights.cols() != units_) {
+        ML_THROW_PARAMETER_ERROR("weights", "invalid dimensions for LSTM weights matrix", "LSTMLayer");
+    }
+
     int row = 0;
     auto extract = [&](Eigen::MatrixXd& mat, int rows, int cols) {
         mat = weights.block(row, 0, rows, cols);
@@ -417,13 +486,6 @@ void LSTMLayer::set_weights(const Eigen::MatrixXd& weights) {
     extract(recurrent_f_, units_, units_);
     extract(recurrent_c_, units_, units_);
     extract(recurrent_o_, units_, units_);
-    
-    if (use_bias_ && weights.cols() > units_) {
-        bias_i_ = weights.col(units_).head(units_);
-        bias_f_ = weights.col(units_).segment(units_, units_);
-        bias_c_ = weights.col(units_).segment(units_ * 2, units_);
-        bias_o_ = weights.col(units_).segment(units_ * 3, units_);
-    }
 }
 
 Eigen::VectorXd LSTMLayer::get_biases() const {
@@ -578,14 +640,16 @@ void LSTMLayer::deserialize(std::istream& in) {
     }
     
     // Inizializza gradienti
+    // Ridimensiona gradienti dei pesi in modo puro: 4 gate * (input + recurrent) righe per 'units_' colonne
     int total_rows = (input_size_ + units_) * 4;
-    int total_cols = units_ + (use_bias_ ? 1 : 0);
-    weights_gradient_.resize(total_rows, total_cols);
+    weights_gradient_.resize(total_rows, units_); // <-- Rimosso il +1 delle colonne fittizie
     weights_gradient_.setZero();
     
     if (use_bias_) {
         bias_gradient_.resize(units_ * 4);
         bias_gradient_.setZero();
+    } else {
+        bias_gradient_.resize(0);
     }
     
     // Inizializza stati

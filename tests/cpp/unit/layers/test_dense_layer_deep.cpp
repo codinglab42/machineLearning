@@ -57,8 +57,6 @@ TEST_F(DenseLayerTest, BackwardShape) {
 }
 
 TEST_F(DenseLayerTest, BackwardComputesGradients) {
-
-
     layer->initialize_weights();
 
     MatrixXd output = layer->forward(input, true);
@@ -66,13 +64,15 @@ TEST_F(DenseLayerTest, BackwardComputesGradients) {
     
     MatrixXd dX = layer->backward(gradient);
     
-    // Verifica che i gradienti dei pesi (inclusi bias) siano stati calcolati
+    // Verifica che i gradienti dei pesi siano stati calcolati (ora sono 4x3 puri)
     EXPECT_GT(layer->get_weights_gradient().norm(), 0);
+    EXPECT_EQ(layer->get_weights_gradient().rows(), 4);
+    EXPECT_EQ(layer->get_weights_gradient().cols(), 3);
     
-    // Se use_bias è true, verifica che il gradiente unificato abbia una colonna in più
+    // NUOVO CONTROLLO SEPARATO: se use_bias è true, verifica il gradiente del bias
     if (layer->get_use_bias()) {
-        int expected_cols = layer->get_output_size() + 1;
-        EXPECT_EQ(layer->get_weights_gradient().cols(), expected_cols);
+        EXPECT_GT(layer->get_bias_gradient().norm(), 0);
+        EXPECT_EQ(layer->get_bias_gradient().size(), layer->get_output_size()); // Deve essere lungo 3
     }
 }
 

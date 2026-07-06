@@ -39,6 +39,7 @@ void DenseLayer::set_input_shape(int input_size) {
         bias_.setZero();  // Bias a zero di default
     }
     
+    /*
     // ⭐ IMPORTANTE: weights_gradient_ deve avere DIMENSIONI CORRETTE
     if (use_bias_) {
         // Quando c'è bias, weights_gradient_ deve avere una colonna in più
@@ -46,6 +47,10 @@ void DenseLayer::set_input_shape(int input_size) {
     } else {
         weights_gradient_.resize(input_size, units_);
     }
+    */
+
+    // weights_gradient_ deve rispecchiare esattamente weights_
+    weights_gradient_.resize(input_size, units_);
     weights_gradient_.setZero();
     
     if (use_bias_) {
@@ -126,71 +131,45 @@ Eigen::MatrixXd DenseLayer::backward(const Eigen::MatrixXd& gradient) {
             gradient.rows(), gradient.cols(), "DenseLayer");
     }
     
-    // CALCOLA dZ - per activation "linear" la derivata è 1
     Eigen::MatrixXd dZ;
     if (activation_ == "linear") {
-        dZ = gradient;  // derivata di linear è 1
+        dZ = gradient;
     } else {
         dZ = gradient.array() * apply_activation_derivative(cache_->z_cache).array();
     }
     
-    // Calcola gradienti per pesi
-    Eigen::MatrixXd weight_grad = cache_->input_cache.transpose() * dZ;
+    // Clip leggero per evitare esplosioni di gradienti in fasi iniziali instabili
+    dZ = dZ.unaryExpr([](double v) {
+        if (std::isnan(v)) return 0.0;
+        if (v > 50.0) return 50.0;
+        if (v < -50.0) return -50.0;
+        return v;
+    });
+    
+    // Il gradiente dei pesi deve avere la stessa dimensione di weights_ (input_cache.cols() x dZ.cols())
+    weights_gradient_ = cache_->input_cache.transpose() * dZ;
     
     if (use_bias_) {
-        Eigen::VectorXd bias_grad = dZ.colwise().sum();
-        
-        // ⭐ Non ridimensionare weights_gradient_ qui!
-        // Deve già avere le dimensioni corrette da set_input_shape()
-        if (weights_gradient_.rows() != weight_grad.rows() || 
-            weights_gradient_.cols() != weight_grad.cols() + 1) {
-            weights_gradient_.resize(weight_grad.rows(), weight_grad.cols() + 1);
-        }
-        weights_gradient_.leftCols(weight_grad.cols()) = weight_grad;
-        weights_gradient_.col(weight_grad.cols()) = bias_grad;
-        
-        bias_gradient_ = bias_grad;
-    } else {
-        if (weights_gradient_.rows() != weight_grad.rows() || 
-            weights_gradient_.cols() != weight_grad.cols()) {
-            weights_gradient_.resize(weight_grad.rows(), weight_grad.cols());
-        }
-        weights_gradient_ = weight_grad;
+        // Il gradiente del bias ha dimensione (1 x units) o (units x 1)
+        bias_gradient_ = dZ.colwise().sum().transpose();
     }
     
-    // Calcola gradiente per input
-    Eigen::MatrixXd dX = dZ * weights_.transpose();
-    
-    return dX;
+    // Ritorna il gradiente per il layer precedente
+    return dZ * weights_.transpose();
 }
 
 void DenseLayer::set_weights(const Eigen::MatrixXd& weights) {
-    if (use_bias_) {
-        // weights deve avere colonne = units + 1 (ultima colonna è bias)
-        if (weights.cols() != units_ + 1) {
-            ML_THROW_PARAMETER_ERROR("weights", 
-                "expected " + std::to_string(units_ + 1) + " columns, got " + std::to_string(weights.cols()), 
-                "DenseLayer");
-        }
-        weights_ = weights.leftCols(units_);
-        bias_ = weights.col(units_);
-    } else {
-        if (weights.cols() != units_) {
-            ML_THROW_PARAMETER_ERROR("weights", 
-                "expected " + std::to_string(units_) + " columns, got " + std::to_string(weights.cols()), 
-                "DenseLayer");
-        }
-        weights_ = weights;
+    if (weights.rows() != input_size_ || weights.cols() != units_) {
+        ML_THROW_PARAMETER_ERROR("weights", 
+            "expected " + std::to_string(input_size_) + "x" + std::to_string(units_) + 
+            ", got " + std::to_string(weights.rows()) + "x" + std::to_string(weights.cols()), 
+            "DenseLayer");
     }
+    weights_ = weights;
 }
 
 Eigen::MatrixXd DenseLayer::get_weights() const { 
-    if (use_bias_) {
-        Eigen::MatrixXd weights_with_bias(weights_.rows(), weights_.cols() + 1);
-        weights_with_bias.leftCols(weights_.cols()) = weights_;
-        weights_with_bias.col(weights_.cols()) = bias_;
-        return weights_with_bias;
-    }
+    
     return weights_;
 }
 
@@ -208,18 +187,23 @@ int DenseLayer::get_parameter_count() const {
 }
 
 Eigen::MatrixXd DenseLayer::apply_activation(const Eigen::MatrixXd& z) const {
-    // Clip per stabilità
-    Eigen::MatrixXd z_clipped = z.cwiseMax(-10.0).cwiseMin(10.0);
-    
     if (activation_ == "relu") {
         return z.cwiseMax(0.0);
     } else if (activation_ == "sigmoid") {
+        // Clip precauzionale per evitare exp(>700) che genera inf
+        Eigen::MatrixXd z_clipped = z.cwiseMax(-50.0).cwiseMin(50.0);
         return (1.0 / (1.0 + (-z_clipped).array().exp())).matrix();
     } else if (activation_ == "tanh") {
+        Eigen::MatrixXd z_clipped = z.cwiseMax(-50.0).cwiseMin(50.0);
         return z_clipped.array().tanh().matrix();
     } else if (activation_ == "softmax") {
-        Eigen::MatrixXd exp_z = z_clipped.array().exp().matrix();
-        Eigen::VectorXd sum = exp_z.rowwise().sum();
+        // Trucco di stabilità: sottrai il massimo coeff di ogni riga
+        Eigen::VectorXd row_max = z.rowwise().maxCoeff();
+        Eigen::MatrixXd shifted_z = z.colwise() - row_max;
+        
+        Eigen::MatrixXd exp_z = shifted_z.array().exp().matrix();
+        Eigen::VectorXd sum = exp_z.rowwise().sum().array() + 1e-15; // Evita divisioni per zero
+        
         return (exp_z.array().colwise() / sum.array()).matrix();
     } else if (activation_ == "linear") {
         return z;
@@ -228,8 +212,7 @@ Eigen::MatrixXd DenseLayer::apply_activation(const Eigen::MatrixXd& z) const {
 }
 
 Eigen::MatrixXd DenseLayer::apply_activation_derivative(const Eigen::MatrixXd& z) const {
-    // ⭐ Clip anche per la derivata!
-    Eigen::MatrixXd z_clipped = z.cwiseMax(-10.0).cwiseMin(10.0);
+    Eigen::MatrixXd z_clipped = z.cwiseMax(-50.0).cwiseMin(50.0);
     
     if (activation_ == "relu") {
         return (z.array() > 0.0).cast<double>().matrix();
@@ -242,7 +225,6 @@ Eigen::MatrixXd DenseLayer::apply_activation_derivative(const Eigen::MatrixXd& z
     } else if (activation_ == "linear") {
         return Eigen::MatrixXd::Ones(z.rows(), z.cols());
     } else if (activation_ == "softmax") {
-        // Per softmax, la derivata è Jacobiana, ma per semplicità
         return Eigen::MatrixXd::Ones(z.rows(), z.cols());
     }
     return (z.array() > 0.0).cast<double>().matrix();
@@ -334,12 +316,13 @@ void DenseLayer::deserialize(std::istream& in) {
         bias_gradient_.setZero();
     }
     
-    // 5. Leggi la matrice dei pesi
+    // ==========================================
+    // 5. Leggi la matrice dei pesi (Corretto)
+    // ==========================================
     int32_t rows, cols;
     in.read(reinterpret_cast<char*>(&rows), sizeof(int32_t));
     in.read(reinterpret_cast<char*>(&cols), sizeof(int32_t));
     
-    // Validazione dimensioni
     if (rows != input_size_ || cols != units_) {
         ML_THROW_DESERIALIZATION_ERROR(
             "Weight dimensions mismatch: expected " + 
@@ -347,37 +330,30 @@ void DenseLayer::deserialize(std::istream& in) {
             ", got " + std::to_string(rows) + "x" + std::to_string(cols), "DenseLayer");
     }
     
-    Eigen::MatrixXd loaded_weights(rows, cols);
-    in.read(reinterpret_cast<char*>(loaded_weights.data()), rows * cols * sizeof(double));
+    in.read(reinterpret_cast<char*>(weights_.data()), rows * cols * sizeof(double));
     
-    // Assegna direttamente, senza chiamare set_weights
-    if (use_bias_) {
-        // Se loaded_weights ha una colonna in più, contiene anche bias
-        if (cols == units_ + 1) {
-            weights_ = loaded_weights.leftCols(units_);
-            bias_ = loaded_weights.col(units_);
-        } else {
-            weights_ = loaded_weights;
-            // bias_ rimane zero
-        }
-    } else {
-        weights_ = loaded_weights;
-    }
-    
-    // 6. Leggi bias (se presente)
-    // Leggi bias (solo se serializzato separatamente)
+    // ==========================================
+    // 6. Leggi bias (se presente) - GARANTISCE L'ALLINEAMENTO
+    // ==========================================
+    // ==========================================
+    // 6. Leggi bias (se presente) - GARANTISCE L'ALLINEAMENTO LINEARE
+    // ==========================================
     if (use_bias_) {
         int32_t bias_rows, bias_cols;
-        if (in.peek() != EOF) {
-            in.read(reinterpret_cast<char*>(&bias_rows), sizeof(int32_t));
-            in.read(reinterpret_cast<char*>(&bias_cols), sizeof(int32_t));
-            
-            if (bias_rows == 1 && bias_cols == units_) {
-                Eigen::MatrixXd loaded_bias(bias_rows, bias_cols);
-                in.read(reinterpret_cast<char*>(loaded_bias.data()), bias_rows * bias_cols * sizeof(double));
-                bias_ = loaded_bias.row(0);
-            }
+        in.read(reinterpret_cast<char*>(&bias_rows), sizeof(int32_t));
+        in.read(reinterpret_cast<char*>(&bias_cols), sizeof(int32_t));
+        
+        size_t total_bias_elements = static_cast<size_t>(bias_rows) * static_cast<size_t>(bias_cols);
+        
+        if (total_bias_elements != static_cast<size_t>(units_)) {
+            ML_THROW_DESERIALIZATION_ERROR(
+                "Bias dimensions mismatch: expected total elements " + std::to_string(units_) +
+                ", got " + std::to_string(bias_rows) + "x" + std::to_string(bias_cols), "DenseLayer");
         }
+        
+        // Forziamo il ripristino come VectorXd pulito (monodimensionale)
+        bias_.resize(units_);
+        in.read(reinterpret_cast<char*>(bias_.data()), units_ * sizeof(double));
     }
     
     // 7. Ricrea cache

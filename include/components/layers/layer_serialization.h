@@ -4,7 +4,7 @@
 #include <iostream>
 #include "layer.h"
 #include "layer_factory.h"
-#include "utils/serialization_utils.h"
+#include "utils/serializable.h"
 #include "exceptions/exception_macros.h"
 
 namespace layers {

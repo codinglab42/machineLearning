@@ -67,10 +67,6 @@ SimpleRNNLayer::SimpleRNNLayer(int units, int input_size,
 void SimpleRNNLayer::set_input_shape(int input_size) {
     ML_CHECK_PARAM(input_size > 0, "input_size", "must be > 0", "SimpleRNNLayer");
     
-    if (input_size_ == input_size && kernel_.size() > 0) {
-        return;
-    }
-    
     input_size_ = input_size;
     
     kernel_.resize(input_size_, units_);
@@ -81,14 +77,16 @@ void SimpleRNNLayer::set_input_shape(int input_size) {
         bias_.setZero();
     }
     
+    // ALLOCAZIONE GRADIENTI PURA (Pesi e Bias separati)
     int total_rows = input_size_ + units_;
-    int total_cols = units_ + (use_bias_ ? 1 : 0);
-    weights_gradient_.resize(total_rows, total_cols);
+    weights_gradient_.resize(total_rows, units_);
     weights_gradient_.setZero();
     
     if (use_bias_) {
         bias_gradient_.resize(units_);
         bias_gradient_.setZero();
+    } else {
+        bias_gradient_.resize(0);
     }
     
     hidden_state_.resize(1, units_);
@@ -221,38 +219,34 @@ Eigen::MatrixXd SimpleRNNLayer::backward(const Eigen::MatrixXd& gradient) {
     }
     
     const Eigen::MatrixXd& z = rnn_cache->z_values[0];
-    const Eigen::MatrixXd& prev_h = (rnn_cache->hidden_states.size() > 1) ? 
-                                     rnn_cache->hidden_states[0] : 
-                                     Eigen::MatrixXd::Zero(batch_size, units_);
+    Eigen::MatrixXd prev_h = Eigen::MatrixXd::Zero(batch_size, units_);
+    if (rnn_cache->hidden_states.size() > 1) {
+        prev_h = rnn_cache->hidden_states[0];
+    }
     
+    // Calcolo gradiente rispetto alla pre-attivazione
     Eigen::MatrixXd dZ = gradient.array() * apply_activation_derivative(z).array();
     
+    // Calcolo dei gradienti dei pesi
     Eigen::MatrixXd dKernel = rnn_cache->input_cache.transpose() * dZ;
     Eigen::MatrixXd dRecurrent = prev_h.transpose() * dZ;
     
+    // Assemblaggio geometrico rigido di weights_gradient_
+    if (weights_gradient_.rows() != (input_size_ + units_) || weights_gradient_.cols() != units_) {
+        weights_gradient_.resize(input_size_ + units_, units_);
+    }
+    weights_gradient_.block(0, 0, input_size_, units_) = dKernel;
+    weights_gradient_.block(input_size_, 0, units_, units_) = dRecurrent;
+    
+    // Calcolo e isolamento del gradiente del Bias
     if (use_bias_) {
-        int total_rows = kernel_.rows() + recurrent_.rows();
-        int total_cols = units_ + 1;
-        
-        Eigen::VectorXd dBias = dZ.colwise().sum();
-        
-        weights_gradient_.resize(total_rows, total_cols);
-        weights_gradient_.setZero();
-        
-        weights_gradient_.block(0, 0, dKernel.rows(), dKernel.cols()) = dKernel;
-        weights_gradient_.block(kernel_.rows(), 0, dRecurrent.rows(), dRecurrent.cols()) = dRecurrent;
-        weights_gradient_.col(units_).head(dBias.size()) = dBias;
-        
-        bias_gradient_.resize(0);
-    } else {
-        int total_rows = kernel_.rows() + recurrent_.rows();
-        int total_cols = units_;
-        weights_gradient_.resize(total_rows, total_cols);
-        weights_gradient_.setZero();
-        weights_gradient_.block(0, 0, dKernel.rows(), dKernel.cols()) = dKernel;
-        weights_gradient_.block(kernel_.rows(), 0, dRecurrent.rows(), dRecurrent.cols()) = dRecurrent;
+        if (bias_gradient_.size() != units_) {
+            bias_gradient_.resize(units_);
+        }
+        bias_gradient_ = dZ.colwise().sum().transpose();
     }
     
+    // Gradiente rispetto all'input da propagare indietro
     return dZ * kernel_.transpose();
 }
 
@@ -296,42 +290,22 @@ Eigen::MatrixXd SimpleRNNLayer::apply_activation_derivative(const Eigen::MatrixX
 // ============================================================================
 
 Eigen::MatrixXd SimpleRNNLayer::get_weights() const {
-    int total_rows = kernel_.rows() + recurrent_.rows();
+    int total_rows = input_size_ + units_;
+    Eigen::MatrixXd weights(total_rows, units_);
+    weights.setZero();
     
-    if (use_bias_) {
-        int total_cols = units_ + 1;
-        Eigen::MatrixXd weights(total_rows, total_cols);
-        weights.setZero();
-        weights.block(0, 0, kernel_.rows(), units_) = kernel_;
-        weights.block(kernel_.rows(), 0, recurrent_.rows(), units_) = recurrent_;
-        weights.col(units_).head(bias_.size()) = bias_;
-        return weights;
-    } else {
-        int total_cols = units_;
-        Eigen::MatrixXd weights(total_rows, total_cols);
-        weights.block(0, 0, kernel_.rows(), units_) = kernel_;
-        weights.block(kernel_.rows(), 0, recurrent_.rows(), units_) = recurrent_;
-        return weights;
-    }
+    weights.block(0, 0, input_size_, units_) = kernel_;
+    weights.block(input_size_, 0, units_, units_) = recurrent_;
+    
+    return weights;
 }
 
 void SimpleRNNLayer::set_weights(const Eigen::MatrixXd& weights) {
-    if (use_bias_) {
-        int expected_cols = units_ + 1;
-        if (weights.cols() != expected_cols) {
-            ML_THROW_PARAMETER_ERROR("weights", "invalid dimensions", "SimpleRNNLayer");
-        }
-        kernel_ = weights.block(0, 0, input_size_, units_);
-        recurrent_ = weights.block(input_size_, 0, units_, units_);
-        bias_ = weights.col(units_).head(units_);
-    } else {
-        int expected_cols = units_;
-        if (weights.cols() != expected_cols) {
-            ML_THROW_PARAMETER_ERROR("weights", "invalid dimensions", "SimpleRNNLayer");
-        }
-        kernel_ = weights.block(0, 0, input_size_, units_);
-        recurrent_ = weights.block(input_size_, 0, units_, units_);
+    if (weights.rows() != (input_size_ + units_) || weights.cols() != units_) {
+        ML_THROW_PARAMETER_ERROR("weights", "invalid dimensions", "SimpleRNNLayer");
     }
+    kernel_ = weights.block(0, 0, input_size_, units_);
+    recurrent_ = weights.block(input_size_, 0, units_, units_);
 }
 
 Eigen::VectorXd SimpleRNNLayer::get_biases() const {

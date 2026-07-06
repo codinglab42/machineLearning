@@ -126,7 +126,7 @@ TEST_F(ConvergenceTest, ConvergenceWithSGD) {
     nn.set_batch_size(32);
     nn.set_verbose(false);
     
-    nn.build(1, 1);
+    //nn.build(1, 1);
     nn.fit(X_, y_normalized_);
     
     auto [loss, val_loss, acc] = nn.get_training_history();

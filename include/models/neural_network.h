@@ -13,6 +13,7 @@
 #include "components/regularizers/regularizer.h"
 #include "components/regularizers/regularizer_factory.h"
 #include "components/layers/layer.h"
+#include "components/layers/layer_serialization.h"
 #include "components/layers/dense_layer.h"
 #include "components/layers/conv2d_layer.h"
 #include "components/layers/pooling_layer.h"

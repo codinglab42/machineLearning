@@ -150,7 +150,7 @@ TEST_F(RealDatasetsTest, BostonWithNeuralNetwork) {
     network.set_batch_size(32);
     network.set_verbose(true);
     
-    network.build(13, 1);
+    //network.build(13, 1);
     network.fit(X_train_scaled, y_train_scaled);
     
     // Denormalizza le predizioni

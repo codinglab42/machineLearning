@@ -368,13 +368,13 @@ Eigen::MatrixXd Conv2DLayer::backward(const Eigen::MatrixXd& gradient) {
     
     Eigen::VectorXd dbias = dZ.colwise().sum();
     
+    // Separazione netta dei gradienti
+    weights_gradient_ = dKernels;
+    
     if (use_bias_) {
-        weights_gradient_.resize(dKernels.rows(), dKernels.cols() + 1);
-        weights_gradient_.leftCols(dKernels.cols()) = dKernels;
-        weights_gradient_.col(dKernels.cols()) = dbias;
-        bias_gradient_.resize(0);
+        bias_gradient_ = dbias;
     } else {
-        weights_gradient_ = dKernels;
+        bias_gradient_.resize(0);
     }
     
     Eigen::MatrixXd dX(batch_size, input_size_);
@@ -400,28 +400,14 @@ Eigen::MatrixXd Conv2DLayer::backward(const Eigen::MatrixXd& gradient) {
 // ============================================================================
 
 Eigen::MatrixXd Conv2DLayer::get_weights() const {
-    if (use_bias_) {
-        Eigen::MatrixXd weights_with_bias(kernels_.rows(), kernels_.cols() + 1);
-        weights_with_bias.leftCols(kernels_.cols()) = kernels_;
-        weights_with_bias.col(kernels_.cols()) = bias_;
-        return weights_with_bias;
-    }
     return kernels_;
 }
 
 void Conv2DLayer::set_weights(const Eigen::MatrixXd& weights) {
-    if (use_bias_) {
-        if (weights.cols() != kernels_.cols() + 1) {
-            ML_THROW_PARAMETER_ERROR("weights", "invalid dimension", "Conv2DLayer");
-        }
-        kernels_ = weights.leftCols(kernels_.cols());
-        bias_ = weights.col(kernels_.cols());
-    } else {
-        if (weights.cols() != kernels_.cols()) {
-            ML_THROW_PARAMETER_ERROR("weights", "invalid dimension", "Conv2DLayer");
-        }
-        kernels_ = weights;
+    if (weights.rows() != kernels_.rows() || weights.cols() != kernels_.cols()) {
+        ML_THROW_PARAMETER_ERROR("weights", "invalid dimension mismatch in Conv2DLayer", "Conv2DLayer");
     }
+    kernels_ = weights;
 }
 
 int Conv2DLayer::get_parameter_count() const {
@@ -542,13 +528,12 @@ void Conv2DLayer::deserialize(std::istream& in) {
         bias_ = read_mat();
     }
     
-    weights_gradient_.resize(kernels_.rows(), kernels_.cols() + (use_bias_ ? 1 : 0));
+    // Configurazione pulita e separata delle dimensioni dei gradienti
+    weights_gradient_.resize(kernels_.rows(), kernels_.cols());
     weights_gradient_.setZero();
     
-    if (use_bias_) {
-        bias_gradient_.resize(filters_);
-        bias_gradient_.setZero();
-    }
+    bias_gradient_.resize(use_bias_ ? filters_ : 0);
+    bias_gradient_.setZero();
     
     cache_ = std::make_shared<ConvCache>();
     

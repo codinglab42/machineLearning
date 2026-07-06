@@ -71,6 +71,9 @@ Eigen::MatrixXd PoolingLayer::forward(const Eigen::MatrixXd& input) {
     return forward(input, false);
 }
 
+// ========================================================================
+// FORWARD PASS
+// ========================================================================
 Eigen::MatrixXd PoolingLayer::forward(const Eigen::MatrixXd& input, bool training) {
     ML_CHECK_NOT_EMPTY(input, "input", "PoolingLayer");
     
@@ -78,24 +81,24 @@ Eigen::MatrixXd PoolingLayer::forward(const Eigen::MatrixXd& input, bool trainin
         cache_ = std::make_shared<PoolingCache>();
     }
     
+    // ⭐ SICUREZZA: Svuota i vecchi indici accumulati nei passi precedenti
+    cache_->clear();
+    
     int batch_size = input.rows();
     input_size_ = input.cols();
     
-    // Calcola dimensioni spaziali se non sono già state impostate
     if (input_height_ <= 0 || input_width_ <= 0) {
         int spatial_elements = input_size_ / channels_;
         input_height_ = static_cast<int>(std::sqrt(spatial_elements));
         input_width_ = input_height_;
     }
     
-    // Verifica che le dimensioni siano consistenti
     if (input_size_ != channels_ * input_height_ * input_width_) {
         ML_THROW_DIMENSION_MISMATCH("forward input",
             batch_size, channels_ * input_height_ * input_width_,
             batch_size, input_size_, "PoolingLayer");
     }
     
-    // Inizializza cache
     cache_->set_input(input);
     cache_->set_training(training);
     cache_->set_input_shape(input_height_, input_width_, channels_);
@@ -106,7 +109,6 @@ Eigen::MatrixXd PoolingLayer::forward(const Eigen::MatrixXd& input, bool trainin
     
     Eigen::MatrixXd output(batch_size, output_size);
     
-    // Applica pooling per ogni batch, canale e posizione
     for (int b = 0; b < batch_size; ++b) {
         for (int c = 0; c < channels_; ++c) {
             Eigen::MatrixXd channel = extract_channel(input, b, c);
@@ -117,7 +119,6 @@ Eigen::MatrixXd PoolingLayer::forward(const Eigen::MatrixXd& input, bool trainin
                     int w_start = j * stride_;
                     
                     if (pool_type_ == MAX) {
-                        // MAX POOLING
                         double max_val = -std::numeric_limits<double>::infinity();
                         int max_h = 0, max_w = 0;
                         
@@ -138,17 +139,14 @@ Eigen::MatrixXd PoolingLayer::forward(const Eigen::MatrixXd& input, bool trainin
                             cache_->add_max_index(b, c, i, j, max_h, max_w);
                         }
                     } else {
-                        // AVERAGE POOLING
                         double sum = 0.0;
                         int count = 0;
-                        
                         for (int h = h_start; h < h_start + pool_size_ && h < input_height_; ++h) {
                             for (int w = w_start; w < w_start + pool_size_ && w < input_width_; ++w) {
                                 sum += channel(h, w);
                                 count++;
                             }
                         }
-                        
                         output(b, c * oh * ow + i * ow + j) = sum / count;
                     }
                 }
@@ -168,7 +166,6 @@ Eigen::MatrixXd PoolingLayer::backward(const Eigen::MatrixXd& gradient) {
         ML_THROW_FITTING_ERROR("PoolingLayer", "cache not initialized. Call forward first.");
     }
     
-    // Se non siamo in training, non propagare gradienti
     if (!cache_->get_training()) {
         return Eigen::MatrixXd::Zero(cache_->get_input().rows(), cache_->get_input().cols());
     }
@@ -177,31 +174,32 @@ Eigen::MatrixXd PoolingLayer::backward(const Eigen::MatrixXd& gradient) {
     int oh = get_output_height();
     int ow = get_output_width();
     
-    // Verifica dimensioni del gradiente
     if (gradient.cols() != channels_ * oh * ow) {
         ML_THROW_DIMENSION_MISMATCH("backward gradient",
             batch_size, channels_ * oh * ow,
             batch_size, gradient.cols(), "PoolingLayer");
     }
     
-    // Inizializza matrice del gradiente in input
     Eigen::MatrixXd dInput = Eigen::MatrixXd::Zero(batch_size, input_size_);
     
-    for (int b = 0; b < batch_size; ++b) {
-        for (int c = 0; c < channels_; ++c) {
-            Eigen::MatrixXd dChannel = Eigen::MatrixXd::Zero(input_height_, input_width_);
+    if (pool_type_ == MAX) {
+        // ⭐ OTTIMIZZAZIONE O(N): Ciclo lineare sugli indici memorizzati, senza cicli annidati!
+        const auto& indices = cache_->get_max_indices();
+        for (const auto& idx : indices) {
+            // Verifica di sicurezza sui confini del batch corrente
+            if (idx.batch >= batch_size) continue; 
             
-            if (pool_type_ == MAX) {
-                // MAX POOLING: il gradiente va solo alla posizione del massimo
-                const auto& indices = cache_->get_max_indices();
-                for (const auto& idx : indices) {
-                    if (idx.batch == b && idx.channel == c) {
-                        int grad_idx = c * oh * ow + idx.output_row * ow + idx.output_col;
-                        dChannel(idx.input_h, idx.input_w) += gradient(b, grad_idx);
-                    }
-                }
-            } else {
-                // AVERAGE POOLING: il gradiente viene distribuito uniformemente
+            int grad_idx = idx.channel * oh * ow + idx.output_row * ow + idx.output_col;
+            int input_flattened_idx = idx.channel * input_height_ * input_width_ + idx.input_h * input_width_ + idx.input_w;
+            
+            dInput(idx.batch, input_flattened_idx) += gradient(idx.batch, grad_idx);
+        }
+    } else {
+        // AVERAGE POOLING: Distribuzione uniforme
+        for (int b = 0; b < batch_size; ++b) {
+            for (int c = 0; c < channels_; ++c) {
+                Eigen::MatrixXd dChannel = Eigen::MatrixXd::Zero(input_height_, input_width_);
+                
                 for (int i = 0; i < oh; ++i) {
                     for (int j = 0; j < ow; ++j) {
                         int h_start = i * stride_;
@@ -209,7 +207,6 @@ Eigen::MatrixXd PoolingLayer::backward(const Eigen::MatrixXd& gradient) {
                         int grad_idx = c * oh * ow + i * ow + j;
                         double grad_val = gradient(b, grad_idx);
                         
-                        // Conta quanti elementi ci sono nella finestra (gestisce i bordi)
                         int count = 0;
                         for (int h = h_start; h < h_start + pool_size_ && h < input_height_; ++h) {
                             for (int w = w_start; w < w_start + pool_size_ && w < input_width_; ++w) {
@@ -225,14 +222,8 @@ Eigen::MatrixXd PoolingLayer::backward(const Eigen::MatrixXd& gradient) {
                         }
                     }
                 }
-            }
-            
-            // Inserisci il canale processato nella matrice output
-            for (int h = 0; h < input_height_; ++h) {
-                for (int w = 0; w < input_width_; ++w) {
-                    int idx = c * input_height_ * input_width_ + h * input_width_ + w;
-                    dInput(b, idx) = dChannel(h, w);
-                }
+                // ⭐ Pulizia: Usa l'utility insert_channel anziché riscrivere i cicli for manuali
+                insert_channel(dInput, b, c, dChannel);
             }
         }
     }

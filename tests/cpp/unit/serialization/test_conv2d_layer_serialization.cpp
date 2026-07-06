@@ -35,11 +35,15 @@ TEST_F(Conv2DLayerSerializationTest, SaveAndLoadConsistency) {
     // Inizializziamo le dimensioni dell'input
     layer_out->set_input_shape(in_h * in_w * in_c);
 
-    // Impostiamo pesi controllati: filters x (k*k*c + 1 per il bias)
+    // Impostiamo pesi controllati (solo filtri puri: filters x kernel_elements)
     int kernel_elements = k_size * k_size * in_c;
-    Eigen::MatrixXd fixed_weights = Eigen::MatrixXd::Constant(filters, kernel_elements + 1, 0.05);
+    Eigen::MatrixXd fixed_weights = Eigen::MatrixXd::Constant(filters, kernel_elements, 0.05);
     layer_out->set_weights(fixed_weights);
 
+    // Impostiamo un bias controllato separatamente
+    Eigen::VectorXd fixed_biases = Eigen::VectorXd::Constant(filters, 0.01);
+    layer_out->set_biases(fixed_biases);
+    
     // Creiamo un input di test (batch size 1)
     Eigen::MatrixXd input = Eigen::MatrixXd::Ones(1, in_h * in_w * in_c);
     

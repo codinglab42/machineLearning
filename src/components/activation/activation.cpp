@@ -26,28 +26,31 @@ std::unique_ptr<Activation> activation::create_activation(const std::string& typ
     return nullptr;
 }
 
-// ReLU
+// ========================================================================
+// ReLU foeward/Backward
+// ========================================================================
+
 MatrixXd ReLU::forward(const MatrixXd& z) {
     return z.unaryExpr([](double v) { return std::max(0.0, v); });
 }
 
 MatrixXd ReLU::backward(const MatrixXd& dA, const MatrixXd& z) {
-    // Usa una piccola epsilon per gestire casi vicino a zero
-    const double eps = 1e-12;
-    MatrixXd dZ = z.unaryExpr([eps](double v) { 
-        return (v > eps) ? 1.0 : 0.0; 
-    });
+    MatrixXd dZ = (z.array() > 0.0).cast<double>().matrix();
     return dA.array() * dZ.array();
 }
 
-// Sigmoid
+// ========================================================================
+// Sigmoid Forward/backward
+// ========================================================================
 MatrixXd Sigmoid::forward(const MatrixXd& z) {
-    // Implementazione numericamente stabile
     return z.unaryExpr([](double v) {
-        if (v >= 0) {
-            return 1.0 / (1.0 + std::exp(-v));
+        // Manteniamo la tua ottima implementazione stabile a due rami,
+        // aggiungendo un leggero clip per evitare overflow in casi limite
+        double v_clipped = std::max(-50.0, std::min(50.0, v));
+        if (v_clipped >= 0) {
+            return 1.0 / (1.0 + std::exp(-v_clipped));
         } else {
-            double exp_v = std::exp(v);
+            double exp_v = std::exp(v_clipped);
             return exp_v / (1.0 + exp_v);
         }
     });
@@ -70,19 +73,19 @@ MatrixXd Tanh::backward(const MatrixXd& dA, const MatrixXd& z) {
     return dA.array() * dZ.array();
 }
 
-// Softmax
+// ========================================================================
+// Softmax Forward/backward
+// ========================================================================
 MatrixXd Softmax::forward(const MatrixXd& z) {
-    // Implementazione numericamente stabile
-    MatrixXd exp_z = z.rowwise() - z.colwise().maxCoeff();
-    exp_z = exp_z.array().exp();
-    MatrixXd sum_exp = exp_z.rowwise().sum();
+    // Sottrai il massimo coefficiente di ogni riga per stabilità numerica
+    Eigen::VectorXd row_max = z.rowwise().maxCoeff();
+    MatrixXd exp_z = (z.colwise() - row_max).array().exp().matrix();
     
-    // Normalizza
-    for (int i = 0; i < exp_z.rows(); ++i) {
-        exp_z.row(i) /= sum_exp(i);
-    }
+    // Calcola la somma delle righe e aggiungi un epsilon per evitare divisioni per zero
+    Eigen::VectorXd sum_exp = exp_z.rowwise().sum().array() + 1e-15;
     
-    return exp_z;
+    // Divide ogni colonna di exp_z per il vettore colonna delle somme (Broadcasting)
+    return (exp_z.array().colwise() / sum_exp.array()).matrix();
 }
 
 MatrixXd Softmax::backward(const MatrixXd& dA, const MatrixXd& z) {

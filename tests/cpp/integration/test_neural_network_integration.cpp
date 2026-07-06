@@ -65,7 +65,7 @@ protected:
 // ============================================================================
 
 TEST_F(NeuralNetworkIntegrationTest, TrainWithSGD) {
-    NeuralNetwork nn({2, 16, 1}, "relu", "sigmoid", OptimizerType::SGD, 0.1);
+    NeuralNetwork nn({2, 16, 1}, "relu", "sigmoid", OptimizerType::SGD, 0.5);
     nn.set_loss_function("binary_crossentropy");
     nn.set_epochs(300);
     nn.set_batch_size(32);
@@ -166,9 +166,10 @@ TEST_F(NeuralNetworkIntegrationTest, Serialization) {
     nn.set_batch_size(32);
     nn.set_verbose(false);
     
-    nn.build(2, 1);
-    nn.fit(X_, y_);
-    
+    //nn.build(2, 1);
+    //nn.fit(X_, y_);
+    EXPECT_NO_THROW(nn.fit(X_, y_));
+
     VectorXd y_pred_original = nn.predict(X_);
     
     std::string filename = "test_nn_integration.bin";

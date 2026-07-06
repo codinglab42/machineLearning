@@ -34,30 +34,29 @@ namespace models {
     }
 
     NeuralNetwork::NeuralNetwork(const std::vector<int>& layer_sizes,
-                             const std::string& activation,
-                             const std::string& output_activation,
-                             OptimizerType optimizer_type,
-                             double learning_rate,
-                             RegularizerType regularizer_type,
-                             double regularizer_strength)
-        : loss_function_name_("categorical_crossentropy"),
-          learning_rate_(learning_rate),
-          verbose_(false),
-          n_features_(layer_sizes.front()),
-          n_classes_(layer_sizes.back()),
-          batch_size_(32),
-          fitted_(false),
-          epochs_(100),
-          validation_split_(0.0),
-          rng_(42) {
+                         const std::string& activation,
+                         const std::string& output_activation,
+                         OptimizerType optimizer_type,
+                         double learning_rate,
+                         RegularizerType regularizer_type,
+                         double regularizer_strength)
+    : loss_function_name_(layer_sizes.back() <= 2 ? "binary_crossentropy" : "categorical_crossentropy"),
+      learning_rate_(learning_rate),
+      verbose_(false),
+      n_features_(layer_sizes.front()),
+      n_classes_(layer_sizes.back()),
+      batch_size_(32),
+      fitted_(false),
+      epochs_(100),
+      validation_split_(0.0),
+      rng_(42) {
 
         ML_CHECK_PARAM(layer_sizes.size() >= 2, "layer_sizes",
                     "must have at least input and output layer", "NeuralNetwork");
 
-        // Usa optimizer_ e regularizer_ ereditati da Estimator
         optimizer_   = OptimizerFactory::create(optimizer_type, learning_rate);
         regularizer_ = RegularizerFactory::create(regularizer_type, regularizer_strength);
-        loss_function_ = loss::LossFactory::create("categorical_crossentropy");
+        loss_function_ = loss::LossFactory::create(loss_function_name_);
 
         for (size_t i = 1; i < layer_sizes.size() - 1; ++i) {
             add_dense_layer(layer_sizes[i], activation);
@@ -340,30 +339,42 @@ namespace models {
                     gradient = layers_[j]->backward(gradient);
                 }
 
-                // Aggiornamento pesi tramite optimizer_ del padre (Estimator)
+                // Update weights & biases (Nuova versione pulita)
                 for (auto& layer : layers_) {
                     if (!layer->has_weights()) continue;
 
-                    // Ora weights e weights_gradient hanno le STESSE dimensioni!
-                    Eigen::MatrixXd w = layer->get_weights();
+                    // 1. Aggiornamento dei Pesi (Matrice)
+                    Eigen::MatrixXd weights = layer->get_weights();
                     Eigen::MatrixXd w_grad = layer->get_weights_gradient();
-                    w_grad /= current_batch_sz;
-                    
-                    // Aggiungi regolarizzazione (escludendo l'ultima colonna se sono bias)
+
                     if (regularizer_) {
-                        Eigen::MatrixXd weights_for_reg = w;
-                        if (layer->get_use_bias() && w.cols() > 0) {
-                            // Non regolarizzare l'ultima colonna (bias)
-                            weights_for_reg.rightCols(1).setZero();
-                        }
-                        w_grad += regularizer_->compute_gradient(weights_for_reg);
+                        w_grad += regularizer_->compute_gradient(weights);
                     }
-                    
-                    // Aggiorna pesi (inclusi i bias nell'ultima colonna!)
-                    optimizer_->update(w, w_grad);
-                    layer->set_weights(w);
-                    
-                    // NON serve più gestire i bias separatamente!
+
+                    optimizer_->update(weights, w_grad);
+                    layer->set_weights(weights);
+
+                    // 2. Aggiornamento del Bias (Vettore), se presente nel Layer
+                    if (layer->get_use_bias()) {
+                        Eigen::VectorXd bias = layer->get_biases();
+                        Eigen::VectorXd b_grad = layer->get_bias_gradient();
+                        
+                        optimizer_->update(bias, b_grad);
+                        layer->set_biases(bias);
+                    }
+                }
+
+                                                // ⭐ DIAGNOSTICA TEMPORANEA: Stampiamo il primo peso del primo layer all'inizio e alla fine
+                if (epoch == 0 || epoch == epochs - 1) {
+                    for (size_t l = 0; l < layers_.size(); ++l) {
+                        if (layers_[l]->has_weights()) {
+                            Eigen::MatrixXd current_w = layers_[l]->get_weights();
+                            Eigen::MatrixXd current_grad = layers_[l]->get_weights_gradient();
+                            std::cout << "[DIAGNOSTIC] Epoca " << epoch << " | Layer " << l 
+                                    << " | Primo Peso: " << current_w(0,0) 
+                                    << " | Gradiente: " << current_grad(0,0) << std::endl;
+                        }
+                    }
                 }
             }
 
@@ -455,24 +466,42 @@ namespace models {
                     gradient = layers_[j]->backward(gradient);
                 }
 
-                // Update weights
+                // Update weights & biases (Nuova versione pulita)
                 for (auto& layer : layers_) {
                     if (!layer->has_weights()) continue;
 
+                    // 1. Aggiornamento dei Pesi (Matrice)
                     Eigen::MatrixXd weights = layer->get_weights();
                     Eigen::MatrixXd w_grad = layer->get_weights_gradient();
-                    w_grad /= static_cast<double>(current_batch_size);
 
                     if (regularizer_) {
-                        Eigen::MatrixXd weights_for_reg = weights;
-                        if (layer->get_use_bias() && weights.cols() > 0) {
-                            weights_for_reg.rightCols(1).setZero();
-                        }
-                        w_grad += regularizer_->compute_gradient(weights_for_reg);
+                        w_grad += regularizer_->compute_gradient(weights);
                     }
 
                     optimizer_->update(weights, w_grad);
                     layer->set_weights(weights);
+
+                    // 2. Aggiornamento del Bias (Vettore), se presente nel Layer
+                    if (layer->get_use_bias()) {
+                        Eigen::VectorXd bias = layer->get_biases();
+                        Eigen::VectorXd b_grad = layer->get_bias_gradient();
+                        
+                        optimizer_->update(bias, b_grad);
+                        layer->set_biases(bias);
+                    }
+                }
+
+                // ⭐ DIAGNOSTICA TEMPORANEA: Stampiamo il primo peso del primo layer all'inizio e alla fine
+                if (epoch == 0 || epoch == epochs - 1) {
+                    for (size_t l = 0; l < layers_.size(); ++l) {
+                        if (layers_[l]->has_weights()) {
+                            Eigen::MatrixXd current_w = layers_[l]->get_weights();
+                            Eigen::MatrixXd current_grad = layers_[l]->get_weights_gradient();
+                            std::cout << "[DIAGNOSTIC] Epoca " << epoch << " | Layer " << l 
+                                    << " | Primo Peso: " << current_w(0,0) 
+                                    << " | Gradiente: " << current_grad(0,0) << std::endl;
+                        }
+                    }
                 }
             }
 
@@ -651,7 +680,15 @@ namespace models {
 
         if (n_classes_ == 1) {
             return output.col(0);
+        } else if (n_classes_ == 2 && output.cols() == 1) {
+            // Classificazione binaria con singola colonna (Sigmoide)
+            Eigen::VectorXd predictions(X.rows());
+            for (int i = 0; i < X.rows(); ++i) {
+                predictions(i) = (output(i, 0) >= 0.5) ? 1.0 : 0.0;
+            }
+            return predictions;
         } else {
+            // Multiclasse (Softmax)
             Eigen::VectorXd predictions(X.rows());
             for (int i = 0; i < X.rows(); ++i) {
                 Eigen::Index max_idx;
@@ -660,12 +697,6 @@ namespace models {
             }
             return predictions;
         }
-    }
-
-    Eigen::MatrixXd NeuralNetwork::predict_proba(const Eigen::MatrixXd& X) const {
-        ML_CHECK_FITTED(fitted_, "NeuralNetwork");
-        ML_CHECK_FEATURE_DIMENSIONS(X.cols(), n_features_, "NeuralNetwork");
-        return forward_pass(X, false);
     }
 
     double NeuralNetwork::score(const Eigen::MatrixXd& X, const Eigen::VectorXd& y) const {
@@ -678,7 +709,10 @@ namespace models {
         if (n_classes_ == 2) {
             int correct = 0;
             for (int i = 0; i < y.size(); ++i) {
-                if ((y_pred(i) > 0.5) == (y(i) > 0.5)) correct++;
+                // Entrambi scalati a 0 o 1 corretto
+                double p = y_pred(i) > 0.5 ? 1.0 : 0.0;
+                double t = y(i) > 0.5 ? 1.0 : 0.0;
+                if (p == t) correct++;
             }
             return static_cast<double>(correct) / y.size();
         } else if (n_classes_ == 1) {
@@ -695,6 +729,13 @@ namespace models {
         }
     }
 
+    Eigen::MatrixXd NeuralNetwork::predict_proba(const Eigen::MatrixXd& X) const {
+        ML_CHECK_FITTED(fitted_, "NeuralNetwork");
+        ML_CHECK_FEATURE_DIMENSIONS(X.cols(), n_features_, "NeuralNetwork");
+        return forward_pass(X, false);
+    }
+
+    
     //===========================================================================
     // SERIALIZZAZIONE
     //===========================================================================
@@ -721,257 +762,73 @@ namespace models {
         return result;
     }
 
-    //===========================================================================
-// SERIALIZZAZIONE CORRETTA
+//===========================================================================
+// SERIALIZZAZIONE (Sfruttando l'architettura LayerFactory)
 //===========================================================================
 
     void NeuralNetwork::serialize_binary(std::ostream& out) const {
-        // Verifica che la rete sia in uno stato valido
         if (n_features_ <= 0 || n_classes_ <= 0) {
-            throw std::runtime_error("NeuralNetwork::serialize_binary: "
-                "Network not initialized (n_features or n_classes = 0)");
+            throw std::runtime_error("NeuralNetwork::serialize_binary: Network not initialized.");
         }
-        
-        // 1. MAGIC NUMBER per verifica formato (opzionale ma consigliato)
-        uint32_t magic = 0x4E4E574F; // "NNWO" - Neural NetWork Object
-        out.write(reinterpret_cast<const char*>(&magic), sizeof(magic));
-        
-        // 2. Versione del formato
-        uint32_t version = 1;
-        out.write(reinterpret_cast<const char*>(&version), sizeof(version));
-        
-        // 3. Parametri base (usa tipi a dimensione fissa!)
-        int32_t n_features = static_cast<int32_t>(n_features_);
-        int32_t n_classes = static_cast<int32_t>(n_classes_);
-        out.write(reinterpret_cast<const char*>(&n_features), sizeof(int32_t));
-        out.write(reinterpret_cast<const char*>(&n_classes), sizeof(int32_t));
-        
-        int8_t fitted_flag = fitted_ ? 1 : 0;
-        out.write(reinterpret_cast<const char*>(&fitted_flag), sizeof(int8_t));
-        
-        // 4. Loss function (con lunghezza int32_t)
-        int32_t loss_name_len = static_cast<int32_t>(loss_function_name_.size());
-        out.write(reinterpret_cast<const char*>(&loss_name_len), sizeof(int32_t));
-        out.write(loss_function_name_.c_str(), loss_name_len);
-        
-        // 5. Learning rate
-        out.write(reinterpret_cast<const char*>(&learning_rate_), sizeof(double));
-        
-        // 6. Ottimizzatore
-        if (optimizer_) {
-            int32_t opt_type = static_cast<int32_t>(optimizer_->get_type());
-            out.write(reinterpret_cast<const char*>(&opt_type), sizeof(int32_t));
-            optimizer_->serialize(out);
-        } else {
-            int32_t opt_type = -1;
-            out.write(reinterpret_cast<const char*>(&opt_type), sizeof(int32_t));
-        }
-        
-        // 7. Regularizer
-        if (regularizer_) {
-            int32_t reg_type = static_cast<int32_t>(regularizer_->get_type());
-            out.write(reinterpret_cast<const char*>(&reg_type), sizeof(int32_t));
-            regularizer_->serialize(out);
-        } else {
-            int32_t reg_type = -1;
-            out.write(reinterpret_cast<const char*>(&reg_type), sizeof(int32_t));
-        }
-        
-        // 8. Numero di layer (int32_t)
-        int32_t num_layers = static_cast<int32_t>(layers_.size());
-        out.write(reinterpret_cast<const char*>(&num_layers), sizeof(int32_t));
-        
-        // 9. Per ogni layer: tipo + dati
+
+        // 1. Salva i metadati scalari fondamentali della rete
+        out.write(reinterpret_cast<const char*>(&n_features_), sizeof(n_features_));
+        out.write(reinterpret_cast<const char*>(&n_classes_), sizeof(n_classes_));
+        out.write(reinterpret_cast<const char*>(&learning_rate_), sizeof(learning_rate_));
+        out.write(reinterpret_cast<const char*>(&fitted_), sizeof(fitted_));
+        out.write(reinterpret_cast<const char*>(&epochs_), sizeof(epochs_));
+        out.write(reinterpret_cast<const char*>(&batch_size_), sizeof(batch_size_));
+
+        // 2. Salva la stringa del nome della Loss (Lunghezza + Caratteri)
+        size_t loss_len = loss_function_name_.size();
+        out.write(reinterpret_cast<const char*>(&loss_len), sizeof(loss_len));
+        out.write(loss_function_name_.data(), loss_len);
+
+        // 3. Salva il numero totale di layer presenti
+        size_t num_layers = layers_.size();
+        out.write(reinterpret_cast<const char*>(&num_layers), sizeof(num_layers));
+
+        // 4. Delega ogni singolo layer all'helper globale dell'architettura
         for (const auto& layer : layers_) {
-            if (!layer) {
-                throw std::runtime_error("NeuralNetwork::serialize_binary: null layer");
-            }
-            
-            // Scrivi il tipo con lunghezza int32_t
-            std::string layer_type = layer->get_type();
-            int32_t type_len = static_cast<int32_t>(layer_type.size());
-            out.write(reinterpret_cast<const char*>(&type_len), sizeof(int32_t));
-            out.write(layer_type.c_str(), type_len);
-            
-            // Il layer si serializza da solo (DEVE usare int32_t per le dimensioni)
-            layer->serialize(out);
-        }
-        
-        if (!out.good()) {
-            throw std::runtime_error("NeuralNetwork::serialize_binary: stream error");
+            // Questa funzione scrive autonomamente: LayerType -> Versione -> Dati interni del Layer
+            layers::serialize_layer(out, *layer);
         }
     }
 
     void NeuralNetwork::deserialize_binary(std::istream& in) {
-        if (!in.good()) {
-            throw std::runtime_error("NeuralNetwork::deserialize_binary: input stream not good");
-        }
-        
-        // 1. Leggi magic number
-        uint32_t magic;
-        in.read(reinterpret_cast<char*>(&magic), sizeof(magic));
-        if (magic != 0x4E4E574F) {
-            throw std::runtime_error("NeuralNetwork::deserialize_binary: invalid file format");
-        }
-        
-        // 2. Leggi versione
-        uint32_t version;
-        in.read(reinterpret_cast<char*>(&version), sizeof(version));
-        if (version != 1) {
-            throw std::runtime_error("NeuralNetwork::deserialize_binary: unsupported version");
-        }
-        
-        // 3. Leggi parametri base
-        int32_t n_features, n_classes;
-        in.read(reinterpret_cast<char*>(&n_features), sizeof(int32_t));
-        in.read(reinterpret_cast<char*>(&n_classes), sizeof(int32_t));
-        
-        if (n_features <= 0 || n_features > 1000000) {
-            throw std::runtime_error("NeuralNetwork::deserialize_binary: invalid n_features");
-        }
-        if (n_classes <= 0 || n_classes > 1000000) {
-            throw std::runtime_error("NeuralNetwork::deserialize_binary: invalid n_classes");
-        }
-        
-        n_features_ = n_features;
-        n_classes_ = n_classes;
-        
-        int8_t fitted_flag;
-        in.read(reinterpret_cast<char*>(&fitted_flag), sizeof(int8_t));
-        fitted_ = (fitted_flag != 0);
-        
-        // 4. Leggi loss function
-        int32_t loss_name_len;
-        in.read(reinterpret_cast<char*>(&loss_name_len), sizeof(int32_t));
-        if (loss_name_len < 0 || loss_name_len > 1024) {
-            throw std::runtime_error("NeuralNetwork::deserialize_binary: invalid loss name length");
-        }
-        std::vector<char> loss_name_buf(loss_name_len + 1, '\0');
-        in.read(loss_name_buf.data(), loss_name_len);
-        loss_function_name_ = std::string(loss_name_buf.data());
+        // 1. Leggi i metadati scalari
+        in.read(reinterpret_cast<char*>(&n_features_), sizeof(n_features_));
+        in.read(reinterpret_cast<char*>(&n_classes_), sizeof(n_classes_));
+        in.read(reinterpret_cast<char*>(&learning_rate_), sizeof(learning_rate_));
+        in.read(reinterpret_cast<char*>(&fitted_), sizeof(fitted_));
+        in.read(reinterpret_cast<char*>(&epochs_), sizeof(epochs_));
+        in.read(reinterpret_cast<char*>(&batch_size_), sizeof(batch_size_));
+
+        // 2. Leggi il nome della Loss e ricostruiscila tramite la LossFactory
+        size_t loss_len = 0;
+        in.read(reinterpret_cast<char*>(&loss_len), sizeof(loss_len));
+        loss_function_name_.resize(loss_len);
+        in.read(&loss_function_name_[0], loss_len);
         loss_function_ = loss::LossFactory::create(loss_function_name_);
-        
-        // 5. Leggi learning rate
-        in.read(reinterpret_cast<char*>(&learning_rate_), sizeof(double));
-        
-        // 6. Leggi ottimizzatore
-        int32_t opt_type;
-        in.read(reinterpret_cast<char*>(&opt_type), sizeof(int32_t));
-        if (opt_type >= 0) {
-            optimizer_ = OptimizerFactory::create(static_cast<OptimizerType>(opt_type), learning_rate_);
-            if (optimizer_) {
-                optimizer_->deserialize(in);
-            }
-        }
-        
-        // 7. Leggi regularizer
-        int32_t reg_type;
-        in.read(reinterpret_cast<char*>(&reg_type), sizeof(int32_t));
-        if (reg_type >= 0) {
-            regularizer_ = RegularizerFactory::create(static_cast<RegularizerType>(reg_type), 0.01);
-            if (regularizer_) {
-                regularizer_->deserialize(in);
-            }
-        }
-        
-        // 8. Leggi numero di layer
-        int32_t num_layers;
-        in.read(reinterpret_cast<char*>(&num_layers), sizeof(int32_t));
-        if (num_layers < 0 || num_layers > 10000) {
-            throw std::runtime_error("NeuralNetwork::deserialize_binary: invalid number of layers");
-        }
-        
-        // 9. Pulisci e ricostruisci i layer
+
+        // 3. Ripristina l'ottimizzatore coerente con il learning rate ricaricato
+        optimizer_ = OptimizerFactory::create(OptimizerType::SGD, learning_rate_);
+
+        // 4. Leggi il numero di layer, svuota la rete attuale e prepara la cache
+        size_t num_layers = 0;
+        in.read(reinterpret_cast<char*>(&num_layers), sizeof(num_layers));
         layers_.clear();
-        forward_cache_.clear();
-        layers_.reserve(num_layers);
         forward_cache_.resize(num_layers);
-        
-        // 10. Leggi ogni layer
-        for (int32_t i = 0; i < num_layers; ++i) {
-            // Leggi tipo (lunghezza int32_t)
-            int32_t type_len;
-            in.read(reinterpret_cast<char*>(&type_len), sizeof(int32_t));
-            if (type_len < 0 || type_len > 256) {
-                throw std::runtime_error("NeuralNetwork::deserialize_binary: invalid layer type length");
-            }
-            
-            std::vector<char> type_buf(type_len + 1, '\0');
-            in.read(type_buf.data(), type_len);
-            std::string layer_type(type_buf.data());
-            
-            // Crea il layer - ORA usa deserialize che legge le dimensioni reali
-            std::unique_ptr<layers::Layer> layer;
-            
-            // IMPORTANTE: Ogni layer DEVE avere un costruttore default
-            // e il metodo deserialize DEVE leggere TUTTI i parametri (incluse dimensioni)
-            if (layer_type == "DenseLayer") {
-                auto dense = std::make_unique<layers::DenseLayer>();  // Costruttore default
-                dense->deserialize(in);  // Legge input_size, output_size, activation, weights, bias
-                layer = std::move(dense);
-            }
-            else if (layer_type == "Conv2DLayer") {
-                auto conv = std::make_unique<layers::Conv2DLayer>();
-                conv->deserialize(in);
-                layer = std::move(conv);
-            }
-            else if (layer_type == "FlattenLayer") {
-                auto flatten = std::make_unique<layers::FlattenLayer>();
-                flatten->deserialize(in);
-                layer = std::move(flatten);
-            }
-            else if (layer_type == "DropoutLayer") {
-                auto dropout = std::make_unique<layers::DropoutLayer>();
-                dropout->deserialize(in);
-                layer = std::move(dropout);
-            }
-            else if (layer_type == "BatchNormLayer") {
-                auto bn = std::make_unique<layers::BatchNormLayer>();
-                bn->deserialize(in);
-                layer = std::move(bn);
-            }
-            else if (layer_type == "SimpleRNNLayer") {
-                auto rnn = std::make_unique<layers::SimpleRNNLayer>();
-                rnn->deserialize(in);
-                layer = std::move(rnn);
-            }
-            else if (layer_type == "LSTMLayer") {
-                auto lstm = std::make_unique<layers::LSTMLayer>();
-                lstm->deserialize(in);
-                layer = std::move(lstm);
-            }
-            else if (layer_type == "GRULayer") {
-                auto gru = std::make_unique<layers::GRULayer>();
-                gru->deserialize(in);
-                layer = std::move(gru);
-            }
-            else if (layer_type == "PoolingLayer") {
-                auto pool = std::make_unique<layers::PoolingLayer>();
-                pool->deserialize(in);
-                layer = std::move(pool);
-            }
-            else {
-                throw std::runtime_error("NeuralNetwork::deserialize_binary: unknown layer type: " + layer_type);
-            }
-            
-            if (!layer) {
-                throw std::runtime_error("NeuralNetwork::deserialize_binary: failed to create layer: " + layer_type);
-            }
-            
+
+        // 5. Ricostruisci polimorficamente i layer usando l'helper globale dell'architettura
+        for (size_t i = 0; i < num_layers; ++i) {
+            // Questa funzione legge il tipo, interroga la LayerFactory per allocare il layer corretto,
+            // chiama internamente la sua deserialize(in) e restituisce lo unique_ptr pronto.
+            std::unique_ptr<layers::Layer> layer = layers::deserialize_layer(in);
             layers_.push_back(std::move(layer));
         }
-        
-        // 11. Ricostruisci le connessioni tra layer (input shapes)
-        int expected_input = n_features_;
-        for (size_t i = 0; i < layers_.size(); ++i) {
-            layers_[i]->set_input_shape(expected_input);
-            expected_input = layers_[i]->get_output_size();
-        }
-        
-        if (!in.good() && !in.eof()) {
-            throw std::runtime_error("NeuralNetwork::deserialize_binary: stream error");
-        }
     }
+
 
     std::string NeuralNetwork::get_model_type() const {
         return "NeuralNetwork";

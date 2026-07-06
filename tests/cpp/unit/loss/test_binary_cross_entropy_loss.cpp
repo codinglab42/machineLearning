@@ -60,11 +60,18 @@ TEST_F(BinaryCrossEntropyLossTest, Gradient) {
     
     MatrixXd grad = loss->gradient(y_true, y_pred);
     
-    // Per binary cross-entropy: grad = y_pred - y_true
-    MatrixXd expected = y_pred - y_true;
+    // Binary cross-entropy con mean reduction: grad = (pred - true) / N
+    int n = y_true.rows();
+    MatrixXd expected = (y_pred - y_true) / static_cast<double>(n);
+    
+    // Valori attesi:
+    // Campione 0: (0.8 - 1.0) / 3 = -0.0666667
+    // Campione 1: (0.2 - 0.0) / 3 =  0.0666667
+    // Campione 2: (0.7 - 1.0) / 3 = -0.1000000
     
     EXPECT_EQ(grad.rows(), expected.rows());
     EXPECT_EQ(grad.cols(), expected.cols());
+    
     for (int i = 0; i < grad.rows(); ++i) {
         EXPECT_NEAR(grad(i, 0), expected(i, 0), 1e-6);
     }
