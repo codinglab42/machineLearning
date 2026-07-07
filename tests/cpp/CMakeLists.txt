@@ -55,6 +55,8 @@ add_ml_test(test_regularizers_deep unit/regularizers/test_regularizers_deep.cpp)
 
 # Test per Math Utils
 add_ml_test(test_math_utils_deep unit/utils/test_math_utils_deep.cpp)
+add_ml_test(test_robustness_and_exceptions unit/utils/test_robustness_and_exceptions.cpp)
+
 
 # Test per i Models
 add_ml_test(test_linear_regression_model unit/models/test_linear_regression_model.cpp)
