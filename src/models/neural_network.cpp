@@ -317,62 +317,43 @@ namespace models {
                     y_batch(j - i)     = y(indices[j]);
                 }
 
-                // Forward
+                // 1. Forward pass
                 Eigen::MatrixXd y_pred = forward_pass(X_batch, true);
 
-                // Loss
-                Eigen::MatrixXd y_true_mat(y_batch.size(), 1);
-                for (int k = 0; k < y_batch.size(); ++k) y_true_mat(k, 0) = y_batch(k);
-                double batch_loss = compute_loss(y_true_mat, y_pred);
-                epoch_loss += batch_loss * current_batch_sz;
+                // 2. Accumula la loss locale per monitoraggio
+                epoch_loss += compute_loss(y_batch, y_pred) * current_batch_sz;
 
-                // Gradient dalla loss
-                Eigen::MatrixXd gradient = compute_loss_gradient(y_batch, y_pred);
+                // 3. Calcola il gradiente iniziale dalla loss function
+                Eigen::MatrixXd loss_grad = compute_loss_gradient(y_batch, y_pred);
 
-                // Gradient clipping UNA SOLA VOLTA sul gradiente della loss
-                clip_gradient(gradient, 1.0);
-
-                // Backward — passa learning_rate 0: i layer calcolano i gradienti
-                // ma NON aggiornano i pesi (solo DenseLayer rispetta questo;
-                // RNN/GRU/LSTM verranno fixati nel passo 2)
-                for (int j = static_cast<int>(layers_.size()) - 1; j >= 0; --j) {
-                    gradient = layers_[j]->backward(gradient);
+                // 4. Backward pass lungo tutta la rete (aggiorna i gradienti interni dei layer)
+                // Se la tua backward_pass accetta matrici/vettori di gradiente:
+                Eigen::MatrixXd current_grad = loss_grad;
+                for (int l = layers_.size() - 1; l >= 0; --l) {
+                    current_grad = layers_[l]->backward(current_grad);
                 }
 
-                // Update weights & biases (Nuova versione pulita)
+                // 5. Aggiorna i pesi e i bias usando l'ottimizzatore impostato
                 for (auto& layer : layers_) {
-                    if (!layer->has_weights()) continue;
-
-                    // 1. Aggiornamento dei Pesi (Matrice)
-                    Eigen::MatrixXd weights = layer->get_weights();
-                    Eigen::MatrixXd w_grad = layer->get_weights_gradient();
-
-                    if (regularizer_) {
-                        w_grad += regularizer_->compute_gradient(weights);
-                    }
-
-                    optimizer_->update(weights, w_grad);
-                    layer->set_weights(weights);
-
-                    // 2. Aggiornamento del Bias (Vettore), se presente nel Layer
-                    if (layer->get_use_bias()) {
-                        Eigen::VectorXd bias = layer->get_biases();
-                        Eigen::VectorXd b_grad = layer->get_bias_gradient();
+                    if (layer->has_weights()) {
+                        // --- 5a. Aggiornamento Pesi (W) ---
+                        Eigen::MatrixXd dW = layer->get_weights_gradient();
+                        clip_gradient(dW, 1.0);
                         
-                        optimizer_->update(bias, b_grad);
-                        layer->set_biases(bias);
-                    }
-                }
+                        Eigen::MatrixXd W = layer->get_weights();
+                        optimizer_->update(W, dW);
+                        layer->set_weights(W);
 
-                                                // ⭐ DIAGNOSTICA TEMPORANEA: Stampiamo il primo peso del primo layer all'inizio e alla fine
-                if (epoch == 0 || epoch == epochs - 1) {
-                    for (size_t l = 0; l < layers_.size(); ++l) {
-                        if (layers_[l]->has_weights()) {
-                            Eigen::MatrixXd current_w = layers_[l]->get_weights();
-                            Eigen::MatrixXd current_grad = layers_[l]->get_weights_gradient();
-                            std::cout << "[DIAGNOSTIC] Epoca " << epoch << " | Layer " << l 
-                                    << " | Primo Peso: " << current_w(0,0) 
-                                    << " | Gradiente: " << current_grad(0,0) << std::endl;
+                        // --- 5b. Aggiornamento Bias (b) ---
+                        // Controlla se il layer usa effettivamente il bias ed espone i metodi
+                        if (layer->get_use_bias()) { 
+                            Eigen::VectorXd db = layer->get_bias_gradient();
+                            // Applica il clipping anche al gradiente del bias se necessario
+                            // clip_gradient(db, 1.0); 
+                            
+                            Eigen::VectorXd b = layer->get_biases();
+                            optimizer_->update(b, db);
+                            layer->set_biases(b); // Usa il metodo set_biases che abbiamo visto nel file
                         }
                     }
                 }
@@ -381,8 +362,8 @@ namespace models {
             epoch_loss /= n_samples;
             loss_history_.push_back(epoch_loss);
 
-            if (verbose && epoch % 10 == 0) {
-                std::cout << "Epoch " << epoch << "  Loss: " << epoch_loss << std::endl;
+            if (verbose && (epoch % (epochs / 10 == 0 ? 1 : epochs / 10) == 0)) {
+                std::cout << "Epoch " << epoch << "/" << epochs << " - Loss: " << epoch_loss << std::endl;
             }
         }
 
@@ -434,72 +415,55 @@ namespace models {
             double epoch_loss = 0.0;
 
             for (int i = 0; i < n_samples; i += batch_size) {
-                int end = std::min(i + batch_size, n_samples);
-                int current_batch_size = end - i;
+                int end               = std::min(i + batch_size, n_samples);
+                int current_batch_sz  = end - i;
 
-                Eigen::MatrixXd X_batch(current_batch_size, X.cols());
-                Eigen::MatrixXd y_batch(current_batch_size, y.cols());
+                // Sostituisci il ciclo di estrazione del batch nella seconda fit con questo:
+                Eigen::MatrixXd X_batch(current_batch_sz, X.cols());
+                Eigen::MatrixXd y_batch(current_batch_sz, y.cols()); // <-- Ora è una MatrixXd corretta
 
                 for (int j = i; j < end; ++j) {
                     X_batch.row(j - i) = X.row(indices[j]);
-                    y_batch.row(j - i) = y.row(indices[j]);
+                    y_batch.row(j - i) = y.row(indices[j]); // <-- Estrazione della riga intera
                 }
 
-                // Forward pass
+                // 1. Forward pass
                 Eigen::MatrixXd y_pred = forward_pass(X_batch, true);
 
-                // Loss
-                double batch_loss = compute_loss(y_batch, y_pred);
-                epoch_loss += batch_loss * current_batch_size;
+                // 2. Accumula la loss locale per monitoraggio
+                epoch_loss += compute_loss(y_batch, y_pred) * current_batch_sz;
 
-                // Gradient
-                Eigen::MatrixXd gradient = loss_function_->gradient(y_batch, y_pred);
+                // 3. Calcola il gradiente iniziale dalla loss function
+                Eigen::MatrixXd loss_grad = compute_loss_gradient(y_batch, y_pred);
 
-                // Gradient clipping
-                double norm = gradient.norm();
-                if (norm > 1.0 && norm > 0) {
-                    gradient *= (1.0 / norm);
+                // 4. Backward pass lungo tutta la rete (aggiorna i gradienti interni dei layer)
+                // Se la tua backward_pass accetta matrici/vettori di gradiente:
+                Eigen::MatrixXd current_grad = loss_grad;
+                for (int l = layers_.size() - 1; l >= 0; --l) {
+                    current_grad = layers_[l]->backward(current_grad);
                 }
 
-                // Backward pass
-                for (int j = static_cast<int>(layers_.size()) - 1; j >= 0; --j) {
-                    gradient = layers_[j]->backward(gradient);
-                }
-
-                // Update weights & biases (Nuova versione pulita)
+                // 5. Aggiorna i pesi usando l'ottimizzatore impostato
                 for (auto& layer : layers_) {
-                    if (!layer->has_weights()) continue;
-
-                    // 1. Aggiornamento dei Pesi (Matrice)
-                    Eigen::MatrixXd weights = layer->get_weights();
-                    Eigen::MatrixXd w_grad = layer->get_weights_gradient();
-
-                    if (regularizer_) {
-                        w_grad += regularizer_->compute_gradient(weights);
-                    }
-
-                    optimizer_->update(weights, w_grad);
-                    layer->set_weights(weights);
-
-                    // 2. Aggiornamento del Bias (Vettore), se presente nel Layer
-                    if (layer->get_use_bias()) {
-                        Eigen::VectorXd bias = layer->get_biases();
-                        Eigen::VectorXd b_grad = layer->get_bias_gradient();
+                    if (layer->has_weights()) {
+                        // --- 5a. Aggiornamento Pesi (W) ---
+                        Eigen::MatrixXd dW = layer->get_weights_gradient();
+                        clip_gradient(dW, 1.0);
                         
-                        optimizer_->update(bias, b_grad);
-                        layer->set_biases(bias);
-                    }
-                }
+                        Eigen::MatrixXd W = layer->get_weights();
+                        optimizer_->update(W, dW);
+                        layer->set_weights(W);
 
-                // ⭐ DIAGNOSTICA TEMPORANEA: Stampiamo il primo peso del primo layer all'inizio e alla fine
-                if (epoch == 0 || epoch == epochs - 1) {
-                    for (size_t l = 0; l < layers_.size(); ++l) {
-                        if (layers_[l]->has_weights()) {
-                            Eigen::MatrixXd current_w = layers_[l]->get_weights();
-                            Eigen::MatrixXd current_grad = layers_[l]->get_weights_gradient();
-                            std::cout << "[DIAGNOSTIC] Epoca " << epoch << " | Layer " << l 
-                                    << " | Primo Peso: " << current_w(0,0) 
-                                    << " | Gradiente: " << current_grad(0,0) << std::endl;
+                        // --- 5b. Aggiornamento Bias (b) ---
+                        // Controlla se il layer usa effettivamente il bias ed espone i metodi
+                        if (layer->get_use_bias()) { 
+                            Eigen::VectorXd db = layer->get_bias_gradient();
+                            // Applica il clipping anche al gradiente del bias se necessario
+                            // clip_gradient(db, 1.0); 
+                            
+                            Eigen::VectorXd b = layer->get_biases();
+                            optimizer_->update(b, db);
+                            layer->set_biases(b); // Usa il metodo set_biases che abbiamo visto nel file
                         }
                     }
                 }
@@ -508,8 +472,8 @@ namespace models {
             epoch_loss /= n_samples;
             loss_history_.push_back(epoch_loss);
 
-            if (verbose_ && epoch % 10 == 0) {
-                std::cout << "Epoch " << epoch << "  Loss: " << epoch_loss << std::endl;
+            if (verbose && (epoch % (epochs / 10 == 0 ? 1 : epochs / 10) == 0)) {
+                std::cout << "Epoch " << epoch << "/" << epochs << " - Loss: " << epoch_loss << std::endl;
             }
         }
 

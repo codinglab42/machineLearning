@@ -39,7 +39,7 @@ Eigen::MatrixXd MeanSquaredErrorLoss::gradient(const Eigen::MatrixXd& y_true,
     ML_CHECK_XY_SIZE(y_true.rows(), y_pred.rows(), "MeanSquaredErrorLoss");
     ML_CHECK_XY_SIZE(y_true.cols(), y_pred.cols(), "MeanSquaredErrorLoss");
     
-    Eigen::MatrixXd grad = 2.0 * (y_pred - y_true) / y_true.rows();
+    Eigen::MatrixXd grad = 2.0 * (y_pred - y_true) / y_true.size();
     
     ML_CHECK_NO_NAN(grad, "MeanSquaredErrorLoss", "gradient");
     ML_CHECK_NO_INF(grad, "MeanSquaredErrorLoss", "gradient");

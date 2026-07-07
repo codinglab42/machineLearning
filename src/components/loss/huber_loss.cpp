@@ -5,31 +5,14 @@
 
 namespace loss {
 
-// RIMUOVI QUESTO - è già definito nell'header:
-// HuberLoss::HuberLoss(double delta) : delta_(delta) {}
-
 double HuberLoss::compute(const Eigen::VectorXd& y_true,
                           const Eigen::VectorXd& y_pred) const {
     ML_CHECK_XY_SIZE(y_true.size(), y_pred.size(), "HuberLoss");
     
-    Eigen::ArrayXd residual = (y_pred - y_true).array().abs();
-    double loss = 0.0;
-    
-    for (int i = 0; i < residual.size(); ++i) {
-        if (residual(i) <= delta_) {
-            loss += 0.5 * residual(i) * residual(i);
-        } else {
-            loss += delta_ * (residual(i) - 0.5 * delta_);
-        }
-    }
-    
-    loss /= residual.size();
-    
-    if (std::isnan(loss) || std::isinf(loss)) {
-        ML_THROW_MATH_ERROR("huber", "loss is NaN/Inf");
-    }
-    
-    return loss;
+    // Convertiamo esplicitamente i riferimenti a VectorXd in MatrixXd.
+    // In Eigen è un'operazione a costo zero (no-copy conversion).
+    return compute(static_cast<const Eigen::MatrixXd&>(y_true), 
+                   static_cast<const Eigen::MatrixXd&>(y_pred));
 }
 
 double HuberLoss::compute(const Eigen::MatrixXd& y_true,
@@ -37,21 +20,23 @@ double HuberLoss::compute(const Eigen::MatrixXd& y_true,
     ML_CHECK_XY_SIZE(y_true.rows(), y_pred.rows(), "HuberLoss");
     ML_CHECK_XY_SIZE(y_true.cols(), y_pred.cols(), "HuberLoss");
     
-    Eigen::ArrayXd residual = (y_pred - y_true).array().abs();
-    double loss = 0.0;
+    // Calcolo del residuo assoluto coefficiente per coefficiente
+    Eigen::MatrixXd residual = (y_pred - y_true).cwiseAbs();
     
-    for (int i = 0; i < residual.rows(); ++i) {
-        for (int j = 0; j < residual.cols(); ++j) {
-            int idx = i * residual.cols() + j;
-            if (residual(idx) <= delta_) {
-                loss += 0.5 * residual(idx) * residual(idx);
-            } else {
-                loss += delta_ * (residual(idx) - 0.5 * delta_);
-            }
+    double loss = 0.0;
+    int total_elements = residual.size();
+    
+    // Accesso lineare sicuro sul buffer dei dati nativi
+    for (int i = 0; i < total_elements; ++i) {
+        double r = residual.data()[i];
+        if (r <= delta_) {
+            loss += 0.5 * r * r;
+        } else {
+            loss += delta_ * (r - 0.5 * delta_);
         }
     }
     
-    loss /= (residual.rows() * residual.cols());
+    loss /= total_elements;
     
     if (std::isnan(loss) || std::isinf(loss)) {
         ML_THROW_MATH_ERROR("huber", "loss is NaN/Inf");
@@ -66,20 +51,20 @@ Eigen::MatrixXd HuberLoss::gradient(const Eigen::MatrixXd& y_true,
     ML_CHECK_XY_SIZE(y_true.cols(), y_pred.cols(), "HuberLoss");
     
     Eigen::MatrixXd residual = y_pred - y_true;
-    Eigen::MatrixXd grad = Eigen::MatrixXd::Zero(residual.rows(), residual.cols());
+    Eigen::MatrixXd grad(residual.rows(), residual.cols());
     
-    for (int i = 0; i < residual.rows(); ++i) {
-        for (int j = 0; j < residual.cols(); ++j) {
-            double r = residual(i, j);
-            if (std::abs(r) <= delta_) {
-                grad(i, j) = r;
-            } else {
-                grad(i, j) = delta_ * (r > 0 ? 1.0 : -1.0);
-            }
+    int total_elements = residual.size();
+    
+    for (int i = 0; i < total_elements; ++i) {
+        double r = residual.data()[i];
+        if (std::abs(r) <= delta_) {
+            grad.data()[i] = r;
+        } else {
+            grad.data()[i] = delta_ * ((r > 0.0) ? 1.0 : -1.0);
         }
     }
     
-    grad /= (y_true.rows() * y_true.cols());
+    grad /= total_elements;
     
     ML_CHECK_NO_NAN(grad, "HuberLoss", "gradient");
     ML_CHECK_NO_INF(grad, "HuberLoss", "gradient");

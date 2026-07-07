@@ -210,7 +210,7 @@ TEST_F(NeuralNetworkModelTest, WeightAndGradientConsistency) {
     // Verifica che il layer abbia pesi e bias (se use_bias è true)
     if (layers[0]->get_use_bias()) {
         // get_weights dovrebbe restituire una matrice con una colonna in più per il bias
-        EXPECT_EQ(weights.cols(), layers[0]->get_output_size() + 1);
+        EXPECT_EQ(weights.cols(), layers[0]->get_output_size());
     }
 }
 

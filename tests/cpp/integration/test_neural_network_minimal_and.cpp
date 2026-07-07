@@ -41,7 +41,7 @@ TEST_F(MinimalANDTest, LearnANDWithSGD) {
     nn.set_batch_size(4);
     nn.set_verbose(true);
     
-    //nn.fit(X_, y_);
+    nn.fit(X_, y_);
     
     Eigen::VectorXd pred = nn.predict(X_);
     
