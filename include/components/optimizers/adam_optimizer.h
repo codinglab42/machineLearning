@@ -27,6 +27,9 @@ namespace models {
         void deserialize(std::istream& in) override;
         
         std::unique_ptr<Optimizer> clone() const override;
+
+        double get_beta1() const { return beta1_; }
+        double get_beta2() const { return beta2_; }
         
     private:
         double beta1_;

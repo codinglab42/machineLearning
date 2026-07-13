@@ -26,6 +26,9 @@ namespace models {
         void deserialize(std::istream& in) override;
         
         std::unique_ptr<Optimizer> clone() const override;
+
+        double get_momentum() const { return momentum_; }
+        bool get_nesterov() const { return nesterov_; }
         
     private:
         double momentum_;

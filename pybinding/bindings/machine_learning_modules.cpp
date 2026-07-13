@@ -1,58 +1,73 @@
 #include <pybind11/pybind11.h>
 
 // Core
-#include "bindings/core/module.h"
-#include "bindings/core/exceptions.h"
-#include "bindings/core/enums.h"
+#include "core/module.h"
+#include "core/exceptions.h"
+#include "core/enums.h"
 
 // Models
-#include "bindings/models/estimator.h"
-#include "bindings/models/linear_regression.h"
-#include "bindings/models/logistic_regression.h"
-#include "bindings/models/neural_network.h"
+#include "models/estimator.h"
+#include "models/linear_regression.h"
+#include "models/logistic_regression.h"
+#include "models/neural_network.h"
 
 // Layers
-#include "bindings/layers/dense_layer.h"
-#include "bindings/layers/conv2d_layer.h"
-#include "bindings/layers/pooling_layer.h"
-#include "bindings/layers/flatten_layer.h"
-#include "bindings/layers/dropout_layer.h"
-#include "bindings/layers/batch_norm_layer.h"
-#include "bindings/layers/simple_rnn_layer.h"
-#include "bindings/layers/lstm_layer.h"
-#include "bindings/layers/gru_layer.h"
-#include "bindings/layers/layer_factory.h"
+#include "layers/layer_base.h"
+#include "layers/dense_layer.h"
+#include "layers/conv2d_layer.h"
+#include "layers/pooling_layer.h"
+#include "layers/flatten_layer.h"
+#include "layers/dropout_layer.h"
+#include "layers/batch_norm_layer.h"
+#include "layers/simple_rnn_layer.h"
+#include "layers/lstm_layer.h"
+#include "layers/gru_layer.h"
+#include "layers/layer_factory.h"
 
-// Loss
-#include "bindings/loss/loss_functions.h"
-#include "bindings/loss/loss_factory.h"
+// Loss - CORRETTO!
+#include "loss/loss_base.h"
+#include "loss/mean_squared_error_loss.h"
+#include "loss/mean_absolute_error_loss.h"
+#include "loss/binary_cross_entropy_loss.h"
+#include "loss/categorical_cross_entropy_loss.h"
+#include "loss/huber_loss.h"
+#include "loss/loss_factory.h"
 
 // Optimizers
-#include "bindings/optimizers/optimizers.h"
+#include "optimizers/optimizer_base.h"
+#include "optimizers/sgd_optimizer.h"
+#include "optimizers/momentum_optimizer.h"
+#include "optimizers/adam_optimizer.h"
+#include "optimizers/optimizer_factory.h"
 
 // Regularizers
-#include "bindings/regularizers/regularizers.h"
+#include "regularizers/regularizer_base.h"
+#include "regularizers/l1_regularizer.h"
+#include "regularizers/l2_regularizer.h"
+#include "regularizers/elastic_net_regularizer.h"
+#include "regularizers/regularizer_factory.h"
 
 // Utils
-#include "bindings/utils/scalers.h"
-#include "bindings/utils/math_utils.h"
+#include "utils/scaler_base.h"
+#include "utils/standard_scaler.h"
+#include "utils/minmax_scaler.h"
+#include "utils/math_utils.h"
 
-// Registra tutti i componenti
 #include "components/layers/layer_factory.h"
 #include "components/loss/loss_factory.h"
 
 namespace py = pybind11;
 
-PYBIND11_MODULE(machine_learning_module, m) {
+PYBIND11_MODULE(machine_learning_modules, m) {
     // ========================================================================
-    // 1. CORE
+    // CORE
     // ========================================================================
     bind_module(m);
     bind_exceptions(m);
     bind_enums(m);
     
     // ========================================================================
-    // 2. MODELS
+    // MODELS
     // ========================================================================
     bind_estimator(m);
     bind_linear_regression(m);
@@ -60,8 +75,9 @@ PYBIND11_MODULE(machine_learning_module, m) {
     bind_neural_network(m);
     
     // ========================================================================
-    // 3. LAYERS
+    // LAYERS
     // ========================================================================
+    bind_layer_base(m);
     bind_dense_layer(m);
     bind_conv2d_layer(m);
     bind_pooling_layer(m);
@@ -74,29 +90,44 @@ PYBIND11_MODULE(machine_learning_module, m) {
     bind_layer_factory(m);
     
     // ========================================================================
-    // 4. LOSS
+    // LOSS - CORRETTO!
     // ========================================================================
-    bind_loss_functions(m);
+    bind_loss_base(m);
+    bind_mean_squared_error_loss(m);
+    bind_mean_absolute_error_loss(m);
+    bind_binary_cross_entropy_loss(m);
+    bind_categorical_cross_entropy_loss(m);
+    bind_huber_loss(m);
     bind_loss_factory(m);
     
     // ========================================================================
-    // 5. OPTIMIZERS
+    // OPTIMIZERS
     // ========================================================================
-    bind_optimizers(m);
+    bind_optimizer_base(m);
+    bind_sgd_optimizer(m);
+    bind_momentum_optimizer(m);
+    bind_adam_optimizer(m);
+    bind_optimizer_factory(m);
     
     // ========================================================================
-    // 6. REGULARIZERS
+    // REGULARIZERS
     // ========================================================================
-    bind_regularizers(m);
+    bind_regularizer_base(m);
+    bind_l1_regularizer(m);
+    bind_l2_regularizer(m);
+    bind_elastic_net_regularizer(m);
+    bind_regularizer_factory(m);
     
     // ========================================================================
-    // 7. UTILS
+    // UTILS
     // ========================================================================
-    bind_scalers(m);
+    bind_scaler_base(m);
+    bind_standard_scaler(m);
+    bind_minmax_scaler(m);
     bind_math_utils(m);
     
     // ========================================================================
-    // 8. INIZIALIZZAZIONE
+    // INIZIALIZZAZIONE
     // ========================================================================
     layers::LayerFactory::register_all_layers();
     loss::LossFactory::register_all_losses();

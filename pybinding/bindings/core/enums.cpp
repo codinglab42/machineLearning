@@ -59,13 +59,4 @@ void bind_enums(py::module_& m) {
         .value("MAX", layers::PoolingLayer::MAX)
         .value("AVG", layers::PoolingLayer::AVG)
         .export_values();
-
-    // ========================================================================
-    // RecurrentType (per NeuralNetwork)
-    // ========================================================================
-    py::enum_<models::RecurrentType>(m, "RecurrentType")
-        .value("SIMPLE_RNN", models::RecurrentType::SIMPLE_RNN)
-        .value("LSTM", models::RecurrentType::LSTM)
-        .value("GRU", models::RecurrentType::GRU)
-        .export_values();
 }

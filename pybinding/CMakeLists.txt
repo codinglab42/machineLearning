@@ -18,7 +18,7 @@ find_package(pybind11 CONFIG REQUIRED)
 # ============================================================================
 
 set(BINDING_SOURCES
-    bindings/machine_learning_module.cpp
+    bindings/machine_learning_modules.cpp
     
     # Core
     bindings/core/enums.cpp

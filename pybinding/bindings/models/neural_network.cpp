@@ -40,7 +40,12 @@ void bind_neural_network(py::module_& m) {
         .def("add_recurrent_layer", &models::NeuralNetwork::add_recurrent_layer,
              py::arg("type"), py::arg("units"), py::arg("return_sequences") = false,
              py::arg("activation") = "tanh")
-        .def("add_layer_type", &models::NeuralNetwork::add_layer,
+        // ⭐ CORRETTO - usa lambda per risolvere l'overload
+        .def("add_layer_type", 
+             [](models::NeuralNetwork& nn, layers::LayerType type, 
+                const std::unordered_map<std::string, double>& params) {
+                 nn.add_layer(type, params);
+             },
              py::arg("type"), py::arg("params") = std::unordered_map<std::string, double>())
         
         // ====================================================================
