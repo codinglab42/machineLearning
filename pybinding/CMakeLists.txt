@@ -78,14 +78,14 @@ set(BINDING_SOURCES
 # CREATE PYTHON MODULE
 # ============================================================================
 
-pybind11_add_module(machine_learning_module ${BINDING_SOURCES})
+pybind11_add_module(machine_learning_modules ${BINDING_SOURCES})
 
 # ============================================================================
 # LINK LIBRARIES
 # ============================================================================
 
 # Link con la libreria principale ML
-target_link_libraries(machine_learning_module PRIVATE 
+target_link_libraries(machine_learning_modules PRIVATE 
     ml_library
     ${Python3_LIBRARIES}
 )
@@ -94,7 +94,7 @@ target_link_libraries(machine_learning_module PRIVATE
 # INCLUDE DIRECTORIES
 # ============================================================================
 
-target_include_directories(machine_learning_module PRIVATE
+target_include_directories(machine_learning_modules PRIVATE
     ${CMAKE_SOURCE_DIR}/include
     ${Eigen3_INCLUDE_DIRS}
     ${Python3_INCLUDE_DIRS}
@@ -106,13 +106,13 @@ target_include_directories(machine_learning_module PRIVATE
 # ============================================================================
 
 # C++ standard (deve essere almeno C++17 per pybind11)
-set_target_properties(machine_learning_module PROPERTIES
+set_target_properties(machine_learning_modules PROPERTIES
     CXX_STANDARD 17
     CXX_STANDARD_REQUIRED ON
     CXX_VISIBILITY_PRESET "hidden"
     VISIBILITY_INLINES_HIDDEN ON
     PREFIX ""
-    OUTPUT_NAME "machine_learning_module"
+    OUTPUT_NAME "machine_learning_modules"
 )
 
 # ============================================================================
@@ -121,7 +121,7 @@ set_target_properties(machine_learning_module PROPERTIES
 
 if(APPLE)
     # Su macOS, il modulo deve essere un bundle
-    set_target_properties(machine_learning_module PROPERTIES
+    set_target_properties(machine_learning_modules PROPERTIES
         SUFFIX ".so"
         MACOSX_RPATH ON
         INSTALL_RPATH "@loader_path/../lib"
@@ -150,22 +150,22 @@ else:
     
     if(PYTHON_SITE_PACKAGES)
         message(STATUS "📁 Installing to pyenv site-packages: ${PYTHON_SITE_PACKAGES}")
-        install(TARGETS machine_learning_module DESTINATION ${PYTHON_SITE_PACKAGES})
+        install(TARGETS machine_learning_modules DESTINATION ${PYTHON_SITE_PACKAGES})
         
         # Symlink per testing
-        add_custom_command(TARGET machine_learning_module POST_BUILD
+        add_custom_command(TARGET machine_learning_modules POST_BUILD
             COMMAND ${CMAKE_COMMAND} -E create_symlink
-            $<TARGET_FILE:machine_learning_module>
-            ${CMAKE_BINARY_DIR}/machine_learning_module$<TARGET_FILE_NAME:machine_learning_module>
+            $<TARGET_FILE:machine_learning_modules>
+            ${CMAKE_BINARY_DIR}/machine_learning_modules$<TARGET_FILE_NAME:machine_learning_modules>
             COMMENT "Creating symlink for testing"
         )
     else()
         message(WARNING "⚠️  Could not determine pyenv site-packages")
-        install(TARGETS machine_learning_module DESTINATION ${CMAKE_INSTALL_PREFIX}/python)
+        install(TARGETS machine_learning_modules DESTINATION ${CMAKE_INSTALL_PREFIX}/python)
     endif()
 else()
     # Installazione normale
-    install(TARGETS machine_learning_module DESTINATION ${CMAKE_INSTALL_PREFIX}/python)
+    install(TARGETS machine_learning_modules DESTINATION ${CMAKE_INSTALL_PREFIX}/python)
 endif()
 
 # ============================================================================
@@ -186,7 +186,7 @@ else:
     sys.path.insert(0, '${CMAKE_BINARY_DIR}')
 
 try:
-    import machine_learning_module as ml
+    import machine_learning_modules as ml
     
     print('=' * 60)
     print('🧪 TESTING PYTHON BINDINGS')
@@ -320,7 +320,7 @@ try:
     print('\\n' + '=' * 60)
     print('✅ ALL TESTS PASSED!')
     print('=' * 60)
-    print(f'\\n📦 Module: machine_learning_module')
+    print(f'\\n📦 Module: machine_learning_modules')
     print(f'📌 Version: {ml.__version__}')
     print('🚀 Ready to use!')
     
@@ -330,12 +330,12 @@ except Exception as e:
     traceback.print_exc()
     sys.exit(1)
 "
-    DEPENDS machine_learning_module
+    DEPENDS machine_learning_modules
     COMMENT "Testing Python module import and functionality"
     VERBATIM
 )
 
 message(STATUS "✅ Python bindings configured")
-message(STATUS "  Module: machine_learning_module")
+message(STATUS "  Module: machine_learning_modules")
 message(STATUS "  Test: make test_python_module")
 message(STATUS "  Install: make install")

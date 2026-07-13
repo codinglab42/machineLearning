@@ -11,12 +11,17 @@ void bind_sgd_optimizer(py::module_& m) {
              py::arg("learning_rate") = 0.01,
              py::arg("decay") = 0.0)
         .def("update_weights",
-             static_cast<void (models::SGDOptimizer::*)(Eigen::MatrixXd&, const Eigen::MatrixXd&)>(
-                 &models::SGDOptimizer::update),
+             [](models::SGDOptimizer& optimizer, Eigen::MatrixXd& weights, 
+                const Eigen::MatrixXd& gradient) {
+                 // ⭐ Chiamata esplicita al metodo update
+                 optimizer.update(weights, gradient);
+             },
              py::arg("weights"), py::arg("gradient"))
         .def("update_bias",
-             static_cast<void (models::SGDOptimizer::*)(Eigen::VectorXd&, const Eigen::VectorXd&)>(
-                 &models::SGDOptimizer::update),
+             [](models::SGDOptimizer& optimizer, Eigen::VectorXd& bias, 
+                const Eigen::VectorXd& gradient) {
+                 optimizer.update(bias, gradient);
+             },
              py::arg("bias"), py::arg("gradient"))
         .def("reset", &models::SGDOptimizer::reset)
         .def("clone", &models::SGDOptimizer::clone)

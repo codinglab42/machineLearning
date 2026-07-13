@@ -13,18 +13,20 @@ void bind_momentum_optimizer(py::module_& m) {
              py::arg("decay") = 0.0,
              py::arg("nesterov") = false)
         .def("update_weights",
-             static_cast<void (models::MomentumOptimizer::*)(Eigen::MatrixXd&, const Eigen::MatrixXd&)>(
-                 &models::MomentumOptimizer::update),
+             [](models::MomentumOptimizer& optimizer, Eigen::MatrixXd& weights, 
+                const Eigen::MatrixXd& gradient) {
+                 optimizer.update(weights, gradient);
+             },
              py::arg("weights"), py::arg("gradient"))
         .def("update_bias",
-             static_cast<void (models::MomentumOptimizer::*)(Eigen::VectorXd&, const Eigen::VectorXd&)>(
-                 &models::MomentumOptimizer::update),
+             [](models::MomentumOptimizer& optimizer, Eigen::VectorXd& bias, 
+                const Eigen::VectorXd& gradient) {
+                 optimizer.update(bias, gradient);
+             },
              py::arg("bias"), py::arg("gradient"))
         .def("reset", &models::MomentumOptimizer::reset)
         .def("clone", &models::MomentumOptimizer::clone)
         .def("__repr__", [](const models::MomentumOptimizer& optimizer) {
-            return "MomentumOptimizer(lr=" + std::to_string(optimizer.get_learning_rate()) +
-                   ", momentum=" + std::to_string(optimizer.get_momentum()) +
-                   ", nesterov=" + std::to_string(optimizer.get_nesterov()) + ")";
+            return "MomentumOptimizer(lr=" + std::to_string(optimizer.get_learning_rate()) + ")";
         });
 }

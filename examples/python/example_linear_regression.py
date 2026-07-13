@@ -5,7 +5,7 @@ Linear Regression Example
 Demonstrates linear regression using the ML library.
 """
 
-import machine_learning_module as ml
+import machine_learning_modules as ml
 import numpy as np
 import matplotlib.pyplot as plt
 

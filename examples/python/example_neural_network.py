@@ -5,7 +5,7 @@ Neural Network XOR Example
 Demonstrates solving the XOR problem with a neural network.
 """
 
-import machine_learning_module as ml
+import machine_learning_modules as ml
 import numpy as np
 
 def main():
