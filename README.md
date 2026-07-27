@@ -154,7 +154,7 @@ auto predictions = nn.predict(X_test);
 ### Neural Network in Python (LSTM Example)
 ```python
 
-import machine_learning_module as ml
+import ml_core as ml
 import numpy as np
 
 # Create LSTM network for sequence prediction
@@ -178,7 +178,7 @@ predictions = nn.predict(X)
 ### Using Scaler
 ```python
 
-import machine_learning_module as ml
+import ml_core as ml
 
 # Create scaler
 scaler = ml.StandardScaler()
