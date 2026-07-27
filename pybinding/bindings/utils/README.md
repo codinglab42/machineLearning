@@ -111,7 +111,7 @@ Usage Examples
 
 Example 1: StandardScaler
 
-import machine_learning_module as ml
+import ml_core as ml
 
 # Create scaler
 scaler = ml.StandardScaler()
@@ -136,7 +136,7 @@ X_original = scaler.inverse_transform(X_scaled)
 
 Example 2: MinMaxScaler
 
-import machine_learning_module as ml
+import ml_core as ml
 
 # Create scaler with custom range
 scaler = ml.MinMaxScaler(feature_range_min=-1.0, feature_range_max=1.0)
@@ -158,7 +158,7 @@ print("Scaled data:", X_scaled)
 
 Example 3: MathUtils - Sigmoid
 
-import machine_learning_module as ml
+import ml_core as ml
 import numpy as np
 
 # Scalar sigmoid
@@ -177,7 +177,7 @@ print("Sigmoid derivative at 0:", derivative)
 
 Example 4: MathUtils - Weight Initialization
 
-import machine_learning_module as ml
+import ml_core as ml
 
 # He initialization (for ReLU)
 weights_he = ml.MathUtils.he_initialization(128, 64)
@@ -193,7 +193,7 @@ print(f"Std: {weights_xavier.std():.4f}")
 
 Example 5: MathUtils - One-Hot Encoding
 
-import machine_learning_module as ml
+import ml_core as ml
 import numpy as np
 
 # Labels
@@ -207,7 +207,7 @@ print(encoded)
 
 Example 6: MathUtils - Train/Test Split
 
-import machine_learning_module as ml
+import ml_core as ml
 import numpy as np
 
 # Data
@@ -226,7 +226,7 @@ print(f"y_test shape: {y_test.shape}")
 
 Example 7: MathUtils - Gradient Computation
 
-import machine_learning_module as ml
+import ml_core as ml
 import numpy as np
 
 # Generate data
@@ -250,7 +250,7 @@ print("Updated theta:", theta)
 
 Example 8: Using Scaler with Neural Network
 
-import machine_learning_module as ml
+import ml_core as ml
 import numpy as np
 
 # Create data
@@ -300,7 +300,7 @@ To test the utils binding:
 
 cd build
 python3 -c "
-import machine_learning_module as ml
+import ml_core as ml
 import numpy as np
 
 # Test StandardScaler
@@ -349,8 +349,8 @@ bindings/utils/
 
 ```cmake
 # pybinding/CMakeLists.txt
-pybind11_add_module(machine_learning_module
-    machine_learning_module.cpp
+pybind11_add_module(ml_core
+    ml_core.cpp
     # Core
     bindings/core/enums.cpp
     bindings/core/exceptions.cpp
@@ -399,4 +399,4 @@ pybind11_add_module(machine_learning_module
     bindings/utils/math_utils.cpp
 )
 
-target_link_libraries(machine_learning_module PRIVATE ml_library)
+target_link_libraries(ml_core PRIVATE ml_library)

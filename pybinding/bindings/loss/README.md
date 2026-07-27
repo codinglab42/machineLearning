@@ -137,7 +137,7 @@ Available Loss Names:
 Usage Examples
 Example 1: Computing Loss Values
 
-import machine_learning_module as ml
+import ml_core as ml
 import numpy as np
 
 # Create loss functions
@@ -160,7 +160,7 @@ print(f"Huber: {huber_loss:.4f}")
 
 Example 2: Using Loss in Neural Network
 
-import machine_learning_module as ml
+import ml_core as ml
 import numpy as np
 
 # Create neural network
@@ -181,7 +181,7 @@ nn.fit(X, y)
 
 Example 3: Gradient Computation
 
-import machine_learning_module as ml
+import ml_core as ml
 import numpy as np
 
 # Create loss
@@ -201,7 +201,7 @@ print(f"Gradient:\n{grad}")
 
 Example 4: Huber Loss with Different Delta Values
 
-import machine_learning_module as ml
+import ml_core as ml
 import numpy as np
 
 y_true = np.random.randn(50)
@@ -215,7 +215,7 @@ for delta in [0.1, 0.5, 1.0, 2.0]:
 
 Example 5: Using LossFactory
 
-import machine_learning_module as ml
+import ml_core as ml
 
 # List available losses
 available = ml.LossFactory.list_losses()
@@ -231,7 +231,7 @@ print(f"Created: {mse.name()}, {bce.name()}, {cce.name()}, {huber.name()}")
 
 Example 6: Custom Loss in Neural Network
 
-import machine_learning_module as ml
+import ml_core as ml
 import numpy as np
 
 # Create custom loss by wrapping
@@ -294,7 +294,7 @@ To test the loss binding:
 
 cd build
 python3 -c "
-import machine_learning_module as ml
+import ml_core as ml
 import numpy as np
 
 # Test MSE

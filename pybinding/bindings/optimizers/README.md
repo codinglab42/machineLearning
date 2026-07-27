@@ -101,7 +101,7 @@ Available Optimizer Names:
 Usage Examples
 Example 1: Creating and Using SGD
 
-import machine_learning_module as ml
+import ml_core as ml
 import numpy as np
 
 # Create optimizer
@@ -121,7 +121,7 @@ print(f"Current learning rate: {current_lr:.4f}")
 
 Example 2: Using Momentum Optimizer
 
-import machine_learning_module as ml
+import ml_core as ml
 import numpy as np
 
 # Create momentum optimizer
@@ -142,7 +142,7 @@ optimizer.update_bias(bias, grad_b)
 
 Example 3: Using Adam Optimizer
 
-import machine_learning_module as ml
+import ml_core as ml
 import numpy as np
 
 # Create Adam optimizer
@@ -167,7 +167,7 @@ print(f"Final weights norm: {np.linalg.norm(weights):.4f}")
 
 Example 4: Using OptimizerFactory
 
-import machine_learning_module as ml
+import ml_core as ml
 
 # Create via type enum
 adam = ml.OptimizerFactory.create_by_type(
@@ -192,7 +192,7 @@ print(f"Created: {sgd.get_type_str()}, {adam.get_type_str()}")
 
 Example 5: Optimizer in Neural Network
 
-import machine_learning_module as ml
+import ml_core as ml
 import numpy as np
 
 # Create neural network
@@ -212,7 +212,7 @@ nn.fit(X, y)
 
 Example 6: Custom Learning Rate Schedule
 
-import machine_learning_module as ml
+import ml_core as ml
 import numpy as np
 
 class LearningRateScheduler:
@@ -241,7 +241,7 @@ for epoch in range(100):
 
 Example 7: Comparing Optimizers
 
-import machine_learning_module as ml
+import ml_core as ml
 import numpy as np
 
 def train_with_optimizer(optimizer, steps=100):
@@ -310,7 +310,7 @@ To test the optimizers binding:
 
 cd build
 python3 -c "
-import machine_learning_module as ml
+import ml_core as ml
 import numpy as np
 
 # Test SGD

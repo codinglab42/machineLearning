@@ -174,7 +174,7 @@ auto gru = std::make_unique<layers::GRULayer>(units, input_size);
 All C++ classes are exposed to Python with a clean API:
 
 ```python
-import machine_learning_module as ml
+import ml_core as ml
 import numpy as np
 
 # Linear Regression
@@ -196,7 +196,7 @@ network.fit(X, y)
 ## Examples
 ### Example 1: Iris Classification with Logistic Regression
 ```python
-import machine_learning_module as ml
+import ml_core as ml
 import numpy as np
 
 # Load dataset (example)
@@ -224,7 +224,7 @@ print(cm)
 ```
 ### Example 2: XOR with Neural Network
 ```python
-import machine_learning_module as ml
+import ml_core as ml
 import numpy as np
 
 # XOR dataset
@@ -247,7 +247,7 @@ print("True values:", y.astype(int))
 ```
 ### Example 3: Boston Housing with Linear Regression
 ```python
-import machine_learning_module as ml
+import ml_core as ml
 import numpy as np
 
 # Load data

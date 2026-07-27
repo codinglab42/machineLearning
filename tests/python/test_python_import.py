@@ -17,7 +17,7 @@ from pathlib import Path
 
 try:
     # Usa il nome definito nel tuo PYBIND11_MODULE
-    import machine_learning_module as ml
+    import ml_core as ml
     print("✓ Test Import Python: SUCCESS")
     print(f"✓ Percorso file: {ml.__file__}")
 except ImportError as e:

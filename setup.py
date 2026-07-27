@@ -121,9 +121,9 @@ def get_extensions():
     
     ext_modules = [
         Pybind11Extension(
-            "machine_learning_modules",
+            "ml_core",
             sources=[
-                str(project_root / "pybinding" / "machine_learning_module.cpp"),
+                str(project_root / "pybinding" / "ml_core.cpp"),
             ],
             include_dirs=[
                 str(project_root / "include"),

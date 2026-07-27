@@ -12,9 +12,9 @@ import numpy as np
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../build/pybinding'))
 
 try:
-    import machine_learning_modules as ml
+    import ml_core as ml
 except ImportError:
-    print("❌ Failed to import machine_learning_modules")
+    print("❌ Failed to import ml_core")
     print("   Make sure the module is built: make -j$(nproc)")
     sys.exit(1)
 

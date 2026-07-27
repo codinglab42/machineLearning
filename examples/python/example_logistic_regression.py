@@ -5,7 +5,7 @@ Logistic Regression Example
 Demonstrates binary classification using logistic regression.
 """
 
-import machine_learning_module as ml
+import ml_core as ml
 import numpy as np
 
 def main():

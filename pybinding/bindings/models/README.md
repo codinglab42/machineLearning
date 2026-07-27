@@ -209,7 +209,7 @@ Properties:
 Usage Examples
 Example 1: Linear Regression
 
-import machine_learning_module as ml
+import ml_core as ml
 import numpy as np
 
 # Generate synthetic data
@@ -238,7 +238,7 @@ loaded_model.load("linear_model.bin")
 
 Example 2: Logistic Regression
 
-import machine_learning_module as ml
+import ml_core as ml
 import numpy as np
 
 # Generate binary classification data
@@ -268,7 +268,7 @@ print(f"Confusion Matrix:\n{conf_matrix}")
 
 Example 3: Neural Network for Classification
 
-import machine_learning_module as ml
+import ml_core as ml
 import numpy as np
 
 # Generate synthetic data
@@ -308,7 +308,7 @@ loaded_nn.load("model.bin")
 
 Example 4: Neural Network for Regression
 
-import machine_learning_module as ml
+import ml_core as ml
 import numpy as np
 
 # Generate regression data
@@ -342,7 +342,7 @@ nn.save("regression_model.bin")
 
 Example 5: Neural Network with Layer Access
 
-import machine_learning_module as ml
+import ml_core as ml
 import numpy as np
 
 # Create network
@@ -370,7 +370,7 @@ print(f"First layer config: {first_layer.get_config()}")
 
 Example 6: Using NeuralNetwork with Matrix y (Multi-class)
 
-import machine_learning_module as ml
+import ml_core as ml
 import numpy as np
 
 # Multi-class classification (3 classes)
@@ -447,7 +447,7 @@ To test the models binding:
 
 cd build
 python3 -c "
-import machine_learning_module as ml
+import ml_core as ml
 import numpy as np
 
 # Test Linear Regression

@@ -187,7 +187,7 @@ Available Layer Types:
 Usage Examples
 Example 1: Creating and Using a DenseLayer
 
-import machine_learning_module as ml
+import ml_core as ml
 import numpy as np
 
 # Create a dense layer
@@ -207,7 +207,7 @@ print(f"Gradient shape: {dX.shape}")  # (32, 128)
 
 Example 2: Building a Network with Separate Layers
 
-import machine_learning_module as ml
+import ml_core as ml
 import numpy as np
 
 # Create layers
@@ -234,7 +234,7 @@ print(f"Output shape: {output.shape}")  # (16, 10)
 
 Example 3: Using LayerFactory
 
-import machine_learning_module as ml
+import ml_core as ml
 
 # Create layer using factory
 layer = ml.LayerFactory.create(ml.LayerType.DENSE)
@@ -246,7 +246,7 @@ print(f"Layer config: {layer.get_config()}")
 
 Example 4: Recurrent Layers
 
-import machine_learning_module as ml
+import ml_core as ml
 import numpy as np
 
 # LSTM Layer
@@ -269,7 +269,7 @@ for t in range(10):
 
 Example 5: Weight Management
 
-import machine_learning_module as ml
+import ml_core as ml
 import numpy as np
 
 layer = ml.DenseLayer(64, activation="relu")
@@ -319,7 +319,7 @@ To test the layer binding:
 
 cd build
 python3 -c "
-import machine_learning_module as ml
+import ml_core as ml
 layer = ml.DenseLayer(64, 'relu')
 print('Layer created:', layer.get_type())
 print('Config:', layer.get_config())

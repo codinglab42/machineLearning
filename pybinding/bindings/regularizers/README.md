@@ -103,7 +103,7 @@ Available Regularizer Names:
 Usage Examples
 Example 1: Creating and Using Regularizers
 
-import machine_learning_module as ml
+import ml_core as ml
 import numpy as np
 
 # Create different regularizers
@@ -134,7 +134,7 @@ print(f"Elastic grad norm: {np.linalg.norm(elastic_grad):.4f}")
 
 Example 2: L1 Effect on Sparsity
 
-import machine_learning_module as ml
+import ml_core as ml
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -153,7 +153,7 @@ print(f"Weight=-0.5: loss={l1.compute_loss_matrix(np.array([[-0.5]])):.4f}, grad
 
 Example 3: L2 Effect on Weight Decay
 
-import machine_learning_module as ml
+import ml_core as ml
 import numpy as np
 
 # Create L2 regularizer
@@ -171,7 +171,7 @@ print(f"After update: {new_weights[0, 0]:.4f}")
 
 Example 4: Using Regularizer in Neural Network
 
-import machine_learning_module as ml
+import ml_core as ml
 import numpy as np
 
 # Create neural network
@@ -195,7 +195,7 @@ nn.fit(X, y)
 
 Example 5: Using RegularizerFactory
 
-import machine_learning_module as ml
+import ml_core as ml
 
 # List available regularizers
 available = ml.RegularizerFactory.list_regularizers()
@@ -224,7 +224,7 @@ print(f"Created: {l1.get_type_str()}, {l2.get_type_str()}, {elastic.get_type_str
 
 Example 6: Comparing Different Regularization Strengths
 
-import machine_learning_module as ml
+import ml_core as ml
 import numpy as np
 
 def simulate_training(regularizer, steps=100):
@@ -263,7 +263,7 @@ for strength in strengths:
 
 Example 7: L1 vs L2 on Sparse Weights
 
-import machine_learning_module as ml
+import ml_core as ml
 import numpy as np
 
 # Create regularizers
@@ -335,7 +335,7 @@ To test the regularizers binding:
 
 cd build
 python3 -c "
-import machine_learning_module as ml
+import ml_core as ml
 import numpy as np
 
 # Test L1
