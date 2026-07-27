@@ -11,16 +11,18 @@ void bind_sgd_optimizer(py::module_& m) {
              py::arg("learning_rate") = 0.01,
              py::arg("decay") = 0.0)
         .def("update_weights",
-             [](models::SGDOptimizer& optimizer, Eigen::MatrixXd& weights, 
-                const Eigen::MatrixXd& gradient) {
-                 // ⭐ Chiamata esplicita al metodo update
-                 optimizer.update(weights, gradient);
+             [](models::SGDOptimizer& optimizer, 
+                Eigen::Ref<Eigen::MatrixXd> weights, 
+                const Eigen::Ref<const Eigen::MatrixXd>& gradient) {
+                 // Ora opera direttamente sulla memoria dell'array NumPy
+                 optimizer.update_weights(weights, gradient);
              },
              py::arg("weights"), py::arg("gradient"))
         .def("update_bias",
-             [](models::SGDOptimizer& optimizer, Eigen::VectorXd& bias, 
-                const Eigen::VectorXd& gradient) {
-                 optimizer.update(bias, gradient);
+             [](models::SGDOptimizer& optimizer, 
+                Eigen::Ref<Eigen::VectorXd> bias, 
+                const Eigen::Ref<const Eigen::VectorXd>& gradient) {
+                 optimizer.update_bias(bias, gradient);
              },
              py::arg("bias"), py::arg("gradient"))
         .def("reset", &models::SGDOptimizer::reset)

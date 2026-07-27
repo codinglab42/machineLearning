@@ -194,8 +194,8 @@ TEST(HybridPipelineIntegrationTest, OptimizerWeightUpdateAndConvergence) {
     Eigen::VectorXd bias = dense->get_biases();
     Eigen::VectorXd bias_gradient = dense->get_bias_gradient();
 
-    optimizer->update(weights, weights_gradient);
-    optimizer->update(bias, bias_gradient);
+    optimizer->update_weights(weights, weights_gradient);
+    optimizer->update_bias(bias, bias_gradient);
 
     dense->set_weights(weights);
     dense->set_biases(bias);

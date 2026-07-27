@@ -24,8 +24,8 @@ namespace models {
         virtual ~Optimizer() = default;
         
         // Metodo principale: aggiorna i pesi
-        virtual void update(Eigen::MatrixXd& weights, const Eigen::MatrixXd& gradient) = 0;
-        virtual void update(Eigen::VectorXd& bias, const Eigen::VectorXd& gradient) = 0;
+        virtual void update_weights(Eigen::Ref<Eigen::MatrixXd> weights, const Eigen::Ref<const Eigen::MatrixXd>& gradient) = 0;
+        virtual void update_bias(Eigen::Ref<Eigen::VectorXd> bias, const Eigen::Ref<const Eigen::VectorXd>& gradient) = 0;
         
         // Resetta lo stato dell'ottimizzatore (per nuovo training)
         virtual void reset() = 0;

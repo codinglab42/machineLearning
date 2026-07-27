@@ -14,15 +14,15 @@ void bind_adam_optimizer(py::module_& m) {
              py::arg("epsilon") = 1e-8,
              py::arg("decay") = 0.0)
         .def("update_weights",
-             [](models::AdamOptimizer& optimizer, Eigen::MatrixXd& weights, 
-                const Eigen::MatrixXd& gradient) {
-                 optimizer.update(weights, gradient);
+             [](models::AdamOptimizer& optimizer, Eigen::Ref<Eigen::MatrixXd> weights, 
+                const Eigen::Ref<const Eigen::MatrixXd>& gradient) {
+                 optimizer.update_weights(weights, gradient);
              },
              py::arg("weights"), py::arg("gradient"))
         .def("update_bias",
-             [](models::AdamOptimizer& optimizer, Eigen::VectorXd& bias, 
-                const Eigen::VectorXd& gradient) {
-                 optimizer.update(bias, gradient);
+             [](models::AdamOptimizer& optimizer, Eigen::Ref<Eigen::VectorXd> bias, 
+                const Eigen::Ref<const Eigen::VectorXd>& gradient) {
+                 optimizer.update_bias(bias, gradient);
              },
              py::arg("bias"), py::arg("gradient"))
         .def("reset", &models::AdamOptimizer::reset)

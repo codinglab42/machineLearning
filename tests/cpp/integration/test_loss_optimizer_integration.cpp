@@ -142,7 +142,7 @@ TEST(LossOptimizerIntegrationTest, SGDDecreasesLoss) {
         MatrixXd dL_dw = X.transpose() * dL_dz;
         
         // Update
-        optimizer->update(w, dL_dw);
+        optimizer->update_weights(w, dL_dw);
     }
     
     // Final loss
@@ -204,7 +204,7 @@ TEST(LossOptimizerIntegrationTest, AdamDecreasesLoss) {
         MatrixXd dL_dz = grad.array() * dp_dz.array();
         MatrixXd dL_dw = X.transpose() * dL_dz;
         
-        optimizer->update(w, dL_dw);
+        optimizer->update_weights(w, dL_dw);
     }
     
     // Final loss
@@ -257,7 +257,7 @@ TEST(LossOptimizerIntegrationTest, MSEWithSGD) {
         MatrixXd grad = loss->gradient(y_true, pred_step);
         // dL/dw = X^T * dL/dpred
         MatrixXd dL_dw = X.transpose() * grad;
-        optimizer->update(w, dL_dw);
+        optimizer->update_weights(w, dL_dw);
     }
     
     // Final loss

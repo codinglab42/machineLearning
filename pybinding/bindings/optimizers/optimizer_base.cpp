@@ -9,13 +9,13 @@ void bind_optimizer_base(py::module_& m) {
         .def("update_weights",
              [](models::Optimizer& optimizer, Eigen::MatrixXd& weights,
                 const Eigen::MatrixXd& gradient) {
-                 optimizer.update(weights, gradient);
+                 optimizer.update_weights(weights, gradient);
              },
              py::arg("weights"), py::arg("gradient"))
         .def("update_bias",
              [](models::Optimizer& optimizer, Eigen::VectorXd& bias,
                 const Eigen::VectorXd& gradient) {
-                 optimizer.update(bias, gradient);
+                 optimizer.update_bias(bias, gradient);
              },
              py::arg("bias"), py::arg("gradient"))
         .def("reset", &models::Optimizer::reset)

@@ -13,15 +13,15 @@ void bind_momentum_optimizer(py::module_& m) {
              py::arg("decay") = 0.0,
              py::arg("nesterov") = false)
         .def("update_weights",
-             [](models::MomentumOptimizer& optimizer, Eigen::MatrixXd& weights, 
-                const Eigen::MatrixXd& gradient) {
-                 optimizer.update(weights, gradient);
+             [](models::MomentumOptimizer& optimizer, Eigen::Ref<Eigen::MatrixXd> weights, 
+                const Eigen::Ref<const Eigen::MatrixXd>& gradient) {
+                 optimizer.update_weights(weights, gradient);
              },
              py::arg("weights"), py::arg("gradient"))
         .def("update_bias",
-             [](models::MomentumOptimizer& optimizer, Eigen::VectorXd& bias, 
-                const Eigen::VectorXd& gradient) {
-                 optimizer.update(bias, gradient);
+             [](models::MomentumOptimizer& optimizer, Eigen::Ref<Eigen::VectorXd> bias, 
+                const Eigen::Ref<const Eigen::VectorXd>& gradient) {
+                 optimizer.update_bias(bias, gradient);
              },
              py::arg("bias"), py::arg("gradient"))
         .def("reset", &models::MomentumOptimizer::reset)

@@ -14,8 +14,8 @@ namespace models {
                          bool nesterov = false);
         ~MomentumOptimizer() override = default;
         
-        void update(Eigen::MatrixXd& weights, const Eigen::MatrixXd& gradient) override;
-        void update(Eigen::VectorXd& bias, const Eigen::VectorXd& gradient) override;
+        void update_weights(Eigen::Ref<Eigen::MatrixXd> weights, const Eigen::Ref<const Eigen::MatrixXd>& gradient) override;
+        void update_bias(Eigen::Ref<Eigen::VectorXd> bias, const Eigen::Ref<const Eigen::VectorXd>& gradient) override;
         
         void reset() override;
         

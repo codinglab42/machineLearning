@@ -26,7 +26,7 @@ namespace models {
         }
     }
 
-    void MomentumOptimizer::update(Eigen::MatrixXd& weights, const Eigen::MatrixXd& gradient) {
+    void MomentumOptimizer::update_weights(Eigen::Ref<Eigen::MatrixXd> weights, const Eigen::Ref<const Eigen::MatrixXd>& gradient) {
         double lr = get_current_learning_rate();
         initialize_if_needed(weights.rows(), weights.cols());
         
@@ -44,7 +44,7 @@ namespace models {
         }
     }
 
-    void MomentumOptimizer::update(Eigen::VectorXd& bias, const Eigen::VectorXd& gradient) {
+    void MomentumOptimizer::update_bias(Eigen::Ref<Eigen::VectorXd> bias, const Eigen::Ref<const Eigen::VectorXd>& gradient) {
         double lr = get_current_learning_rate();
         initialize_if_needed(bias.size());
         

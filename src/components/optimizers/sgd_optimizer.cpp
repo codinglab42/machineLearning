@@ -8,7 +8,7 @@ namespace models {
     SGDOptimizer::SGDOptimizer(double learning_rate, double decay)
         : Optimizer(learning_rate, decay) {}
 
-    void SGDOptimizer::update(Eigen::MatrixXd& weights, const Eigen::MatrixXd& gradient) {
+    void SGDOptimizer::update_weights(Eigen::Ref<Eigen::MatrixXd> weights, const Eigen::Ref<const Eigen::MatrixXd>& gradient) {
         double lr = get_current_learning_rate();
         iterations_++;
         
@@ -16,7 +16,7 @@ namespace models {
         weights -= lr * gradient;
     }
 
-    void SGDOptimizer::update(Eigen::VectorXd& bias, const Eigen::VectorXd& gradient) {
+    void SGDOptimizer::update_bias(Eigen::Ref<Eigen::VectorXd> bias, const Eigen::Ref<const Eigen::VectorXd>& gradient) {
         double lr = get_current_learning_rate();
         
         bias -= lr * gradient;

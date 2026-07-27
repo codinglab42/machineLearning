@@ -341,7 +341,7 @@ namespace models {
                         clip_gradient(dW, 1.0);
                         
                         Eigen::MatrixXd W = layer->get_weights();
-                        optimizer_->update(W, dW);
+                        optimizer_->update_weights(W, dW);
                         layer->set_weights(W);
 
                         // --- 5b. Aggiornamento Bias (b) ---
@@ -352,7 +352,7 @@ namespace models {
                             // clip_gradient(db, 1.0); 
                             
                             Eigen::VectorXd b = layer->get_biases();
-                            optimizer_->update(b, db);
+                            optimizer_->update_bias(b, db);
                             layer->set_biases(b); // Usa il metodo set_biases che abbiamo visto nel file
                         }
                     }
@@ -451,7 +451,7 @@ namespace models {
                         clip_gradient(dW, 1.0);
                         
                         Eigen::MatrixXd W = layer->get_weights();
-                        optimizer_->update(W, dW);
+                        optimizer_->update_weights(W, dW);
                         layer->set_weights(W);
 
                         // --- 5b. Aggiornamento Bias (b) ---
@@ -462,7 +462,7 @@ namespace models {
                             // clip_gradient(db, 1.0); 
                             
                             Eigen::VectorXd b = layer->get_biases();
-                            optimizer_->update(b, db);
+                            optimizer_->update_bias(b, db);
                             layer->set_biases(b); // Usa il metodo set_biases che abbiamo visto nel file
                         }
                     }

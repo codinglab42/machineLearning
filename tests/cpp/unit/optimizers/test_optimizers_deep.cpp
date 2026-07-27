@@ -35,7 +35,7 @@ TEST_F(OptimizerTest, LearningRateDecay) {
     g.setOnes();
     
     for (int i = 0; i < 5; ++i) {
-        optimizer.update(w, g);
+        optimizer.update_weights(w, g);
     }
     
     // Dopo 5 iterazioni: lr = 1.0 / (1.0 + 0.1*5) = 1.0/1.5 = 0.666...
@@ -51,7 +51,7 @@ TEST_F(OptimizerTest, Reset) {
     w.setRandom();
     g.setOnes();
     
-    optimizer.update(w, g);
+    optimizer.update_weights(w, g);
     EXPECT_EQ(optimizer.get_iterations(), 1);
     
     optimizer.reset();
@@ -86,7 +86,7 @@ TEST_F(SGDOptimizerTest, BasicUpdate) {
     
     Eigen::MatrixXd expected = w - 0.01 * g;
     
-    optimizer->update(w, g);
+    optimizer->update_weights(w, g);
     
     EXPECT_TRUE(w.isApprox(expected));
 }
@@ -100,7 +100,7 @@ TEST_F(SGDOptimizerTest, BiasUpdate) {
     
     Eigen::VectorXd expected = b - 0.01 * g;
     
-    optimizer->update(b, g);
+    optimizer->update_bias(b, g);
     
     EXPECT_TRUE(b.isApprox(expected));
 }
@@ -138,7 +138,7 @@ TEST_P(MomentumOptimizerTest, FirstUpdate) {
          0.1, 0.1;
     
     Eigen::MatrixXd w_before = w;
-    optimizer->update(w, g);
+    optimizer->update_weights(w, g);
     
     // Al primo update, velocity = -lr * g
     // weights += velocity (o formula Nesterov)
@@ -155,10 +155,10 @@ TEST_P(MomentumOptimizerTest, SecondUpdate) {
          0.1, 0.1;
     
     Eigen::MatrixXd w1 = w;
-    optimizer->update(w1, g);  // primo update
+    optimizer->update_weights(w1, g);  // primo update
     
     Eigen::MatrixXd w2 = w1;
-    optimizer->update(w2, g);  // secondo update
+    optimizer->update_weights(w2, g);  // secondo update
     
     // Il secondo update dovrebbe essere diverso dal primo (momentum accumulato)
     EXPECT_FALSE((w2 - w1).isApprox(w1 - w));
@@ -172,7 +172,7 @@ TEST_P(MomentumOptimizerTest, BiasUpdate) {
     g << 0.1, 0.1, 0.1;
     
     Eigen::VectorXd b_before = b;
-    optimizer->update(b, g);
+    optimizer->update_bias(b, g);
     
     EXPECT_FALSE(b.isApprox(b_before));
 }
@@ -189,8 +189,8 @@ TEST_P(MomentumOptimizerTest, Clone) {
     Eigen::MatrixXd g(2, 2);
     g.setOnes();
     
-    optimizer->update(w, g);
-    clone->update(w, g);  // Dovrebbe funzionare
+    optimizer->update_weights(w, g);
+    clone->update_weights(w, g);  // Dovrebbe funzionare
 }
 
 INSTANTIATE_TEST_SUITE_P(
@@ -222,7 +222,7 @@ TEST_F(AdamOptimizerTest, FirstUpdate) {
          0.1, 0.1;
     
     Eigen::MatrixXd w_before = w;
-    optimizer->update(w, g);
+    optimizer->update_weights(w, g);
     
     EXPECT_FALSE(w.isApprox(w_before));
     EXPECT_EQ(optimizer->get_iterations(), 1);
@@ -241,7 +241,7 @@ TEST_F(AdamOptimizerTest, MultipleUpdates) {
     
     for (int i = 0; i < 5; ++i) {
         steps.push_back(w);
-        optimizer->update(w, g);
+        optimizer->update_weights(w, g);
     }
     
     // Verifica che gli step siano diversi
@@ -258,7 +258,7 @@ TEST_F(AdamOptimizerTest, BiasUpdate) {
     g << 0.1, 0.1, 0.1;
     
     Eigen::VectorXd b_before = b;
-    optimizer->update(b, g);
+    optimizer->update_bias(b, g);
     
     EXPECT_FALSE(b.isApprox(b_before));
 }
@@ -275,8 +275,8 @@ TEST_F(AdamOptimizerTest, Clone) {
     Eigen::MatrixXd g(2, 2);
     g.setOnes();
     
-    optimizer->update(w, g);
-    clone->update(w, g);  // Dovrebbe funzionare
+    optimizer->update_weights(w, g);
+    clone->update_weights(w, g);  // Dovrebbe funzionare
 }
 
 TEST_F(AdamOptimizerTest, ParameterBounds) {
@@ -380,7 +380,7 @@ TEST_F(OptimizerTest, AdamSerialization) {
     w.setRandom();
     Eigen::MatrixXd g(2, 2);
     g.setOnes();
-    original.update(w, g);
+    original.update_weights(w, g);
     
     std::stringstream ss;
     original.serialize(ss);
@@ -393,7 +393,7 @@ TEST_F(OptimizerTest, AdamSerialization) {
     EXPECT_EQ(deserialized.get_iterations(), original.get_iterations());
     
     // Dopo deserializzazione, un altro update dovrebbe funzionare
-    EXPECT_NO_THROW(deserialized.update(w, g));
+    EXPECT_NO_THROW(deserialized.update_weights(w, g));
 }
 
 //=============================================================================
