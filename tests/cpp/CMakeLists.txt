@@ -15,7 +15,6 @@ function(add_ml_test TEST_NAME SOURCES)
             GTest::gtest_main  # Include il main() di GTest automaticamente
             GTest::gtest
             GTest::gmock
-            GTest::gmock_main
     )
     add_test(NAME ${TEST_NAME} COMMAND ${TEST_NAME})
 endfunction()

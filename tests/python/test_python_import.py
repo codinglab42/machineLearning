@@ -15,12 +15,4 @@ from pathlib import Path
 #
 #print(f"Ricerca modulo in: {module_dir}")
 
-try:
-    # Usa il nome definito nel tuo PYBIND11_MODULE
-    import ml_core as ml
-    print("✓ Test Import Python: SUCCESS")
-    print(f"✓ Percorso file: {ml.__file__}")
-except ImportError as e:
-    print(f"✗ Test Import Python: FAILED")
-    print(f"  Errore: {e}")
-    sys.exit(1)
+import ml_core as ml

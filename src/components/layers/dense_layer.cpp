@@ -68,8 +68,10 @@ void DenseLayer::initialize_weights() {
     ML_CHECK_PARAM(input_size_ > 0, "input_size", "must be > 0", "DenseLayer");
     ML_CHECK_PARAM(units_ > 0, "units", "must be > 0", "DenseLayer");
     
-    // Inizializzazione Xavier
-    double scale = std::sqrt(2.0 / (input_size_ + units_));
+    // He (Kaiming) initialization per ReLU, Xavier/Glorot per le altre attivazioni
+    double scale = (activation_ == "relu") 
+        ? std::sqrt(2.0 / input_size_) 
+        : std::sqrt(2.0 / (input_size_ + units_));
     
     std::random_device rd;
     std::mt19937 gen(rd());
@@ -81,7 +83,14 @@ void DenseLayer::initialize_weights() {
         }
     }
     
-    if (use_bias_) { bias_.setZero(); }
+    if (use_bias_) { 
+        // Un piccolo bias positivo (0.01) evita le ReLU "morte" all'inizializzazione
+        if (activation_ == "relu") {
+            bias_.setConstant(0.01);
+        } else {
+            bias_.setZero();
+        }
+    }
 }
 
 

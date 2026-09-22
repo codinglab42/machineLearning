@@ -11,12 +11,7 @@ import numpy as np
 # Path del modulo pybind11
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../build/pybinding'))
 
-try:
-    import machine_learning_modules as ml
-except ImportError:
-    print("❌ Failed to import machine_learning_modules")
-    print("   Make sure the module is built: make -j$(nproc)")
-    sys.exit(1)
+import ml_core as ml
 
 
 class TestErrorHandlingAndShapes(unittest.TestCase):

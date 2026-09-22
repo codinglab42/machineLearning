@@ -96,6 +96,7 @@ target_link_libraries(ml_core PRIVATE
 
 target_include_directories(ml_core PRIVATE
     ${CMAKE_SOURCE_DIR}/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/bindings
     ${Eigen3_INCLUDE_DIRS}
     ${Python3_INCLUDE_DIRS}
     ${pybind11_INCLUDE_DIRS}

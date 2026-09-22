@@ -10,11 +10,8 @@ import numpy as np
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../build/pybinding'))
 
-try:
-    import ml_core as ml
-except ImportError:
-    print("❌ Failed to import ml_core")
-    sys.exit(1)
+import ml_core as ml
+
 
 
 class TestEnums(unittest.TestCase):

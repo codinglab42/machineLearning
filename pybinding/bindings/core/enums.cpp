@@ -4,6 +4,7 @@
 #include "components/layers/layer.h"
 #include "components/layers/pooling_layer.h"
 #include "models/linear_regression.h"
+#include "models/neural_network.h"
 
 namespace py = pybind11;
 
@@ -50,6 +51,16 @@ void bind_enums(py::module_& m) {
         .value("SIMPLE_RNN", layers::LayerType::SIMPLE_RNN)
         .value("LSTM", layers::LayerType::LSTM)
         .value("GRU", layers::LayerType::GRU)
+        .export_values();
+
+
+    // ========================================================================
+    // RecurrentType (per NeuralNetwork)
+    // ========================================================================
+    py::enum_<models::RecurrentType>(m, "RecurrentType")
+        .value("SIMPLE_RNN", models::RecurrentType::SIMPLE_RNN)
+        .value("LSTM", models::RecurrentType::LSTM)
+        .value("GRU", models::RecurrentType::GRU)
         .export_values();
 
     // ========================================================================

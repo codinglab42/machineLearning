@@ -11,13 +11,7 @@ import numpy as np
 # Aggiungi il path del modulo
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../build/pybinding'))
 
-try:
-    import ml_core as ml
-except ImportError:
-    print("❌ Failed to import ml_core")
-    print("   Make sure the module is built: make -j$(nproc)")
-    sys.exit(1)
-
+import ml_core as ml
 
 class TestFullPipeline(unittest.TestCase):
     """Integration tests for full ML pipeline"""
@@ -25,11 +19,13 @@ class TestFullPipeline(unittest.TestCase):
     def setUp(self):
         np.random.seed(42)
         self.X_classification = np.random.randn(300, 10)
-        self.y_classification = (np.sum(self.X_classification[:, :5], axis=1) > 0).astype(float)
+        # MODIFICA: y deve essere 2D [m, 1]
+        self.y_classification = (np.sum(self.X_classification[:, :5], axis=1) > 0).astype(float).reshape(-1, 1)
         
         self.X_regression = np.random.randn(300, 5)
-        self.y_regression = np.sin(self.X_regression[:, 0]) + np.cos(self.X_regression[:, 1]) + \
-                            np.random.randn(300) * 0.05
+        # MODIFICA: y deve essere 2D [m, 1]
+        self.y_regression = (np.sin(self.X_regression[:, 0]) + np.cos(self.X_regression[:, 1]) + \
+                            np.random.randn(300) * 0.05).reshape(-1, 1)
     
     def test_neural_network_with_scaler(self):
         """Test NeuralNetwork with StandardScaler"""
@@ -44,7 +40,7 @@ class TestFullPipeline(unittest.TestCase):
         nn.set_epochs(100)
         nn.set_batch_size(32)
         nn.set_verbose(False)
-        nn.build(10, 2)
+        nn.build(10, 1)  # MODIFICA: output_dim = 1 (binary classification)
         
         # Train
         nn.fit(X_scaled, self.y_classification)
@@ -63,7 +59,7 @@ class TestFullPipeline(unittest.TestCase):
         nn.set_epochs(100)
         nn.set_batch_size(32)
         nn.set_verbose(False)
-        nn.build(10, 2)
+        nn.build(10, 1)  # MODIFICA: output_dim = 1 (binary classification)
         
         nn.fit(self.X_classification, self.y_classification)
         score = nn.score(self.X_classification, self.y_classification)
@@ -86,7 +82,7 @@ class TestFullPipeline(unittest.TestCase):
         nn.set_epochs(150)
         nn.set_batch_size(32)
         nn.set_verbose(False)
-        nn.build(5, 1)
+        nn.build(5, 1)  # MODIFICA: output_dim = 1 (regression)
         
         nn.fit(X_scaled, y_scaled)
         r2 = nn.score(X_scaled, y_scaled)
@@ -106,7 +102,8 @@ class TestFullPipeline(unittest.TestCase):
     def test_cross_validation(self):
         """Test LinearRegression cross-validation"""
         X = np.random.randn(150, 3)
-        y = 2.0 * X[:, 0] + 1.5 * X[:, 1] + 0.5 + np.random.randn(150) * 0.1
+        # y come vettore 1D (shape: [150]) invece di 2D [150, 1]
+        y = (2.0 * X[:, 0] + 1.5 * X[:, 1] + 0.5 + np.random.randn(150) * 0.1).ravel()
         
         scores = ml.LinearRegression.cross_val_score(X, y, cv=5)
         self.assertEqual(len(scores), 5)
@@ -119,7 +116,8 @@ class TestSerialization(unittest.TestCase):
     def setUp(self):
         np.random.seed(42)
         self.X = np.random.randn(100, 5)
-        self.y = (np.sum(self.X[:, :3], axis=1) > 0).astype(float)
+        # MODIFICA: y deve essere 2D [m, 1]
+        self.y = (np.sum(self.X[:, :3], axis=1) > 0).astype(float).reshape(-1, 1)
         self.filename = "test_model.bin"
     
     def tearDown(self):
@@ -131,7 +129,7 @@ class TestSerialization(unittest.TestCase):
         nn = ml.NeuralNetwork([5, 16, 8, 1], "relu", "sigmoid", ml.OptimizerType.ADAM, 0.001)
         nn.set_epochs(20)
         nn.set_verbose(False)
-        nn.build(5, 2)
+        nn.build(5, 1)  # MODIFICA: output_dim = 1
         nn.fit(self.X, self.y)
         
         # Save
@@ -151,7 +149,8 @@ class TestSerialization(unittest.TestCase):
     def test_linear_regression_save_load(self):
         """Test saving and loading LinearRegression"""
         X = np.random.randn(100, 3)
-        y = 2.0 * X[:, 0] + 1.5 * X[:, 1] + 0.5 + np.random.randn(100) * 0.1
+        # MODIFICA: y deve essere 2D [m, 1]
+        y = (2.0 * X[:, 0] + 1.5 * X[:, 1] + 0.5 + np.random.randn(100) * 0.1).reshape(-1, 1)
         
         model = ml.LinearRegression(learning_rate=0.01, max_iter=200)
         model.fit(X, y)
@@ -177,7 +176,8 @@ class TestOptimizerIntegration(unittest.TestCase):
     def test_adam_training_convergence(self):
         """Test Adam optimizer converges"""
         X = np.random.randn(100, 3)
-        y = 2.0 * X[:, 0] + 1.5 * X[:, 1] + 0.5
+        # MODIFICA: y deve essere 2D [m, 1]
+        y = (2.0 * X[:, 0] + 1.5 * X[:, 1] + 0.5).reshape(-1, 1)
         
         nn = ml.NeuralNetwork([3, 8, 1], "relu", "linear", ml.OptimizerType.ADAM, 0.01)
         nn.set_loss_function("mse")
@@ -193,14 +193,15 @@ class TestOptimizerIntegration(unittest.TestCase):
     def test_sgd_training_convergence(self):
         """Test SGD optimizer converges"""
         X = np.random.randn(100, 3)
-        y = (X[:, 0] + X[:, 1] > 0).astype(float)
+        # MODIFICA: y deve essere 2D [m, 1]
+        y = (X[:, 0] + X[:, 1] > 0).astype(float).reshape(-1, 1)
         
         nn = ml.NeuralNetwork([3, 8, 1], "relu", "sigmoid", ml.OptimizerType.SGD, 0.1)
         nn.set_loss_function("binary_crossentropy")
         nn.set_epochs(300)
         nn.set_batch_size(32)
         nn.set_verbose(False)
-        nn.build(3, 2)
+        nn.build(3, 1)  # MODIFICA: output_dim = 1
         nn.fit(X, y)
         
         score = nn.score(X, y)
@@ -213,13 +214,14 @@ class TestLossIntegration(unittest.TestCase):
     def test_bce_with_neural_network(self):
         """Test binary cross entropy loss"""
         X = np.random.randn(200, 5)
-        y = (np.sum(X[:, :3], axis=1) > 0).astype(float)
+        # MODIFICA: y deve essere 2D [m, 1]
+        y = (np.sum(X[:, :3], axis=1) > 0).astype(float).reshape(-1, 1)
         
         nn = ml.NeuralNetwork([5, 16, 8, 1], "relu", "sigmoid", ml.OptimizerType.ADAM, 0.001)
         nn.set_loss_function("binary_crossentropy")
         nn.set_epochs(100)
         nn.set_verbose(False)
-        nn.build(5, 2)
+        nn.build(5, 1)  # MODIFICA: output_dim = 1
         nn.fit(X, y)
         
         loss, val_loss, acc = nn.get_training_history()
@@ -236,13 +238,14 @@ class TestLossIntegration(unittest.TestCase):
     def test_mse_with_neural_network(self):
         """Test MSE loss"""
         X = np.random.randn(200, 5)
-        y = np.sin(X[:, 0]) + np.cos(X[:, 1]) + np.random.randn(200) * 0.05
+        # MODIFICA: y deve essere 2D [m, 1]
+        y = (np.sin(X[:, 0]) + np.cos(X[:, 1]) + np.random.randn(200) * 0.05).reshape(-1, 1)
         
         nn = ml.NeuralNetwork([5, 32, 16, 1], "relu", "linear", ml.OptimizerType.ADAM, 0.001)
         nn.set_loss_function("mse")
         nn.set_epochs(150)
         nn.set_verbose(False)
-        nn.build(5, 1)
+        nn.build(5, 1)  # MODIFICA: output_dim = 1
         nn.fit(X, y)
         
         loss, val_loss, acc = nn.get_training_history()

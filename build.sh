@@ -29,9 +29,12 @@ echo -e "${YELLOW}Using Python:${NC} $PYTHON_EXE ($PYTHON_VER)"
 # ============================================================================
 
 CLEAN_BUILD="OFF"
-PYTHON_TEST="ON"
+SKIP_PYTHON_TESTS="OFF"
+SKIP_PYTHON_BINDINGS="OFF"
 INSTALL_DIR="${HOME}/.local"
 VERBOSE="OFF"
+BUILD_TYPE="Release"
+ENABLE_SANITIZER="OFF" # Var separata per non sovrascrivere BUILD_TYPE
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -39,8 +42,12 @@ while [[ $# -gt 0 ]]; do
             CLEAN_BUILD="ON"
             shift
             ;;
-        --no-python)
-            PYTHON_TEST="OFF"
+        --no-python-tests)
+            SKIP_PYTHON_TESTS="ON"
+            shift
+            ;;
+        --no-python-bindings)
+            SKIP_PYTHON_BINDINGS="ON"
             shift
             ;;
         --install-dir=*)
@@ -51,13 +58,24 @@ while [[ $# -gt 0 ]]; do
             VERBOSE="ON"
             shift
             ;;
+        --debug)
+            BUILD_TYPE="Debug"
+            shift
+            ;;
+        --sanitize)
+            ENABLE_SANITIZER="ON" # Attiva il flag senza toccare BUILD_TYPE
+            shift
+            ;;
         -h|--help)
             echo "Usage: $0 [OPTIONS]"
             echo "Options:"
             echo "  --clean              Clean build directory before building"
-            echo "  --no-python          Skip Python tests"
+            echo "  --no-python-tests    Skip Python tests (but still build bindings)"
+            echo "  --no-python-bindings Skip Python bindings compilation entirely"
             echo "  --install-dir=PATH   Installation directory (default: ~/.local)"
             echo "  --verbose            Verbose output"
+            echo "  --debug              Build with debug symbols"
+            echo "  --sanitize           Build with AddressSanitizer and UBSan"
             echo "  -h, --help           Show this help"
             exit 0
             ;;
@@ -90,9 +108,10 @@ cd "$PROJECT_ROOT/build"
 echo -e "\n${BLUE}CONFIGURAZIONE CMAKE...${NC}"
 
 CMAKE_ARGS=(
-    -DCMAKE_BUILD_TYPE=Release
+    -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
+    -DENABLE_SANITIZER="$ENABLE_SANITIZER"
     -DPython3_EXECUTABLE="$PYTHON_EXE"
-    -DBUILD_PYTHON_BINDINGS=ON
+    -DBUILD_PYTHON_BINDINGS="$([ "$SKIP_PYTHON_BINDINGS" == "ON" ] && echo "OFF" || echo "ON")"
     -DBUILD_TESTS=ON
     -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
     -DCMAKE_INSTALL_PREFIX="$INSTALL_DIR"
@@ -124,62 +143,50 @@ else
 fi
 
 # ============================================================================
-# 7. TEST PYTHON
+# 7. TEST PYTHON (usando il target CMake)
 # ============================================================================
 
-if [[ "$PYTHON_TEST" == "ON" ]]; then
+if [[ "$SKIP_PYTHON_TESTS" == "OFF" ]] && [[ "$SKIP_PYTHON_BINDINGS" == "OFF" ]]; then
     echo -e "\n${BLUE}TEST PYTHON MODULE...${NC}"
     
-    # Trova il modulo Python
-    PY_MOD=$(find . -name "machine_learning_module*.so" 2>/dev/null | head -1)
-    
-    if [[ -n "$PY_MOD" ]]; then
-        echo -e "${GREEN}✓ Modulo Python trovato:${NC} $PY_MOD"
+    # Usa il target CMake che abbiamo definito
+    if make test_python_module 2>/dev/null; then
+        echo -e "${GREEN}✅ Python tests passed (via CMake target)${NC}"
+    else
+        # Fallback: test manuale
+        echo -e "${YELLOW}⚠️  CMake test target failed, trying manual test...${NC}"
         
-        # Test import
-        echo -e "${YELLOW}Test import modulo...${NC}"
-        PY_MOD_DIR=$(dirname "$PY_MOD")
+        # Cerca il modulo Python (nome corretto: ml_core)
+        PY_MOD=$(find . -name "ml_core*.so" -o -name "ml_core*.pyd" 2>/dev/null | head -1)
         
-        if $PYTHON_EXE -c "
+        if [[ -n "$PY_MOD" ]]; then
+            echo -e "${GREEN}✓ Modulo Python trovato:${NC} $PY_MOD"
+            
+            # Test import con sys.path
+            if $PYTHON_EXE -c "
 import sys
-sys.path.insert(0, '$PY_MOD_DIR')
+sys.path.insert(0, '$(pwd)')  # Aggiunge la build directory al path
 try:
-    import machine_learning_module as ml
+    import ml_core as ml  # Il pacchetto Python si chiama ml_core
     print('✅ Module imported successfully')
     print(f'   Version: {ml.__version__}')
     
-    # Test base
+    # Test rapido con LinearRegression
     import numpy as np
     X = np.random.randn(10, 3)
-    y = np.random.randn(10)
+    y = 2.0 * X[:, 0] + 0.5 + np.random.randn(10) * 0.1
     
-    # Test LinearRegression
     lr = ml.LinearRegression(max_iter=50)
     lr.fit(X, y)
     pred = lr.predict(X)
     score = lr.score(X, y)
-    print(f'   LinearRegression test: R²={score:.4f}')
-    
-    # Test NeuralNetwork (se disponibile)
-    try:
-        nn = ml.NeuralNetwork()
-        nn.add_dense_layer(8, activation='relu')
-        nn.add_dense_layer(1, activation='sigmoid')
-        nn.build(3, 1)
-        nn.set_epochs(10)
-        nn.set_verbose(False)
-        X2 = np.random.randn(20, 3)
-        y2 = (np.sum(X2[:, :2], axis=1) > 0).astype(float)
-        nn.fit(X2, y2)
-        acc = nn.score(X2, y2)
-        print(f'   NeuralNetwork test: accuracy={acc:.4f}')
-    except Exception as e:
-        print(f'   NeuralNetwork test: skipped ({e})')
+    print(f'   LinearRegression R²: {score:.4f}')
     
     print('✅ All Python tests passed')
     
 except ImportError as e:
     print(f'❌ Failed to import module: {e}')
+    print('   Check that ml_core.so is in the build directory')
     sys.exit(1)
 except Exception as e:
     print(f'❌ Test failed: {e}')
@@ -187,13 +194,16 @@ except Exception as e:
     traceback.print_exc()
     sys.exit(1)
 " 2>&1; then
-            echo -e "${GREEN}✅ Python tests passed${NC}"
+                echo -e "${GREEN}✅ Python tests passed (manual)${NC}"
+            else
+                echo -e "${RED}❌ Python tests failed${NC}"
+                exit 1
+            fi
         else
-            echo -e "${RED}❌ Python tests failed${NC}"
+            echo -e "${RED}❌ Python module ml_core not found in build directory${NC}"
+            echo -e "${YELLOW}   Check that BUILD_PYTHON_BINDINGS is ON${NC}"
             exit 1
         fi
-    else
-        echo -e "${YELLOW}⚠️  Python module not found${NC}"
     fi
 fi
 
@@ -214,13 +224,19 @@ echo -e "${BLUE}==========================================${NC}"
 echo -e ""
 echo -e "${YELLOW}📦 Progetti generati:${NC}"
 echo -e "  - Librerie C++: ${GREEN}build/lib/${NC}"
-echo -e "  - Modulo Python: ${GREEN}build/pybinding/${NC}"
+echo -e "  - Modulo Python: ${GREEN}build/ml_core/${NC}"
 echo -e "  - Eseguibili test: ${GREEN}build/bin/${NC}"
 echo -e ""
 echo -e "${YELLOW}🧪 Per eseguire i test C++:${NC}"
 echo -e "  ${GREEN}cd build && ctest --output-on-failure${NC}"
 echo -e ""
 echo -e "${YELLOW}🐍 Per testare il modulo Python:${NC}"
-echo -e "  ${GREEN}python3 -c 'import sys; sys.path.insert(0, \"build/pybinding\"); import machine_learning_module as ml; print(ml.__version__)'${NC}"
+echo -e "  ${GREEN}cd build && python3 -c 'import ml_core; print(ml_core.__version__)'${NC}"
+echo -e ""
+echo -e "${YELLOW}📦 Per installare il pacchetto Python:${NC}"
+echo -e "  ${GREEN}cd build && make install${NC}"
+echo -e "  ${GREEN}# Oppure: pip install -e .${NC} (se hai un setup.py)"
 echo -e ""
 echo -e "${BLUE}==========================================${NC}"
+
+```

@@ -10,6 +10,7 @@ option(BUILD_EXAMPLES "Costruisci esempi" ON)
 option(USE_OPENMP "Usa OpenMP per parallelizzazione" OFF)
 option(VERBOSE_OUTPUT "Output verboso di configurazione" ON)
 option(BUILD_SHARED_LIBS "Build shared libraries instead of static" OFF)
+option(ENABLE_SANITIZER "Abilita AddressSanitizer e UndefinedBehaviorSanitizer" OFF)
 
 # ============================================================================
 # IMPOSTAZIONI GLOBALI
@@ -22,6 +23,17 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+
+# ============================================================================
+# CONFIGURAZIONE SANITIZERS (ASan + UBSan)
+# ============================================================================
+if(ENABLE_SANITIZER)
+    if(VERBOSE_OUTPUT)
+        message(STATUS "🛡️ Enabling AddressSanitizer and UndefinedBehaviorSanitizer...")
+    endif()
+    add_compile_options(-fsanitize=address,undefined -fno-omit-frame-pointer)
+    add_link_options(-fsanitize=address,undefined)
+endif()
 
 # ============================================================================
 # RICERCA DIPENDENZE
@@ -49,10 +61,7 @@ if(VERBOSE_OUTPUT)
     message(STATUS "✅ Eigen3 trovato: ${EIGEN3_VERSION}")
 endif()
 
-
-# 3. pybind11 (Cerca in pip/sistema, poi fallback a FetchContent)
 # 3. pybind11
-# Invece di find_package, proviamo a importare direttamente il modulo python
 execute_process(
     COMMAND "${Python3_EXECUTABLE}" -c "import pybind11; print(pybind11.get_cmake_dir())"
     OUTPUT_VARIABLE pybind11_CMAKE_DIR
@@ -64,11 +73,9 @@ if(pybind11_CMAKE_DIR)
     if(VERBOSE_OUTPUT)
         message(STATUS "🐍 Percorso CMake pybind11 trovato: ${pybind11_CMAKE_DIR}")
     endif()
-    # Aggiungiamo il percorso alla lista di ricerca di CMake
     list(APPEND CMAKE_PREFIX_PATH "${pybind11_CMAKE_DIR}")
     find_package(pybind11 CONFIG REQUIRED)
 else()
-    # Solo se il comando sopra fallisce, scarichiamo
     if(VERBOSE_OUTPUT)
         message(STATUS "📦 pybind11 non trovato tramite modulo Python, scaricando...")
     endif()
@@ -87,7 +94,6 @@ if(BUILD_TESTS)
         message(STATUS "🧪 Configurazione Google Test...")
     endif()
 
-    # Prova a cercarlo nel sistema (Rocky Linux)
     find_package(GTest QUIET)
 
     if(NOT GTEST_FOUND)
@@ -99,7 +105,6 @@ if(BUILD_TESTS)
           ggoogletest
           URL https://github.com/google/googletest/archive/refs/tags/v1.14.0.tar.gz
         )
-        # Per evitare problemi su alcune distribuzioni
         set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
         FetchContent_MakeAvailable(googletest)
     else()
@@ -108,8 +113,6 @@ if(BUILD_TESTS)
         endif()
     endif()
 endif()
-
-
 
 # 6. OpenMP opzionale
 if(USE_OPENMP)
@@ -177,6 +180,7 @@ if(VERBOSE_OUTPUT)
     message(STATUS "========================================")
     message(STATUS "Project:      ML Library v${PROJECT_VERSION}")
     message(STATUS "Build type:   ${CMAKE_BUILD_TYPE}")
+    message(STATUS "Sanitizers:   ${ENABLE_SANITIZER}")
     message(STATUS "")
     message(STATUS "Features:")
     message(STATUS "  Python bindings: ${BUILD_PYTHON_BINDINGS}")
