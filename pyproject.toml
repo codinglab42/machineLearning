@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=61.0", "wheel", "pybind11>=2.10.0"]
+requires = ["setuptools>=77.0", "wheel", "cmake>=3.15", "pybind11>=2.10.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -7,7 +7,9 @@ name = "ml_core"
 version = "3.0.0"
 description = "C++ Machine Learning Library with Python Bindings"
 readme = "README.md"
-requires-python = ">=3.8"
+license = "AGPL-3.0-only"
+license-files = ["LICENSE", "THIRD_PARTY_NOTICES.md", "licenses/*"]
+requires-python = ">=3.11,<3.12"
 
 # Dichiara a setuptools che questi campi arrivano da setup.py
 dynamic = ["authors", "classifiers", "urls"]

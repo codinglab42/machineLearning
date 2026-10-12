@@ -43,15 +43,17 @@ if(VERBOSE_OUTPUT)
     message(STATUS "🔍 Ricerca dipendenze...")
 endif()
 
-# 1. Python3 (compatibile con pyenv)
-find_package(Python3 COMPONENTS Interpreter Development REQUIRED)
-if(VERBOSE_OUTPUT)
-    message(STATUS "✅ Python trovato: ${Python3_EXECUTABLE}")
-    message(STATUS "   Version: ${Python3_VERSION}")
-    
-    # Info pyenv se presente
-    if(DEFINED ENV{PYENV_ROOT})
-        message(STATUS "   Pyenv: $ENV{PYENV_ROOT}")
+# 1. Python3 e pybind11 servono solo per i binding
+if(BUILD_PYTHON_BINDINGS)
+    find_package(Python3 COMPONENTS Interpreter Development REQUIRED)
+    if(VERBOSE_OUTPUT)
+        message(STATUS "✅ Python trovato: ${Python3_EXECUTABLE}")
+        message(STATUS "   Version: ${Python3_VERSION}")
+
+        # Info pyenv se presente
+        if(DEFINED ENV{PYENV_ROOT})
+            message(STATUS "   Pyenv: $ENV{PYENV_ROOT}")
+        endif()
     endif()
 endif()
 
@@ -62,30 +64,32 @@ if(VERBOSE_OUTPUT)
 endif()
 
 # 3. pybind11
-execute_process(
-    COMMAND "${Python3_EXECUTABLE}" -c "import pybind11; print(pybind11.get_cmake_dir())"
-    OUTPUT_VARIABLE pybind11_CMAKE_DIR
-    OUTPUT_STRIP_TRAILING_WHITESPACE
-    ERROR_QUIET
-)
-
-if(pybind11_CMAKE_DIR)
-    if(VERBOSE_OUTPUT)
-        message(STATUS "🐍 Percorso CMake pybind11 trovato: ${pybind11_CMAKE_DIR}")
-    endif()
-    list(APPEND CMAKE_PREFIX_PATH "${pybind11_CMAKE_DIR}")
-    find_package(pybind11 CONFIG REQUIRED)
-else()
-    if(VERBOSE_OUTPUT)
-        message(STATUS "📦 pybind11 non trovato tramite modulo Python, scaricando...")
-    endif()
-    include(FetchContent)
-    FetchContent_Declare(
-        pybind11
-        GIT_REPOSITORY https://github.com/pybind/pybind11.git
-        GIT_TAG v2.13.1
+if(BUILD_PYTHON_BINDINGS)
+    execute_process(
+        COMMAND "${Python3_EXECUTABLE}" -c "import pybind11; print(pybind11.get_cmake_dir())"
+        OUTPUT_VARIABLE pybind11_CMAKE_DIR
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        ERROR_QUIET
     )
-    FetchContent_MakeAvailable(pybind11)
+
+    if(pybind11_CMAKE_DIR)
+        if(VERBOSE_OUTPUT)
+            message(STATUS "🐍 Percorso CMake pybind11 trovato: ${pybind11_CMAKE_DIR}")
+        endif()
+        list(APPEND CMAKE_PREFIX_PATH "${pybind11_CMAKE_DIR}")
+        find_package(pybind11 CONFIG REQUIRED)
+    else()
+        if(VERBOSE_OUTPUT)
+            message(STATUS "📦 pybind11 non trovato tramite modulo Python, scaricando...")
+        endif()
+        include(FetchContent)
+        FetchContent_Declare(
+            pybind11
+            GIT_REPOSITORY https://github.com/pybind/pybind11.git
+            GIT_TAG v2.13.1
+        )
+        FetchContent_MakeAvailable(pybind11)
+    endif()
 endif()
 
 # 5. CONFIGURAZIONE TEST (GTest)
@@ -168,6 +172,12 @@ endif()
 # ============================================================================
 install(DIRECTORY include/ DESTINATION include
     FILES_MATCHING PATTERN "*.h"
+)
+install(FILES LICENSE THIRD_PARTY_NOTICES.md
+    DESTINATION share/licenses/ml_core
+)
+install(DIRECTORY licenses/
+    DESTINATION share/licenses/ml_core/third-party
 )
 
 # ============================================================================

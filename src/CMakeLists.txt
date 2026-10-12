@@ -87,6 +87,7 @@ target_include_directories(ml_library_static
 )
 
 target_link_libraries(ml_library_static PUBLIC Eigen3::Eigen)
+target_compile_definitions(ml_library_static PUBLIC EIGEN_MPL2_ONLY)
 
 # ============================================================================
 # 4. LIBRERIA DINAMICA
@@ -99,6 +100,7 @@ target_include_directories(ml_library_shared
 )
 
 target_link_libraries(ml_library_shared PUBLIC Eigen3::Eigen)
+target_compile_definitions(ml_library_shared PUBLIC EIGEN_MPL2_ONLY)
 
 # Export symbols
 target_compile_definitions(ml_library_shared PRIVATE ML_LIBRARY_EXPORT)

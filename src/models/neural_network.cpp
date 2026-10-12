@@ -17,15 +17,15 @@ namespace models {
     //===========================================================================
 
     NeuralNetwork::NeuralNetwork()
-        : loss_function_name_("mse"),
+        : batch_size_(32),
+          epochs_(100),
+          validation_split_(0.0),
+          loss_function_name_("mse"),
           learning_rate_(0.01),
           verbose_(false),
           n_features_(0),
           n_classes_(0),
-          batch_size_(32),
           fitted_(false),
-          epochs_(100),
-          validation_split_(0.0),
           rng_(42) {
         // Usa optimizer_ ereditato da Estimator
         optimizer_ = OptimizerFactory::create(OptimizerType::SGD, learning_rate_);
@@ -40,15 +40,15 @@ namespace models {
                          double learning_rate,
                          RegularizerType regularizer_type,
                          double regularizer_strength)
-    : loss_function_name_(layer_sizes.back() <= 2 ? "binary_crossentropy" : "categorical_crossentropy"),
+    : batch_size_(32),
+      epochs_(100),
+      validation_split_(0.0),
+      loss_function_name_(layer_sizes.back() <= 2 ? "binary_crossentropy" : "categorical_crossentropy"),
       learning_rate_(learning_rate),
       verbose_(false),
       n_features_(layer_sizes.front()),
       n_classes_(layer_sizes.back()),
-      batch_size_(32),
       fitted_(false),
-      epochs_(100),
-      validation_split_(0.0),
       rng_(42) {
 
         ML_CHECK_PARAM(layer_sizes.size() >= 2, "layer_sizes",

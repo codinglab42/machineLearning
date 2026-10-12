@@ -33,6 +33,7 @@ SKIP_PYTHON_TESTS="OFF"
 SKIP_PYTHON_BINDINGS="OFF"
 INSTALL_DIR="${HOME}/.local"
 VERBOSE="OFF"
+DIAGNOSTICS="OFF"
 BUILD_TYPE="Release"
 ENABLE_SANITIZER="OFF" # Var separata per non sovrascrivere BUILD_TYPE
 
@@ -58,6 +59,10 @@ while [[ $# -gt 0 ]]; do
             VERBOSE="ON"
             shift
             ;;
+        --diagnostics)
+            DIAGNOSTICS="ON"
+            shift
+            ;;
         --debug)
             BUILD_TYPE="Debug"
             shift
@@ -74,6 +79,7 @@ while [[ $# -gt 0 ]]; do
             echo "  --no-python-bindings Skip Python bindings compilation entirely"
             echo "  --install-dir=PATH   Installation directory (default: ~/.local)"
             echo "  --verbose            Verbose output"
+            echo "  --diagnostics        Enable extra CMake configure diagnostics"
             echo "  --debug              Build with debug symbols"
             echo "  --sanitize           Build with AddressSanitizer and UBSan"
             echo "  -h, --help           Show this help"
@@ -107,6 +113,7 @@ cd "$PROJECT_ROOT/build"
 
 echo -e "\n${BLUE}CONFIGURAZIONE CMAKE...${NC}"
 
+CONFIGURE_LOG="$PROJECT_ROOT/build/cmake-configure.log"
 CMAKE_ARGS=(
     -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
     -DENABLE_SANITIZER="$ENABLE_SANITIZER"
@@ -121,7 +128,27 @@ if [[ "$VERBOSE" == "ON" ]]; then
     CMAKE_ARGS+=(-DCMAKE_VERBOSE_MAKEFILE=ON)
 fi
 
-cmake .. "${CMAKE_ARGS[@]}"
+if [[ "$DIAGNOSTICS" == "ON" ]]; then
+    CMAKE_ARGS+=(--debug-output --debug-find)
+fi
+
+echo -e "${YELLOW}CMake:${NC} $(cmake --version | head -n 1)"
+echo -e "${YELLOW}Configure log:${NC} $CONFIGURE_LOG"
+if cmake .. "${CMAKE_ARGS[@]}" 2>&1 | tee "$CONFIGURE_LOG"; then
+    :
+else
+    CONFIGURE_STATUS=$?
+    echo -e "${RED}❌ CMake configuration failed (exit $CONFIGURE_STATUS).${NC}" >&2
+    echo -e "${YELLOW}Full CMake output:${NC} $CONFIGURE_LOG" >&2
+    CMAKE_INTERNAL_LOG="$PROJECT_ROOT/build/CMakeFiles/CMakeConfigureLog.yaml"
+    if [[ -f "$CMAKE_INTERNAL_LOG" ]]; then
+        echo -e "${YELLOW}Recent CMake checks from:${NC} $CMAKE_INTERNAL_LOG" >&2
+        tail -n 80 "$CMAKE_INTERNAL_LOG" >&2
+    else
+        echo -e "${YELLOW}CMake did not create its configure-check log.${NC}" >&2
+    fi
+    exit "$CONFIGURE_STATUS"
+fi
 
 # ============================================================================
 # 5. COMPILAZIONE
@@ -136,11 +163,8 @@ make -j$NPROC
 # ============================================================================
 
 echo -e "\n${BLUE}ESECUZIONE TEST C++...${NC}"
-if ctest --output-on-failure 2>/dev/null; then
-    echo -e "${GREEN}✅ C++ tests passed${NC}"
-else
-    echo -e "${YELLOW}⚠️  Some C++ tests failed (continuing)${NC}"
-fi
+ctest --output-on-failure
+echo -e "${GREEN}✅ C++ tests passed${NC}"
 
 # ============================================================================
 # 7. TEST PYTHON (usando il target CMake)
@@ -238,5 +262,3 @@ echo -e "  ${GREEN}cd build && make install${NC}"
 echo -e "  ${GREEN}# Oppure: pip install -e .${NC} (se hai un setup.py)"
 echo -e ""
 echo -e "${BLUE}==========================================${NC}"
-
-```

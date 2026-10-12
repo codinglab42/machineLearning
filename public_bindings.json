@@ -1,0 +1,2410 @@
+{
+  "module": "ml_core",
+  "version": "3.0.0",
+  "exports": {
+    "ADAM": {
+      "kind": "value",
+      "type": "OptimizerType",
+      "value": "<OptimizerType.ADAM: 2>"
+    },
+    "AVERAGE_POOLING": {
+      "kind": "value",
+      "type": "LayerType",
+      "value": "<LayerType.AVERAGE_POOLING: 4>"
+    },
+    "AVG": {
+      "kind": "value",
+      "type": "PoolType",
+      "value": "<PoolType.AVG: 1>"
+    },
+    "AdamOptimizer": {
+      "kind": "class",
+      "doc": "",
+      "members": {
+        "clone": {
+          "kind": "callable",
+          "doc": "clone(self: ml_core.AdamOptimizer) -> ml_core.Optimizer"
+        },
+        "get_current_learning_rate": {
+          "kind": "callable",
+          "doc": "get_current_learning_rate(self: ml_core.Optimizer) -> float"
+        },
+        "get_decay": {
+          "kind": "callable",
+          "doc": "get_decay(self: ml_core.Optimizer) -> float"
+        },
+        "get_iterations": {
+          "kind": "callable",
+          "doc": "get_iterations(self: ml_core.Optimizer) -> int"
+        },
+        "get_learning_rate": {
+          "kind": "callable",
+          "doc": "get_learning_rate(self: ml_core.Optimizer) -> float"
+        },
+        "get_type": {
+          "kind": "callable",
+          "doc": "get_type(self: ml_core.Optimizer) -> ml_core.OptimizerType"
+        },
+        "get_type_str": {
+          "kind": "callable",
+          "doc": "get_type_str(self: ml_core.Optimizer) -> str"
+        },
+        "reset": {
+          "kind": "callable",
+          "doc": "reset(self: ml_core.AdamOptimizer) -> None"
+        },
+        "set_decay": {
+          "kind": "callable",
+          "doc": "set_decay(self: ml_core.Optimizer, decay: typing.SupportsFloat) -> None"
+        },
+        "set_learning_rate": {
+          "kind": "callable",
+          "doc": "set_learning_rate(self: ml_core.Optimizer, lr: typing.SupportsFloat) -> None"
+        },
+        "update_bias": {
+          "kind": "callable",
+          "doc": "update_bias(self: ml_core.AdamOptimizer, bias: typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, 1]\", \"flags.writeable\"], gradient: typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, 1]\"]) -> None"
+        },
+        "update_weights": {
+          "kind": "callable",
+          "doc": "update_weights(self: ml_core.AdamOptimizer, weights: typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, n]\", \"flags.writeable\", \"flags.f_contiguous\"], gradient: typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, n]\", \"flags.f_contiguous\"]) -> None"
+        }
+      }
+    },
+    "BATCH_NORM": {
+      "kind": "value",
+      "type": "LayerType",
+      "value": "<LayerType.BATCH_NORM: 7>"
+    },
+    "BatchNormLayer": {
+      "kind": "class",
+      "doc": "",
+      "members": {
+        "backward": {
+          "kind": "callable",
+          "doc": "backward(self: ml_core.BatchNormLayer, gradient: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, n]\"]) -> typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, n]\"]"
+        },
+        "clear_cache": {
+          "kind": "callable",
+          "doc": "clear_cache(self: ml_core.Layer) -> None"
+        },
+        "forward": {
+          "kind": "callable",
+          "doc": "forward(self: ml_core.BatchNormLayer, input: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, n]\"], training: bool = False) -> typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, n]\"]"
+        },
+        "get_bias_gradient": {
+          "kind": "callable",
+          "doc": "get_bias_gradient(self: ml_core.Layer) -> typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, 1]\"]"
+        },
+        "get_biases": {
+          "kind": "callable",
+          "doc": "get_biases(self: ml_core.BatchNormLayer) -> typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, 1]\"]"
+        },
+        "get_config": {
+          "kind": "callable",
+          "doc": "get_config(self: ml_core.BatchNormLayer) -> str"
+        },
+        "get_input_size": {
+          "kind": "callable",
+          "doc": "get_input_size(self: ml_core.BatchNormLayer) -> int"
+        },
+        "get_layer_type": {
+          "kind": "callable",
+          "doc": "get_layer_type(self: ml_core.Layer) -> ml_core.LayerType"
+        },
+        "get_output_size": {
+          "kind": "callable",
+          "doc": "get_output_size(self: ml_core.BatchNormLayer) -> int"
+        },
+        "get_parameter_count": {
+          "kind": "callable",
+          "doc": "get_parameter_count(self: ml_core.Layer) -> int"
+        },
+        "get_type": {
+          "kind": "callable",
+          "doc": "get_type(self: ml_core.BatchNormLayer) -> str"
+        },
+        "get_use_bias": {
+          "kind": "callable",
+          "doc": "get_use_bias(self: ml_core.Layer) -> bool"
+        },
+        "get_weights": {
+          "kind": "callable",
+          "doc": "get_weights(self: ml_core.BatchNormLayer) -> typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, n]\"]"
+        },
+        "get_weights_gradient": {
+          "kind": "callable",
+          "doc": "get_weights_gradient(self: ml_core.Layer) -> typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, n]\"]"
+        },
+        "has_weights": {
+          "kind": "callable",
+          "doc": "has_weights(self: ml_core.Layer) -> bool"
+        },
+        "set_biases": {
+          "kind": "callable",
+          "doc": "set_biases(self: ml_core.BatchNormLayer, biases: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, 1]\"]) -> None"
+        },
+        "set_input_shape": {
+          "kind": "callable",
+          "doc": "set_input_shape(self: ml_core.BatchNormLayer, input_size: typing.SupportsInt) -> None"
+        },
+        "set_weights": {
+          "kind": "callable",
+          "doc": "set_weights(self: ml_core.BatchNormLayer, weights: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, n]\"]) -> None"
+        }
+      }
+    },
+    "BinaryCrossEntropyLoss": {
+      "kind": "class",
+      "doc": "",
+      "members": {
+        "compute_matrix": {
+          "kind": "callable",
+          "doc": "compute_matrix(self: ml_core.BinaryCrossEntropyLoss, y_true: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, n]\"], y_pred: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, n]\"]) -> float"
+        },
+        "compute_vector": {
+          "kind": "callable",
+          "doc": "compute_vector(self: ml_core.BinaryCrossEntropyLoss, y_true: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, 1]\"], y_pred: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, 1]\"]) -> float"
+        },
+        "gradient": {
+          "kind": "callable",
+          "doc": "gradient(self: ml_core.BinaryCrossEntropyLoss, y_true: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, n]\"], y_pred: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, n]\"]) -> typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, n]\"]"
+        },
+        "name": {
+          "kind": "callable",
+          "doc": "name(self: ml_core.BinaryCrossEntropyLoss) -> str"
+        }
+      }
+    },
+    "CONV2D": {
+      "kind": "value",
+      "type": "LayerType",
+      "value": "<LayerType.CONV2D: 2>"
+    },
+    "CategoricalCrossEntropyLoss": {
+      "kind": "class",
+      "doc": "",
+      "members": {
+        "compute_matrix": {
+          "kind": "callable",
+          "doc": "compute_matrix(self: ml_core.CategoricalCrossEntropyLoss, y_true: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, n]\"], y_pred: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, n]\"]) -> float"
+        },
+        "compute_vector": {
+          "kind": "callable",
+          "doc": "compute_vector(self: ml_core.CategoricalCrossEntropyLoss, y_true: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, 1]\"], y_pred: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, 1]\"]) -> float"
+        },
+        "gradient": {
+          "kind": "callable",
+          "doc": "gradient(self: ml_core.CategoricalCrossEntropyLoss, y_true: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, n]\"], y_pred: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, n]\"]) -> typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, n]\"]"
+        },
+        "name": {
+          "kind": "callable",
+          "doc": "name(self: ml_core.CategoricalCrossEntropyLoss) -> str"
+        }
+      }
+    },
+    "Conv2DLayer": {
+      "kind": "class",
+      "doc": "",
+      "members": {
+        "backward": {
+          "kind": "callable",
+          "doc": "backward(self: ml_core.Conv2DLayer, gradient: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, n]\"]) -> typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, n]\"]"
+        },
+        "clear_cache": {
+          "kind": "callable",
+          "doc": "clear_cache(self: ml_core.Layer) -> None"
+        },
+        "forward": {
+          "kind": "callable",
+          "doc": "forward(self: ml_core.Conv2DLayer, input: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, n]\"], training: bool = False) -> typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, n]\"]"
+        },
+        "get_bias_gradient": {
+          "kind": "callable",
+          "doc": "get_bias_gradient(self: ml_core.Layer) -> typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, 1]\"]"
+        },
+        "get_biases": {
+          "kind": "callable",
+          "doc": "get_biases(self: ml_core.Conv2DLayer) -> typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, 1]\"]"
+        },
+        "get_config": {
+          "kind": "callable",
+          "doc": "get_config(self: ml_core.Conv2DLayer) -> str"
+        },
+        "get_input_size": {
+          "kind": "callable",
+          "doc": "get_input_size(self: ml_core.Conv2DLayer) -> int"
+        },
+        "get_layer_type": {
+          "kind": "callable",
+          "doc": "get_layer_type(self: ml_core.Layer) -> ml_core.LayerType"
+        },
+        "get_output_size": {
+          "kind": "callable",
+          "doc": "get_output_size(self: ml_core.Conv2DLayer) -> int"
+        },
+        "get_parameter_count": {
+          "kind": "callable",
+          "doc": "get_parameter_count(self: ml_core.Conv2DLayer) -> int"
+        },
+        "get_type": {
+          "kind": "callable",
+          "doc": "get_type(self: ml_core.Conv2DLayer) -> str"
+        },
+        "get_use_bias": {
+          "kind": "callable",
+          "doc": "get_use_bias(self: ml_core.Conv2DLayer) -> bool"
+        },
+        "get_weights": {
+          "kind": "callable",
+          "doc": "get_weights(self: ml_core.Conv2DLayer) -> typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, n]\"]"
+        },
+        "get_weights_gradient": {
+          "kind": "callable",
+          "doc": "get_weights_gradient(self: ml_core.Layer) -> typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, n]\"]"
+        },
+        "has_weights": {
+          "kind": "callable",
+          "doc": "has_weights(self: ml_core.Conv2DLayer) -> bool"
+        },
+        "initialize_weights": {
+          "kind": "callable",
+          "doc": "initialize_weights(self: ml_core.Conv2DLayer) -> None"
+        },
+        "set_biases": {
+          "kind": "callable",
+          "doc": "set_biases(self: ml_core.Conv2DLayer, biases: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, 1]\"]) -> None"
+        },
+        "set_input_shape": {
+          "kind": "callable",
+          "doc": "set_input_shape(self: ml_core.Conv2DLayer, input_size: typing.SupportsInt) -> None"
+        },
+        "set_weights": {
+          "kind": "callable",
+          "doc": "set_weights(self: ml_core.Conv2DLayer, weights: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, n]\"]) -> None"
+        }
+      }
+    },
+    "DENSE": {
+      "kind": "value",
+      "type": "LayerType",
+      "value": "<LayerType.DENSE: 1>"
+    },
+    "DROPOUT": {
+      "kind": "value",
+      "type": "LayerType",
+      "value": "<LayerType.DROPOUT: 6>"
+    },
+    "DenseLayer": {
+      "kind": "class",
+      "doc": "",
+      "members": {
+        "backward": {
+          "kind": "callable",
+          "doc": "backward(self: ml_core.DenseLayer, gradient: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, n]\"]) -> typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, n]\"]"
+        },
+        "clear_cache": {
+          "kind": "callable",
+          "doc": "clear_cache(self: ml_core.Layer) -> None"
+        },
+        "forward": {
+          "kind": "callable",
+          "doc": "forward(self: ml_core.DenseLayer, input: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, n]\"], training: bool = False) -> typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, n]\"]"
+        },
+        "get_bias_gradient": {
+          "kind": "callable",
+          "doc": "get_bias_gradient(self: ml_core.Layer) -> typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, 1]\"]"
+        },
+        "get_biases": {
+          "kind": "callable",
+          "doc": "get_biases(self: ml_core.DenseLayer) -> typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, 1]\"]"
+        },
+        "get_config": {
+          "kind": "callable",
+          "doc": "get_config(self: ml_core.DenseLayer) -> str"
+        },
+        "get_input_size": {
+          "kind": "callable",
+          "doc": "get_input_size(self: ml_core.DenseLayer) -> int"
+        },
+        "get_layer_type": {
+          "kind": "callable",
+          "doc": "get_layer_type(self: ml_core.Layer) -> ml_core.LayerType"
+        },
+        "get_output_size": {
+          "kind": "callable",
+          "doc": "get_output_size(self: ml_core.DenseLayer) -> int"
+        },
+        "get_parameter_count": {
+          "kind": "callable",
+          "doc": "get_parameter_count(self: ml_core.DenseLayer) -> int"
+        },
+        "get_type": {
+          "kind": "callable",
+          "doc": "get_type(self: ml_core.DenseLayer) -> str"
+        },
+        "get_use_bias": {
+          "kind": "callable",
+          "doc": "get_use_bias(self: ml_core.DenseLayer) -> bool"
+        },
+        "get_weights": {
+          "kind": "callable",
+          "doc": "get_weights(self: ml_core.DenseLayer) -> typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, n]\"]"
+        },
+        "get_weights_gradient": {
+          "kind": "callable",
+          "doc": "get_weights_gradient(self: ml_core.Layer) -> typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, n]\"]"
+        },
+        "has_weights": {
+          "kind": "callable",
+          "doc": "has_weights(self: ml_core.DenseLayer) -> bool"
+        },
+        "initialize_weights": {
+          "kind": "callable",
+          "doc": "initialize_weights(self: ml_core.DenseLayer) -> None"
+        },
+        "set_biases": {
+          "kind": "callable",
+          "doc": "set_biases(self: ml_core.DenseLayer, biases: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, 1]\"]) -> None"
+        },
+        "set_input_shape": {
+          "kind": "callable",
+          "doc": "set_input_shape(self: ml_core.DenseLayer, input_size: typing.SupportsInt) -> None"
+        },
+        "set_weights": {
+          "kind": "callable",
+          "doc": "set_weights(self: ml_core.DenseLayer, weights: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, n]\"]) -> None"
+        }
+      }
+    },
+    "DropoutLayer": {
+      "kind": "class",
+      "doc": "",
+      "members": {
+        "backward": {
+          "kind": "callable",
+          "doc": "backward(self: ml_core.DropoutLayer, gradient: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, n]\"]) -> typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, n]\"]"
+        },
+        "clear_cache": {
+          "kind": "callable",
+          "doc": "clear_cache(self: ml_core.Layer) -> None"
+        },
+        "forward": {
+          "kind": "callable",
+          "doc": "forward(self: ml_core.DropoutLayer, input: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, n]\"], training: bool = False) -> typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, n]\"]"
+        },
+        "get_bias_gradient": {
+          "kind": "callable",
+          "doc": "get_bias_gradient(self: ml_core.Layer) -> typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, 1]\"]"
+        },
+        "get_biases": {
+          "kind": "callable",
+          "doc": "get_biases(self: ml_core.Layer) -> typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, 1]\"]"
+        },
+        "get_config": {
+          "kind": "callable",
+          "doc": "get_config(self: ml_core.DropoutLayer) -> str"
+        },
+        "get_input_size": {
+          "kind": "callable",
+          "doc": "get_input_size(self: ml_core.DropoutLayer) -> int"
+        },
+        "get_layer_type": {
+          "kind": "callable",
+          "doc": "get_layer_type(self: ml_core.Layer) -> ml_core.LayerType"
+        },
+        "get_output_size": {
+          "kind": "callable",
+          "doc": "get_output_size(self: ml_core.DropoutLayer) -> int"
+        },
+        "get_parameter_count": {
+          "kind": "callable",
+          "doc": "get_parameter_count(self: ml_core.Layer) -> int"
+        },
+        "get_rate": {
+          "kind": "callable",
+          "doc": "get_rate(self: ml_core.DropoutLayer) -> float"
+        },
+        "get_type": {
+          "kind": "callable",
+          "doc": "get_type(self: ml_core.DropoutLayer) -> str"
+        },
+        "get_use_bias": {
+          "kind": "callable",
+          "doc": "get_use_bias(self: ml_core.Layer) -> bool"
+        },
+        "get_weights": {
+          "kind": "callable",
+          "doc": "get_weights(self: ml_core.Layer) -> typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, n]\"]"
+        },
+        "get_weights_gradient": {
+          "kind": "callable",
+          "doc": "get_weights_gradient(self: ml_core.Layer) -> typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, n]\"]"
+        },
+        "has_weights": {
+          "kind": "callable",
+          "doc": "has_weights(self: ml_core.Layer) -> bool"
+        },
+        "set_biases": {
+          "kind": "callable",
+          "doc": "set_biases(self: ml_core.Layer, biases: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, 1]\"]) -> None"
+        },
+        "set_input_shape": {
+          "kind": "callable",
+          "doc": "set_input_shape(self: ml_core.DropoutLayer, input_size: typing.SupportsInt) -> None"
+        },
+        "set_weights": {
+          "kind": "callable",
+          "doc": "set_weights(self: ml_core.Layer, weights: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, n]\"]) -> None"
+        }
+      }
+    },
+    "ELASTIC_NET": {
+      "kind": "value",
+      "type": "RegularizerType",
+      "value": "<RegularizerType.ELASTIC_NET: 3>"
+    },
+    "ElasticNetRegularizer": {
+      "kind": "class",
+      "doc": "",
+      "members": {
+        "clone": {
+          "kind": "callable",
+          "doc": "clone(self: ml_core.ElasticNetRegularizer) -> ml_core.Regularizer"
+        },
+        "compute_gradient_matrix": {
+          "kind": "callable",
+          "doc": "compute_gradient_matrix(self: ml_core.ElasticNetRegularizer, weights: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, n]\"]) -> typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, n]\"]\n\nElastic Net gradient"
+        },
+        "compute_gradient_vector": {
+          "kind": "callable",
+          "doc": "compute_gradient_vector(self: ml_core.ElasticNetRegularizer, bias: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, 1]\"]) -> typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, 1]\"]\n\nElastic Net gradient for bias"
+        },
+        "compute_loss_matrix": {
+          "kind": "callable",
+          "doc": "compute_loss_matrix(self: ml_core.ElasticNetRegularizer, weights: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, n]\"]) -> float\n\nElastic Net loss"
+        },
+        "compute_loss_vector": {
+          "kind": "callable",
+          "doc": "compute_loss_vector(self: ml_core.ElasticNetRegularizer, bias: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, 1]\"]) -> float\n\nElastic Net loss for bias"
+        },
+        "get_l1_ratio": {
+          "kind": "callable",
+          "doc": "get_l1_ratio(self: ml_core.ElasticNetRegularizer) -> float\n\nGet L1 ratio (0 = L2 only, 1 = L1 only)"
+        },
+        "get_strength": {
+          "kind": "callable",
+          "doc": "get_strength(self: ml_core.Regularizer) -> float"
+        },
+        "get_type": {
+          "kind": "callable",
+          "doc": "get_type(self: ml_core.Regularizer) -> ml_core.RegularizerType"
+        },
+        "get_type_str": {
+          "kind": "callable",
+          "doc": "get_type_str(self: ml_core.Regularizer) -> str"
+        },
+        "set_l1_ratio": {
+          "kind": "callable",
+          "doc": "set_l1_ratio(self: ml_core.ElasticNetRegularizer, ratio: typing.SupportsFloat) -> None\n\nSet L1 ratio (0 = L2 only, 1 = L1 only)"
+        },
+        "set_strength": {
+          "kind": "callable",
+          "doc": "set_strength(self: ml_core.Regularizer, strength: typing.SupportsFloat) -> None"
+        }
+      }
+    },
+    "Estimator": {
+      "kind": "class",
+      "doc": "",
+      "members": {
+        "fit": {
+          "kind": "callable",
+          "doc": "fit(self: ml_core.Estimator, X: Eigen::Matrix<double, -1, -1, 0, -1, -1>, y: Eigen::Matrix<double, -1, 1, 0, -1, 1>) -> None"
+        },
+        "get_learning_rate": {
+          "kind": "callable",
+          "doc": "get_learning_rate(self: ml_core.Estimator) -> float"
+        },
+        "get_model_type": {
+          "kind": "callable",
+          "doc": "get_model_type(self: ml_core.Estimator) -> str"
+        },
+        "load": {
+          "kind": "callable",
+          "doc": "load(self: ml_core.Estimator, filename: str) -> None"
+        },
+        "predict": {
+          "kind": "callable",
+          "doc": "predict(self: ml_core.Estimator, X: Eigen::Matrix<double, -1, -1, 0, -1, -1>) -> Eigen::Matrix<double, -1, 1, 0, -1, 1>"
+        },
+        "save": {
+          "kind": "callable",
+          "doc": "save(self: ml_core.Estimator, filename: str) -> None"
+        },
+        "score": {
+          "kind": "callable",
+          "doc": "score(self: ml_core.Estimator, X: Eigen::Matrix<double, -1, -1, 0, -1, -1>, y: Eigen::Matrix<double, -1, 1, 0, -1, 1>) -> float"
+        },
+        "set_learning_rate": {
+          "kind": "callable",
+          "doc": "set_learning_rate(self: ml_core.Estimator, learning_rate: typing.SupportsFloat) -> None"
+        },
+        "set_optimizer": {
+          "kind": "callable",
+          "doc": "set_optimizer(self: ml_core.Estimator, type: ml_core.OptimizerType, learning_rate: typing.SupportsFloat = 0.01) -> None"
+        },
+        "to_string": {
+          "kind": "callable",
+          "doc": "to_string(self: ml_core.Estimator) -> str"
+        }
+      }
+    },
+    "FLATTEN": {
+      "kind": "value",
+      "type": "LayerType",
+      "value": "<LayerType.FLATTEN: 5>"
+    },
+    "FlattenLayer": {
+      "kind": "class",
+      "doc": "",
+      "members": {
+        "backward": {
+          "kind": "callable",
+          "doc": "backward(self: ml_core.FlattenLayer, gradient: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, n]\"]) -> typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, n]\"]"
+        },
+        "clear_cache": {
+          "kind": "callable",
+          "doc": "clear_cache(self: ml_core.Layer) -> None"
+        },
+        "forward": {
+          "kind": "callable",
+          "doc": "forward(self: ml_core.FlattenLayer, input: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, n]\"], training: bool = False) -> typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, n]\"]"
+        },
+        "get_bias_gradient": {
+          "kind": "callable",
+          "doc": "get_bias_gradient(self: ml_core.Layer) -> typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, 1]\"]"
+        },
+        "get_biases": {
+          "kind": "callable",
+          "doc": "get_biases(self: ml_core.Layer) -> typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, 1]\"]"
+        },
+        "get_config": {
+          "kind": "callable",
+          "doc": "get_config(self: ml_core.FlattenLayer) -> str"
+        },
+        "get_input_size": {
+          "kind": "callable",
+          "doc": "get_input_size(self: ml_core.FlattenLayer) -> int"
+        },
+        "get_layer_type": {
+          "kind": "callable",
+          "doc": "get_layer_type(self: ml_core.Layer) -> ml_core.LayerType"
+        },
+        "get_output_size": {
+          "kind": "callable",
+          "doc": "get_output_size(self: ml_core.FlattenLayer) -> int"
+        },
+        "get_parameter_count": {
+          "kind": "callable",
+          "doc": "get_parameter_count(self: ml_core.Layer) -> int"
+        },
+        "get_type": {
+          "kind": "callable",
+          "doc": "get_type(self: ml_core.FlattenLayer) -> str"
+        },
+        "get_use_bias": {
+          "kind": "callable",
+          "doc": "get_use_bias(self: ml_core.Layer) -> bool"
+        },
+        "get_weights": {
+          "kind": "callable",
+          "doc": "get_weights(self: ml_core.Layer) -> typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, n]\"]"
+        },
+        "get_weights_gradient": {
+          "kind": "callable",
+          "doc": "get_weights_gradient(self: ml_core.Layer) -> typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, n]\"]"
+        },
+        "has_weights": {
+          "kind": "callable",
+          "doc": "has_weights(self: ml_core.Layer) -> bool"
+        },
+        "set_biases": {
+          "kind": "callable",
+          "doc": "set_biases(self: ml_core.Layer, biases: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, 1]\"]) -> None"
+        },
+        "set_input_shape": {
+          "kind": "callable",
+          "doc": "set_input_shape(self: ml_core.FlattenLayer, input_size: typing.SupportsInt) -> None"
+        },
+        "set_weights": {
+          "kind": "callable",
+          "doc": "set_weights(self: ml_core.Layer, weights: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, n]\"]) -> None"
+        }
+      }
+    },
+    "GRADIENT_DESCENT": {
+      "kind": "value",
+      "type": "LinearSolver",
+      "value": "<LinearSolver.GRADIENT_DESCENT: 0>"
+    },
+    "GRU": {
+      "kind": "value",
+      "type": "RecurrentType",
+      "value": "<RecurrentType.GRU: 2>"
+    },
+    "GRULayer": {
+      "kind": "class",
+      "doc": "",
+      "members": {
+        "backward": {
+          "kind": "callable",
+          "doc": "backward(self: ml_core.GRULayer, gradient: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, n]\"]) -> typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, n]\"]"
+        },
+        "clear_cache": {
+          "kind": "callable",
+          "doc": "clear_cache(self: ml_core.Layer) -> None"
+        },
+        "forward": {
+          "kind": "callable",
+          "doc": "forward(self: ml_core.GRULayer, input: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, n]\"], training: bool = False) -> typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, n]\"]"
+        },
+        "get_bias_gradient": {
+          "kind": "callable",
+          "doc": "get_bias_gradient(self: ml_core.Layer) -> typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, 1]\"]"
+        },
+        "get_biases": {
+          "kind": "callable",
+          "doc": "get_biases(self: ml_core.GRULayer) -> typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, 1]\"]"
+        },
+        "get_config": {
+          "kind": "callable",
+          "doc": "get_config(self: ml_core.GRULayer) -> str"
+        },
+        "get_hidden_state": {
+          "kind": "callable",
+          "doc": "get_hidden_state(self: ml_core.GRULayer) -> typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, n]\"]"
+        },
+        "get_input_size": {
+          "kind": "callable",
+          "doc": "get_input_size(self: ml_core.GRULayer) -> int"
+        },
+        "get_layer_type": {
+          "kind": "callable",
+          "doc": "get_layer_type(self: ml_core.Layer) -> ml_core.LayerType"
+        },
+        "get_output_size": {
+          "kind": "callable",
+          "doc": "get_output_size(self: ml_core.GRULayer) -> int"
+        },
+        "get_parameter_count": {
+          "kind": "callable",
+          "doc": "get_parameter_count(self: ml_core.Layer) -> int"
+        },
+        "get_type": {
+          "kind": "callable",
+          "doc": "get_type(self: ml_core.GRULayer) -> str"
+        },
+        "get_use_bias": {
+          "kind": "callable",
+          "doc": "get_use_bias(self: ml_core.Layer) -> bool"
+        },
+        "get_weights": {
+          "kind": "callable",
+          "doc": "get_weights(self: ml_core.GRULayer) -> typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, n]\"]"
+        },
+        "get_weights_gradient": {
+          "kind": "callable",
+          "doc": "get_weights_gradient(self: ml_core.Layer) -> typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, n]\"]"
+        },
+        "has_weights": {
+          "kind": "callable",
+          "doc": "has_weights(self: ml_core.Layer) -> bool"
+        },
+        "reset_state": {
+          "kind": "callable",
+          "doc": "reset_state(self: ml_core.GRULayer) -> None"
+        },
+        "set_biases": {
+          "kind": "callable",
+          "doc": "set_biases(self: ml_core.GRULayer, biases: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, 1]\"]) -> None"
+        },
+        "set_input_shape": {
+          "kind": "callable",
+          "doc": "set_input_shape(self: ml_core.GRULayer, input_size: typing.SupportsInt) -> None"
+        },
+        "set_weights": {
+          "kind": "callable",
+          "doc": "set_weights(self: ml_core.GRULayer, weights: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, n]\"]) -> None"
+        }
+      }
+    },
+    "HuberLoss": {
+      "kind": "class",
+      "doc": "",
+      "members": {
+        "compute_matrix": {
+          "kind": "callable",
+          "doc": "compute_matrix(self: ml_core.HuberLoss, y_true: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, n]\"], y_pred: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, n]\"]) -> float"
+        },
+        "compute_vector": {
+          "kind": "callable",
+          "doc": "compute_vector(self: ml_core.HuberLoss, y_true: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, 1]\"], y_pred: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, 1]\"]) -> float"
+        },
+        "get_delta": {
+          "kind": "callable",
+          "doc": "get_delta(self: ml_core.HuberLoss) -> float"
+        },
+        "gradient": {
+          "kind": "callable",
+          "doc": "gradient(self: ml_core.HuberLoss, y_true: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, n]\"], y_pred: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, n]\"]) -> typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, n]\"]"
+        },
+        "name": {
+          "kind": "callable",
+          "doc": "name(self: ml_core.HuberLoss) -> str"
+        },
+        "set_delta": {
+          "kind": "callable",
+          "doc": "set_delta(self: ml_core.HuberLoss, delta: typing.SupportsFloat) -> None"
+        }
+      }
+    },
+    "L1": {
+      "kind": "value",
+      "type": "RegularizerType",
+      "value": "<RegularizerType.L1: 1>"
+    },
+    "L1Regularizer": {
+      "kind": "class",
+      "doc": "",
+      "members": {
+        "clone": {
+          "kind": "callable",
+          "doc": "clone(self: ml_core.L1Regularizer) -> ml_core.Regularizer"
+        },
+        "compute_gradient_matrix": {
+          "kind": "callable",
+          "doc": "compute_gradient_matrix(self: ml_core.L1Regularizer, weights: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, n]\"]) -> typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, n]\"]\n\nL1 gradient: λ * sign(w)"
+        },
+        "compute_gradient_vector": {
+          "kind": "callable",
+          "doc": "compute_gradient_vector(self: ml_core.L1Regularizer, bias: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, 1]\"]) -> typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, 1]\"]\n\nL1 gradient: λ * sign(b)"
+        },
+        "compute_loss_matrix": {
+          "kind": "callable",
+          "doc": "compute_loss_matrix(self: ml_core.L1Regularizer, weights: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, n]\"]) -> float\n\nL1 loss: λ * Σ|w|"
+        },
+        "compute_loss_vector": {
+          "kind": "callable",
+          "doc": "compute_loss_vector(self: ml_core.L1Regularizer, bias: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, 1]\"]) -> float\n\nL1 loss: λ * Σ|b|"
+        },
+        "get_strength": {
+          "kind": "callable",
+          "doc": "get_strength(self: ml_core.Regularizer) -> float"
+        },
+        "get_type": {
+          "kind": "callable",
+          "doc": "get_type(self: ml_core.Regularizer) -> ml_core.RegularizerType"
+        },
+        "get_type_str": {
+          "kind": "callable",
+          "doc": "get_type_str(self: ml_core.Regularizer) -> str"
+        },
+        "set_strength": {
+          "kind": "callable",
+          "doc": "set_strength(self: ml_core.Regularizer, strength: typing.SupportsFloat) -> None"
+        }
+      }
+    },
+    "L2": {
+      "kind": "value",
+      "type": "RegularizerType",
+      "value": "<RegularizerType.L2: 2>"
+    },
+    "L2Regularizer": {
+      "kind": "class",
+      "doc": "",
+      "members": {
+        "clone": {
+          "kind": "callable",
+          "doc": "clone(self: ml_core.L2Regularizer) -> ml_core.Regularizer"
+        },
+        "compute_gradient_matrix": {
+          "kind": "callable",
+          "doc": "compute_gradient_matrix(self: ml_core.L2Regularizer, weights: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, n]\"]) -> typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, n]\"]\n\nL2 gradient: λ * w"
+        },
+        "compute_gradient_vector": {
+          "kind": "callable",
+          "doc": "compute_gradient_vector(self: ml_core.L2Regularizer, bias: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, 1]\"]) -> typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, 1]\"]\n\nL2 gradient: λ * b"
+        },
+        "compute_loss_matrix": {
+          "kind": "callable",
+          "doc": "compute_loss_matrix(self: ml_core.L2Regularizer, weights: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, n]\"]) -> float\n\nL2 loss: 0.5 * λ * Σw²"
+        },
+        "compute_loss_vector": {
+          "kind": "callable",
+          "doc": "compute_loss_vector(self: ml_core.L2Regularizer, bias: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, 1]\"]) -> float\n\nL2 loss: 0.5 * λ * Σb²"
+        },
+        "get_strength": {
+          "kind": "callable",
+          "doc": "get_strength(self: ml_core.Regularizer) -> float"
+        },
+        "get_type": {
+          "kind": "callable",
+          "doc": "get_type(self: ml_core.Regularizer) -> ml_core.RegularizerType"
+        },
+        "get_type_str": {
+          "kind": "callable",
+          "doc": "get_type_str(self: ml_core.Regularizer) -> str"
+        },
+        "set_strength": {
+          "kind": "callable",
+          "doc": "set_strength(self: ml_core.Regularizer, strength: typing.SupportsFloat) -> None"
+        }
+      }
+    },
+    "LSTM": {
+      "kind": "value",
+      "type": "RecurrentType",
+      "value": "<RecurrentType.LSTM: 1>"
+    },
+    "LSTMLayer": {
+      "kind": "class",
+      "doc": "",
+      "members": {
+        "backward": {
+          "kind": "callable",
+          "doc": "backward(self: ml_core.LSTMLayer, gradient: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, n]\"]) -> typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, n]\"]"
+        },
+        "clear_cache": {
+          "kind": "callable",
+          "doc": "clear_cache(self: ml_core.Layer) -> None"
+        },
+        "forward": {
+          "kind": "callable",
+          "doc": "forward(self: ml_core.LSTMLayer, input: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, n]\"], training: bool = False) -> typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, n]\"]"
+        },
+        "get_bias_gradient": {
+          "kind": "callable",
+          "doc": "get_bias_gradient(self: ml_core.Layer) -> typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, 1]\"]"
+        },
+        "get_biases": {
+          "kind": "callable",
+          "doc": "get_biases(self: ml_core.LSTMLayer) -> typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, 1]\"]"
+        },
+        "get_cell_state": {
+          "kind": "callable",
+          "doc": "get_cell_state(self: ml_core.LSTMLayer) -> typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, n]\"]"
+        },
+        "get_config": {
+          "kind": "callable",
+          "doc": "get_config(self: ml_core.LSTMLayer) -> str"
+        },
+        "get_hidden_state": {
+          "kind": "callable",
+          "doc": "get_hidden_state(self: ml_core.LSTMLayer) -> typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, n]\"]"
+        },
+        "get_input_size": {
+          "kind": "callable",
+          "doc": "get_input_size(self: ml_core.LSTMLayer) -> int"
+        },
+        "get_layer_type": {
+          "kind": "callable",
+          "doc": "get_layer_type(self: ml_core.Layer) -> ml_core.LayerType"
+        },
+        "get_output_size": {
+          "kind": "callable",
+          "doc": "get_output_size(self: ml_core.LSTMLayer) -> int"
+        },
+        "get_parameter_count": {
+          "kind": "callable",
+          "doc": "get_parameter_count(self: ml_core.Layer) -> int"
+        },
+        "get_type": {
+          "kind": "callable",
+          "doc": "get_type(self: ml_core.LSTMLayer) -> str"
+        },
+        "get_use_bias": {
+          "kind": "callable",
+          "doc": "get_use_bias(self: ml_core.Layer) -> bool"
+        },
+        "get_weights": {
+          "kind": "callable",
+          "doc": "get_weights(self: ml_core.LSTMLayer) -> typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, n]\"]"
+        },
+        "get_weights_gradient": {
+          "kind": "callable",
+          "doc": "get_weights_gradient(self: ml_core.Layer) -> typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, n]\"]"
+        },
+        "has_weights": {
+          "kind": "callable",
+          "doc": "has_weights(self: ml_core.Layer) -> bool"
+        },
+        "reset_state": {
+          "kind": "callable",
+          "doc": "reset_state(self: ml_core.LSTMLayer) -> None"
+        },
+        "set_biases": {
+          "kind": "callable",
+          "doc": "set_biases(self: ml_core.LSTMLayer, biases: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, 1]\"]) -> None"
+        },
+        "set_input_shape": {
+          "kind": "callable",
+          "doc": "set_input_shape(self: ml_core.LSTMLayer, input_size: typing.SupportsInt) -> None"
+        },
+        "set_weights": {
+          "kind": "callable",
+          "doc": "set_weights(self: ml_core.LSTMLayer, weights: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, n]\"]) -> None"
+        }
+      }
+    },
+    "Layer": {
+      "kind": "class",
+      "doc": "",
+      "members": {
+        "backward": {
+          "kind": "callable",
+          "doc": "backward(self: ml_core.Layer, gradient: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, n]\"]) -> typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, n]\"]"
+        },
+        "clear_cache": {
+          "kind": "callable",
+          "doc": "clear_cache(self: ml_core.Layer) -> None"
+        },
+        "forward": {
+          "kind": "callable",
+          "doc": "forward(self: ml_core.Layer, input: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, n]\"], training: bool = False) -> typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, n]\"]"
+        },
+        "get_bias_gradient": {
+          "kind": "callable",
+          "doc": "get_bias_gradient(self: ml_core.Layer) -> typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, 1]\"]"
+        },
+        "get_biases": {
+          "kind": "callable",
+          "doc": "get_biases(self: ml_core.Layer) -> typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, 1]\"]"
+        },
+        "get_config": {
+          "kind": "callable",
+          "doc": "get_config(self: ml_core.Layer) -> str"
+        },
+        "get_input_size": {
+          "kind": "callable",
+          "doc": "get_input_size(self: ml_core.Layer) -> int"
+        },
+        "get_layer_type": {
+          "kind": "callable",
+          "doc": "get_layer_type(self: ml_core.Layer) -> ml_core.LayerType"
+        },
+        "get_output_size": {
+          "kind": "callable",
+          "doc": "get_output_size(self: ml_core.Layer) -> int"
+        },
+        "get_parameter_count": {
+          "kind": "callable",
+          "doc": "get_parameter_count(self: ml_core.Layer) -> int"
+        },
+        "get_type": {
+          "kind": "callable",
+          "doc": "get_type(self: ml_core.Layer) -> str"
+        },
+        "get_use_bias": {
+          "kind": "callable",
+          "doc": "get_use_bias(self: ml_core.Layer) -> bool"
+        },
+        "get_weights": {
+          "kind": "callable",
+          "doc": "get_weights(self: ml_core.Layer) -> typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, n]\"]"
+        },
+        "get_weights_gradient": {
+          "kind": "callable",
+          "doc": "get_weights_gradient(self: ml_core.Layer) -> typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, n]\"]"
+        },
+        "has_weights": {
+          "kind": "callable",
+          "doc": "has_weights(self: ml_core.Layer) -> bool"
+        },
+        "set_biases": {
+          "kind": "callable",
+          "doc": "set_biases(self: ml_core.Layer, biases: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, 1]\"]) -> None"
+        },
+        "set_input_shape": {
+          "kind": "callable",
+          "doc": "set_input_shape(self: ml_core.Layer, input_size: typing.SupportsInt) -> None"
+        },
+        "set_weights": {
+          "kind": "callable",
+          "doc": "set_weights(self: ml_core.Layer, weights: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, n]\"]) -> None"
+        }
+      }
+    },
+    "LayerFactory": {
+      "kind": "class",
+      "doc": "",
+      "members": {
+        "create": {
+          "kind": "callable",
+          "doc": "create(type: ml_core.LayerType) -> ml_core.Layer"
+        },
+        "create_by_name": {
+          "kind": "callable",
+          "doc": "create_by_name(name: str) -> ml_core.Layer"
+        },
+        "deserialize_type": {
+          "kind": "callable",
+          "doc": "deserialize_type(in: std::istream) -> ml_core.LayerType"
+        },
+        "get_name": {
+          "kind": "callable",
+          "doc": "get_name(type: ml_core.LayerType) -> str"
+        },
+        "register_all_layers": {
+          "kind": "callable",
+          "doc": "register_all_layers() -> None"
+        },
+        "serialize_type": {
+          "kind": "callable",
+          "doc": "serialize_type(out: std::ostream, type: ml_core.LayerType) -> None"
+        }
+      }
+    },
+    "LayerType": {
+      "kind": "class",
+      "doc": "Members:\n\nDENSE\n\nCONV2D\n\nMAX_POOLING\n\nAVERAGE_POOLING\n\nFLATTEN\n\nDROPOUT\n\nBATCH_NORM\n\nSIMPLE_RNN\n\nLSTM\n\nGRU",
+      "members": {
+        "AVERAGE_POOLING": {
+          "kind": "attribute",
+          "type": "LayerType",
+          "doc": "Members:\n\nDENSE\n\nCONV2D\n\nMAX_POOLING\n\nAVERAGE_POOLING\n\nFLATTEN\n\nDROPOUT\n\nBATCH_NORM\n\nSIMPLE_RNN\n\nLSTM\n\nGRU"
+        },
+        "BATCH_NORM": {
+          "kind": "attribute",
+          "type": "LayerType",
+          "doc": "Members:\n\nDENSE\n\nCONV2D\n\nMAX_POOLING\n\nAVERAGE_POOLING\n\nFLATTEN\n\nDROPOUT\n\nBATCH_NORM\n\nSIMPLE_RNN\n\nLSTM\n\nGRU"
+        },
+        "CONV2D": {
+          "kind": "attribute",
+          "type": "LayerType",
+          "doc": "Members:\n\nDENSE\n\nCONV2D\n\nMAX_POOLING\n\nAVERAGE_POOLING\n\nFLATTEN\n\nDROPOUT\n\nBATCH_NORM\n\nSIMPLE_RNN\n\nLSTM\n\nGRU"
+        },
+        "DENSE": {
+          "kind": "attribute",
+          "type": "LayerType",
+          "doc": "Members:\n\nDENSE\n\nCONV2D\n\nMAX_POOLING\n\nAVERAGE_POOLING\n\nFLATTEN\n\nDROPOUT\n\nBATCH_NORM\n\nSIMPLE_RNN\n\nLSTM\n\nGRU"
+        },
+        "DROPOUT": {
+          "kind": "attribute",
+          "type": "LayerType",
+          "doc": "Members:\n\nDENSE\n\nCONV2D\n\nMAX_POOLING\n\nAVERAGE_POOLING\n\nFLATTEN\n\nDROPOUT\n\nBATCH_NORM\n\nSIMPLE_RNN\n\nLSTM\n\nGRU"
+        },
+        "FLATTEN": {
+          "kind": "attribute",
+          "type": "LayerType",
+          "doc": "Members:\n\nDENSE\n\nCONV2D\n\nMAX_POOLING\n\nAVERAGE_POOLING\n\nFLATTEN\n\nDROPOUT\n\nBATCH_NORM\n\nSIMPLE_RNN\n\nLSTM\n\nGRU"
+        },
+        "GRU": {
+          "kind": "attribute",
+          "type": "LayerType",
+          "doc": "Members:\n\nDENSE\n\nCONV2D\n\nMAX_POOLING\n\nAVERAGE_POOLING\n\nFLATTEN\n\nDROPOUT\n\nBATCH_NORM\n\nSIMPLE_RNN\n\nLSTM\n\nGRU"
+        },
+        "LSTM": {
+          "kind": "attribute",
+          "type": "LayerType",
+          "doc": "Members:\n\nDENSE\n\nCONV2D\n\nMAX_POOLING\n\nAVERAGE_POOLING\n\nFLATTEN\n\nDROPOUT\n\nBATCH_NORM\n\nSIMPLE_RNN\n\nLSTM\n\nGRU"
+        },
+        "MAX_POOLING": {
+          "kind": "attribute",
+          "type": "LayerType",
+          "doc": "Members:\n\nDENSE\n\nCONV2D\n\nMAX_POOLING\n\nAVERAGE_POOLING\n\nFLATTEN\n\nDROPOUT\n\nBATCH_NORM\n\nSIMPLE_RNN\n\nLSTM\n\nGRU"
+        },
+        "SIMPLE_RNN": {
+          "kind": "attribute",
+          "type": "LayerType",
+          "doc": "Members:\n\nDENSE\n\nCONV2D\n\nMAX_POOLING\n\nAVERAGE_POOLING\n\nFLATTEN\n\nDROPOUT\n\nBATCH_NORM\n\nSIMPLE_RNN\n\nLSTM\n\nGRU"
+        },
+        "name": {
+          "kind": "property",
+          "doc": "name(self: object, /) -> str"
+        },
+        "value": {
+          "kind": "property",
+          "doc": ""
+        }
+      },
+      "enum_values": [
+        "DENSE",
+        "CONV2D",
+        "MAX_POOLING",
+        "AVERAGE_POOLING",
+        "FLATTEN",
+        "DROPOUT",
+        "BATCH_NORM",
+        "SIMPLE_RNN",
+        "LSTM",
+        "GRU"
+      ]
+    },
+    "LinearRegression": {
+      "kind": "class",
+      "doc": "",
+      "members": {
+        "coefficients": {
+          "kind": "property",
+          "doc": ""
+        },
+        "cost_history": {
+          "kind": "property",
+          "doc": ""
+        },
+        "cross_val_score": {
+          "kind": "callable",
+          "doc": "cross_val_score(X: typing.Annotated[numpy.typing.ArrayLike, numpy.float64], y: typing.Annotated[numpy.typing.ArrayLike, numpy.float64], cv: typing.SupportsInt = 5, solver: ml_core.LinearSolver = <LinearSolver.GRADIENT_DESCENT: 0>) -> typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, 1]\"]"
+        },
+        "fit": {
+          "kind": "callable",
+          "doc": "fit(self: ml_core.LinearRegression, X: typing.Annotated[numpy.typing.ArrayLike, numpy.float64], y: typing.Annotated[numpy.typing.ArrayLike, numpy.float64]) -> ml_core.LinearRegression"
+        },
+        "get_learning_rate": {
+          "kind": "callable",
+          "doc": "get_learning_rate(self: ml_core.Estimator) -> float"
+        },
+        "get_model_type": {
+          "kind": "callable",
+          "doc": "get_model_type(self: ml_core.LinearRegression) -> str"
+        },
+        "intercept": {
+          "kind": "property",
+          "doc": ""
+        },
+        "load": {
+          "kind": "callable",
+          "doc": "load(self: ml_core.Estimator, filename: str) -> None"
+        },
+        "mae": {
+          "kind": "callable",
+          "doc": "mae(self: ml_core.LinearRegression, X: typing.Annotated[numpy.typing.ArrayLike, numpy.float64], y: typing.Annotated[numpy.typing.ArrayLike, numpy.float64]) -> float"
+        },
+        "mse": {
+          "kind": "callable",
+          "doc": "mse(self: ml_core.LinearRegression, X: typing.Annotated[numpy.typing.ArrayLike, numpy.float64], y: typing.Annotated[numpy.typing.ArrayLike, numpy.float64]) -> float"
+        },
+        "predict": {
+          "kind": "callable",
+          "doc": "predict(self: ml_core.LinearRegression, X: typing.Annotated[numpy.typing.ArrayLike, numpy.float64]) -> object"
+        },
+        "r2_score": {
+          "kind": "callable",
+          "doc": "r2_score(self: ml_core.LinearRegression, X: typing.Annotated[numpy.typing.ArrayLike, numpy.float64], y: typing.Annotated[numpy.typing.ArrayLike, numpy.float64]) -> float"
+        },
+        "save": {
+          "kind": "callable",
+          "doc": "save(self: ml_core.Estimator, filename: str) -> None"
+        },
+        "score": {
+          "kind": "callable",
+          "doc": "score(self: ml_core.LinearRegression, X: typing.Annotated[numpy.typing.ArrayLike, numpy.float64], y: typing.Annotated[numpy.typing.ArrayLike, numpy.float64]) -> float"
+        },
+        "set_lambda": {
+          "kind": "callable",
+          "doc": "set_lambda(self: ml_core.LinearRegression, lambda: typing.SupportsFloat) -> None"
+        },
+        "set_learning_rate": {
+          "kind": "callable",
+          "doc": "set_learning_rate(self: ml_core.Estimator, learning_rate: typing.SupportsFloat) -> None"
+        },
+        "set_max_iterations": {
+          "kind": "callable",
+          "doc": "set_max_iterations(self: ml_core.LinearRegression, max_iter: typing.SupportsInt) -> None"
+        },
+        "set_optimizer": {
+          "kind": "callable",
+          "doc": "set_optimizer(self: ml_core.Estimator, type: ml_core.OptimizerType, learning_rate: typing.SupportsFloat = 0.01) -> None"
+        },
+        "to_string": {
+          "kind": "callable",
+          "doc": "to_string(self: ml_core.LinearRegression) -> str"
+        }
+      }
+    },
+    "LinearSolver": {
+      "kind": "class",
+      "doc": "Members:\n\nGRADIENT_DESCENT\n\nNORMAL_EQUATION\n\nSVD",
+      "members": {
+        "GRADIENT_DESCENT": {
+          "kind": "attribute",
+          "type": "LinearSolver",
+          "doc": "Members:\n\nGRADIENT_DESCENT\n\nNORMAL_EQUATION\n\nSVD"
+        },
+        "NORMAL_EQUATION": {
+          "kind": "attribute",
+          "type": "LinearSolver",
+          "doc": "Members:\n\nGRADIENT_DESCENT\n\nNORMAL_EQUATION\n\nSVD"
+        },
+        "SVD": {
+          "kind": "attribute",
+          "type": "LinearSolver",
+          "doc": "Members:\n\nGRADIENT_DESCENT\n\nNORMAL_EQUATION\n\nSVD"
+        },
+        "name": {
+          "kind": "property",
+          "doc": "name(self: object, /) -> str"
+        },
+        "value": {
+          "kind": "property",
+          "doc": ""
+        }
+      },
+      "enum_values": [
+        "GRADIENT_DESCENT",
+        "NORMAL_EQUATION",
+        "SVD"
+      ]
+    },
+    "LogisticRegression": {
+      "kind": "class",
+      "doc": "",
+      "members": {
+        "accuracy_history": {
+          "kind": "property",
+          "doc": ""
+        },
+        "coefficients": {
+          "kind": "property",
+          "doc": ""
+        },
+        "confusion_matrix": {
+          "kind": "callable",
+          "doc": "confusion_matrix(self: ml_core.LogisticRegression, X: typing.Annotated[numpy.typing.ArrayLike, numpy.float64], y: typing.Annotated[numpy.typing.ArrayLike, numpy.float64], threshold: typing.SupportsFloat = 0.5) -> typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, n]\"]"
+        },
+        "cost_history": {
+          "kind": "property",
+          "doc": ""
+        },
+        "fit": {
+          "kind": "callable",
+          "doc": "fit(self: ml_core.LogisticRegression, X: typing.Annotated[numpy.typing.ArrayLike, numpy.float64], y: typing.Annotated[numpy.typing.ArrayLike, numpy.float64]) -> None"
+        },
+        "get_learning_rate": {
+          "kind": "callable",
+          "doc": "get_learning_rate(self: ml_core.Estimator) -> float"
+        },
+        "get_model_type": {
+          "kind": "callable",
+          "doc": "get_model_type(self: ml_core.LogisticRegression) -> str"
+        },
+        "intercept": {
+          "kind": "property",
+          "doc": ""
+        },
+        "load": {
+          "kind": "callable",
+          "doc": "load(self: ml_core.Estimator, filename: str) -> None"
+        },
+        "n_iter": {
+          "kind": "property",
+          "doc": ""
+        },
+        "precision_recall_f1": {
+          "kind": "callable",
+          "doc": "precision_recall_f1(self: ml_core.LogisticRegression, X: typing.Annotated[numpy.typing.ArrayLike, numpy.float64], y: typing.Annotated[numpy.typing.ArrayLike, numpy.float64], threshold: typing.SupportsFloat = 0.5) -> typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[3, 1]\"]"
+        },
+        "predict": {
+          "kind": "callable",
+          "doc": "predict(self: ml_core.LogisticRegression, X: typing.Annotated[numpy.typing.ArrayLike, numpy.float64]) -> typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, 1]\"]"
+        },
+        "predict_class": {
+          "kind": "callable",
+          "doc": "predict_class(self: ml_core.LogisticRegression, X: typing.Annotated[numpy.typing.ArrayLike, numpy.float64], threshold: typing.SupportsFloat = 0.5) -> typing.Annotated[numpy.typing.NDArray[numpy.int32], \"[m, 1]\"]"
+        },
+        "predict_proba": {
+          "kind": "callable",
+          "doc": "predict_proba(self: ml_core.LogisticRegression, X: typing.Annotated[numpy.typing.ArrayLike, numpy.float64]) -> typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, 1]\"]"
+        },
+        "save": {
+          "kind": "callable",
+          "doc": "save(self: ml_core.Estimator, filename: str) -> None"
+        },
+        "score": {
+          "kind": "callable",
+          "doc": "score(self: ml_core.LogisticRegression, X: typing.Annotated[numpy.typing.ArrayLike, numpy.float64], y: typing.Annotated[numpy.typing.ArrayLike, numpy.float64]) -> float"
+        },
+        "set_lambda": {
+          "kind": "callable",
+          "doc": "set_lambda(self: ml_core.LogisticRegression, lambda: typing.SupportsFloat) -> None"
+        },
+        "set_learning_rate": {
+          "kind": "callable",
+          "doc": "set_learning_rate(self: ml_core.Estimator, learning_rate: typing.SupportsFloat) -> None"
+        },
+        "set_max_iterations": {
+          "kind": "callable",
+          "doc": "set_max_iterations(self: ml_core.LogisticRegression, max_iter: typing.SupportsInt) -> None"
+        },
+        "set_optimizer": {
+          "kind": "callable",
+          "doc": "set_optimizer(self: ml_core.Estimator, type: ml_core.OptimizerType, learning_rate: typing.SupportsFloat = 0.01) -> None"
+        },
+        "set_tolerance": {
+          "kind": "callable",
+          "doc": "set_tolerance(self: ml_core.LogisticRegression, tolerance: typing.SupportsFloat) -> None"
+        },
+        "set_verbose": {
+          "kind": "callable",
+          "doc": "set_verbose(self: ml_core.LogisticRegression, verbose: bool) -> None"
+        },
+        "to_string": {
+          "kind": "callable",
+          "doc": "to_string(self: ml_core.LogisticRegression) -> str"
+        }
+      }
+    },
+    "Loss": {
+      "kind": "class",
+      "doc": "",
+      "members": {
+        "compute_matrix": {
+          "kind": "callable",
+          "doc": "compute_matrix(self: ml_core.Loss, y_true: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, n]\"], y_pred: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, n]\"]) -> float"
+        },
+        "compute_vector": {
+          "kind": "callable",
+          "doc": "compute_vector(self: ml_core.Loss, y_true: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, 1]\"], y_pred: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, 1]\"]) -> float"
+        },
+        "gradient": {
+          "kind": "callable",
+          "doc": "gradient(self: ml_core.Loss, y_true: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, n]\"], y_pred: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, n]\"]) -> typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, n]\"]"
+        },
+        "name": {
+          "kind": "callable",
+          "doc": "name(self: ml_core.Loss) -> str"
+        }
+      }
+    },
+    "LossFactory": {
+      "kind": "class",
+      "doc": "",
+      "members": {
+        "create": {
+          "kind": "callable",
+          "doc": "create(name: str) -> ml_core.Loss\n\nCreate a loss function by name"
+        },
+        "list_losses": {
+          "kind": "callable",
+          "doc": "list_losses() -> list[str]\n\nList all available loss function names"
+        },
+        "register_all_losses": {
+          "kind": "callable",
+          "doc": "register_all_losses() -> None\n\nRegister all built-in loss functions"
+        },
+        "register_loss": {
+          "kind": "callable",
+          "doc": "register_loss(name: str, creator: collections.abc.Callable) -> None"
+        }
+      }
+    },
+    "MAX": {
+      "kind": "value",
+      "type": "PoolType",
+      "value": "<PoolType.MAX: 0>"
+    },
+    "MAX_POOLING": {
+      "kind": "value",
+      "type": "LayerType",
+      "value": "<LayerType.MAX_POOLING: 3>"
+    },
+    "MOMENTUM": {
+      "kind": "value",
+      "type": "OptimizerType",
+      "value": "<OptimizerType.MOMENTUM: 1>"
+    },
+    "MathUtils": {
+      "kind": "class",
+      "doc": "",
+      "members": {
+        "accuracy_score": {
+          "kind": "callable",
+          "doc": "accuracy_score(y_true: typing.Annotated[numpy.typing.ArrayLike, numpy.int32, \"[m, 1]\"], y_pred: typing.Annotated[numpy.typing.ArrayLike, numpy.int32, \"[m, 1]\"], model_type: str = '') -> float\n\nCompute accuracy score"
+        },
+        "add_intercept": {
+          "kind": "callable",
+          "doc": "add_intercept(X: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, n]\"]) -> typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, n]\"]\n\nAdd intercept column to matrix"
+        },
+        "compute_gradient_linear": {
+          "kind": "callable",
+          "doc": "compute_gradient_linear(X: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, n]\"], y: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, 1]\"], theta: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, 1]\"], lambda: typing.SupportsFloat = 0.0) -> typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, 1]\"]\n\nCompute gradient for linear regression"
+        },
+        "compute_gradient_logistic": {
+          "kind": "callable",
+          "doc": "compute_gradient_logistic(X: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, n]\"], y: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, 1]\"], theta: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, 1]\"], lambda: typing.SupportsFloat = 0.0) -> typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, 1]\"]\n\nCompute gradient for logistic regression"
+        },
+        "he_initialization": {
+          "kind": "callable",
+          "doc": "he_initialization(input_size: typing.SupportsInt, output_size: typing.SupportsInt) -> typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, n]\"]\n\nHe initialization for ReLU (std=sqrt(2/fan_in))"
+        },
+        "normalize_minmax": {
+          "kind": "callable",
+          "doc": "normalize_minmax(X: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, n]\"], min_vals: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, 1]\"], max_vals: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, 1]\"], model_type: str = '') -> None\n\nNormalize data to [0, 1] range"
+        },
+        "one_hot_encode": {
+          "kind": "callable",
+          "doc": "one_hot_encode(labels: typing.Annotated[numpy.typing.ArrayLike, numpy.int32, \"[m, 1]\"], num_classes: typing.SupportsInt) -> typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, n]\"]\n\nOne-hot encode labels"
+        },
+        "safe_log": {
+          "kind": "callable",
+          "doc": "safe_log(v: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, 1]\"]) -> typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, 1]\"]\n\nSafe log for vector (clips to eps)"
+        },
+        "safe_log_matrix": {
+          "kind": "callable",
+          "doc": "safe_log_matrix(m: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, n]\"]) -> typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, n]\"]\n\nSafe log for matrix (clips to eps)"
+        },
+        "sigmoid": {
+          "kind": "callable",
+          "doc": "sigmoid(z: typing.SupportsFloat) -> float\n\nCompute sigmoid function for scalar"
+        },
+        "sigmoid_derivative": {
+          "kind": "callable",
+          "doc": "sigmoid_derivative(z: typing.SupportsFloat) -> float\n\nCompute sigmoid derivative for scalar"
+        },
+        "sigmoid_derivative_vec": {
+          "kind": "callable",
+          "doc": "sigmoid_derivative_vec(z: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, 1]\"]) -> typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, 1]\"]\n\nCompute sigmoid derivative for vector"
+        },
+        "sigmoid_vec": {
+          "kind": "callable",
+          "doc": "sigmoid_vec(z: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, 1]\"]) -> typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, 1]\"]\n\nCompute sigmoid for vector"
+        },
+        "standardize_features": {
+          "kind": "callable",
+          "doc": "standardize_features(X: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, n]\"], mean: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, 1]\"], std: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, 1]\"], model_type: str = '') -> None\n\nStandardize features (mean=0, std=1)"
+        },
+        "train_test_split": {
+          "kind": "callable",
+          "doc": "train_test_split(X: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, n]\"], y: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, 1]\"], test_size: typing.SupportsFloat = 0.2, random_state: typing.SupportsInt = 42, model_type: str = '') -> list[tuple[typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, n]\"], typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, 1]\"]]]\n\nSplit data into train and test sets"
+        },
+        "xavier_initialization": {
+          "kind": "callable",
+          "doc": "xavier_initialization(input_size: typing.SupportsInt, output_size: typing.SupportsInt) -> typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, n]\"]\n\nXavier initialization for sigmoid/tanh (limit=sqrt(6/(fan_in+fan_out)))"
+        }
+      }
+    },
+    "MeanAbsoluteErrorLoss": {
+      "kind": "class",
+      "doc": "",
+      "members": {
+        "compute_matrix": {
+          "kind": "callable",
+          "doc": "compute_matrix(self: ml_core.MeanAbsoluteErrorLoss, y_true: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, n]\"], y_pred: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, n]\"]) -> float"
+        },
+        "compute_vector": {
+          "kind": "callable",
+          "doc": "compute_vector(self: ml_core.MeanAbsoluteErrorLoss, y_true: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, 1]\"], y_pred: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, 1]\"]) -> float"
+        },
+        "gradient": {
+          "kind": "callable",
+          "doc": "gradient(self: ml_core.MeanAbsoluteErrorLoss, y_true: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, n]\"], y_pred: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, n]\"]) -> typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, n]\"]"
+        },
+        "name": {
+          "kind": "callable",
+          "doc": "name(self: ml_core.MeanAbsoluteErrorLoss) -> str"
+        }
+      }
+    },
+    "MeanSquaredErrorLoss": {
+      "kind": "class",
+      "doc": "",
+      "members": {
+        "compute_matrix": {
+          "kind": "callable",
+          "doc": "compute_matrix(self: ml_core.MeanSquaredErrorLoss, y_true: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, n]\"], y_pred: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, n]\"]) -> float"
+        },
+        "compute_vector": {
+          "kind": "callable",
+          "doc": "compute_vector(self: ml_core.MeanSquaredErrorLoss, y_true: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, 1]\"], y_pred: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, 1]\"]) -> float"
+        },
+        "gradient": {
+          "kind": "callable",
+          "doc": "gradient(self: ml_core.MeanSquaredErrorLoss, y_true: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, n]\"], y_pred: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, n]\"]) -> typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, n]\"]"
+        },
+        "name": {
+          "kind": "callable",
+          "doc": "name(self: ml_core.MeanSquaredErrorLoss) -> str"
+        }
+      }
+    },
+    "MinMaxScaler": {
+      "kind": "class",
+      "doc": "",
+      "members": {
+        "fit": {
+          "kind": "callable",
+          "doc": "fit(self: ml_core.MinMaxScaler, X: collections.abc.Sequence[collections.abc.Sequence[typing.SupportsFloat]]) -> None\n\nFit MinMaxScaler to data (min=0, max=1)"
+        },
+        "fit_transform": {
+          "kind": "callable",
+          "doc": "fit_transform(self: ml_core.MinMaxScaler, X: collections.abc.Sequence[collections.abc.Sequence[typing.SupportsFloat]]) -> list[list[float]]\n\nFit and transform data in one step"
+        },
+        "get_max": {
+          "kind": "callable",
+          "doc": "get_max(self: ml_core.MinMaxScaler) -> list[float]\n\nGet max values"
+        },
+        "get_min": {
+          "kind": "callable",
+          "doc": "get_min(self: ml_core.MinMaxScaler) -> list[float]\n\nGet min values"
+        },
+        "get_type": {
+          "kind": "callable",
+          "doc": "get_type(self: ml_core.MinMaxScaler) -> str"
+        },
+        "inverse_transform": {
+          "kind": "callable",
+          "doc": "inverse_transform(self: ml_core.MinMaxScaler, X_scaled: collections.abc.Sequence[collections.abc.Sequence[typing.SupportsFloat]]) -> list[list[float]]\n\nTransform back to original scale"
+        },
+        "set_params": {
+          "kind": "callable",
+          "doc": "set_params(self: ml_core.MinMaxScaler, min: collections.abc.Sequence[typing.SupportsFloat], max: collections.abc.Sequence[typing.SupportsFloat]) -> None\n\nSet scaler parameters manually"
+        },
+        "transform": {
+          "kind": "callable",
+          "doc": "transform(self: ml_core.MinMaxScaler, X: collections.abc.Sequence[collections.abc.Sequence[typing.SupportsFloat]]) -> list[list[float]]\n\nTransform data using fitted parameters"
+        }
+      }
+    },
+    "MomentumOptimizer": {
+      "kind": "class",
+      "doc": "",
+      "members": {
+        "clone": {
+          "kind": "callable",
+          "doc": "clone(self: ml_core.MomentumOptimizer) -> ml_core.Optimizer"
+        },
+        "get_current_learning_rate": {
+          "kind": "callable",
+          "doc": "get_current_learning_rate(self: ml_core.Optimizer) -> float"
+        },
+        "get_decay": {
+          "kind": "callable",
+          "doc": "get_decay(self: ml_core.Optimizer) -> float"
+        },
+        "get_iterations": {
+          "kind": "callable",
+          "doc": "get_iterations(self: ml_core.Optimizer) -> int"
+        },
+        "get_learning_rate": {
+          "kind": "callable",
+          "doc": "get_learning_rate(self: ml_core.Optimizer) -> float"
+        },
+        "get_type": {
+          "kind": "callable",
+          "doc": "get_type(self: ml_core.Optimizer) -> ml_core.OptimizerType"
+        },
+        "get_type_str": {
+          "kind": "callable",
+          "doc": "get_type_str(self: ml_core.Optimizer) -> str"
+        },
+        "reset": {
+          "kind": "callable",
+          "doc": "reset(self: ml_core.MomentumOptimizer) -> None"
+        },
+        "set_decay": {
+          "kind": "callable",
+          "doc": "set_decay(self: ml_core.Optimizer, decay: typing.SupportsFloat) -> None"
+        },
+        "set_learning_rate": {
+          "kind": "callable",
+          "doc": "set_learning_rate(self: ml_core.Optimizer, lr: typing.SupportsFloat) -> None"
+        },
+        "update_bias": {
+          "kind": "callable",
+          "doc": "update_bias(self: ml_core.MomentumOptimizer, bias: typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, 1]\", \"flags.writeable\"], gradient: typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, 1]\"]) -> None"
+        },
+        "update_weights": {
+          "kind": "callable",
+          "doc": "update_weights(self: ml_core.MomentumOptimizer, weights: typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, n]\", \"flags.writeable\", \"flags.f_contiguous\"], gradient: typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, n]\", \"flags.f_contiguous\"]) -> None"
+        }
+      }
+    },
+    "NONE": {
+      "kind": "value",
+      "type": "RegularizerType",
+      "value": "<RegularizerType.NONE: 0>"
+    },
+    "NORMAL_EQUATION": {
+      "kind": "value",
+      "type": "LinearSolver",
+      "value": "<LinearSolver.NORMAL_EQUATION: 1>"
+    },
+    "NeuralNetwork": {
+      "kind": "class",
+      "doc": "",
+      "members": {
+        "accuracy_history": {
+          "kind": "property",
+          "doc": ""
+        },
+        "add_batch_norm_layer": {
+          "kind": "callable",
+          "doc": "add_batch_norm_layer(self: ml_core.NeuralNetwork) -> None"
+        },
+        "add_conv2d_layer": {
+          "kind": "callable",
+          "doc": "add_conv2d_layer(self: ml_core.NeuralNetwork, filters: typing.SupportsInt, kernel_size: typing.SupportsInt, strides: typing.SupportsInt = 1, padding: str = 'valid', activation: str = 'relu') -> None"
+        },
+        "add_dense_layer": {
+          "kind": "callable",
+          "doc": "add_dense_layer(self: ml_core.NeuralNetwork, units: typing.SupportsInt, activation: str = 'relu', use_bias: bool = True) -> None"
+        },
+        "add_dropout_layer": {
+          "kind": "callable",
+          "doc": "add_dropout_layer(self: ml_core.NeuralNetwork, rate: typing.SupportsFloat) -> None"
+        },
+        "add_flatten_layer": {
+          "kind": "callable",
+          "doc": "add_flatten_layer(self: ml_core.NeuralNetwork) -> None"
+        },
+        "add_layer_type": {
+          "kind": "callable",
+          "doc": "add_layer_type(self: ml_core.NeuralNetwork, type: ml_core.LayerType, params: collections.abc.Mapping[str, typing.SupportsFloat] = {}) -> None"
+        },
+        "add_pooling_layer": {
+          "kind": "callable",
+          "doc": "add_pooling_layer(self: ml_core.NeuralNetwork, pool_size: typing.SupportsInt = 2, strides: typing.SupportsInt = 2, pool_type: str = 'max') -> None"
+        },
+        "add_recurrent_layer": {
+          "kind": "callable",
+          "doc": "add_recurrent_layer(self: ml_core.NeuralNetwork, type: ml_core.RecurrentType, units: typing.SupportsInt, return_sequences: bool = False, activation: str = 'tanh') -> None"
+        },
+        "build": {
+          "kind": "callable",
+          "doc": "build(self: ml_core.NeuralNetwork, n_features: typing.SupportsInt, n_classes: typing.SupportsInt) -> None"
+        },
+        "fit": {
+          "kind": "callable",
+          "doc": "fit(self: ml_core.NeuralNetwork, X: typing.Annotated[numpy.typing.ArrayLike, numpy.float64], y: typing.Annotated[numpy.typing.ArrayLike, numpy.float64]) -> None"
+        },
+        "fit_advanced": {
+          "kind": "callable",
+          "doc": "fit_advanced(self: ml_core.NeuralNetwork, X: typing.Annotated[numpy.typing.ArrayLike, numpy.float64], y: typing.Annotated[numpy.typing.ArrayLike, numpy.float64], epochs: typing.SupportsInt, batch_size: typing.SupportsInt, verbose: bool = False) -> None"
+        },
+        "get_layer": {
+          "kind": "callable",
+          "doc": "get_layer(self: ml_core.NeuralNetwork, idx: typing.SupportsInt) -> layers::Layer"
+        },
+        "get_layer_config": {
+          "kind": "callable",
+          "doc": "get_layer_config(self: ml_core.NeuralNetwork, idx: typing.SupportsInt) -> str"
+        },
+        "get_layer_type": {
+          "kind": "callable",
+          "doc": "get_layer_type(self: ml_core.NeuralNetwork, idx: typing.SupportsInt) -> str"
+        },
+        "get_learning_rate": {
+          "kind": "callable",
+          "doc": "get_learning_rate(self: ml_core.Estimator) -> float"
+        },
+        "get_model_type": {
+          "kind": "callable",
+          "doc": "get_model_type(self: ml_core.Estimator) -> str"
+        },
+        "get_summary": {
+          "kind": "callable",
+          "doc": "get_summary(self: ml_core.NeuralNetwork) -> str"
+        },
+        "get_training_history": {
+          "kind": "callable",
+          "doc": "get_training_history(self: ml_core.NeuralNetwork) -> tuple[list[float], list[float], list[float]]"
+        },
+        "get_weights_for_layer": {
+          "kind": "callable",
+          "doc": "get_weights_for_layer(self: ml_core.NeuralNetwork, idx: typing.SupportsInt) -> typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, n]\"]"
+        },
+        "input_size": {
+          "kind": "property",
+          "doc": ""
+        },
+        "is_fitted": {
+          "kind": "property",
+          "doc": ""
+        },
+        "load": {
+          "kind": "callable",
+          "doc": "load(self: ml_core.NeuralNetwork, filename: str) -> None"
+        },
+        "loss_history": {
+          "kind": "property",
+          "doc": ""
+        },
+        "num_layers": {
+          "kind": "property",
+          "doc": ""
+        },
+        "num_parameters": {
+          "kind": "property",
+          "doc": ""
+        },
+        "output_size": {
+          "kind": "property",
+          "doc": ""
+        },
+        "predict": {
+          "kind": "callable",
+          "doc": "predict(self: ml_core.NeuralNetwork, X: typing.Annotated[numpy.typing.ArrayLike, numpy.float64]) -> object"
+        },
+        "predict_proba": {
+          "kind": "callable",
+          "doc": "predict_proba(self: ml_core.NeuralNetwork, X: typing.Annotated[numpy.typing.ArrayLike, numpy.float64]) -> object"
+        },
+        "reset": {
+          "kind": "callable",
+          "doc": "reset(self: ml_core.NeuralNetwork) -> None"
+        },
+        "reset_history": {
+          "kind": "callable",
+          "doc": "reset_history(self: ml_core.NeuralNetwork) -> None"
+        },
+        "save": {
+          "kind": "callable",
+          "doc": "save(self: ml_core.NeuralNetwork, filename: str) -> None"
+        },
+        "score": {
+          "kind": "callable",
+          "doc": "score(self: ml_core.NeuralNetwork, X: typing.Annotated[numpy.typing.ArrayLike, numpy.float64], y: typing.Annotated[numpy.typing.ArrayLike, numpy.float64]) -> float"
+        },
+        "set_batch_size": {
+          "kind": "callable",
+          "doc": "set_batch_size(self: ml_core.NeuralNetwork, batch_size: typing.SupportsInt) -> None"
+        },
+        "set_epochs": {
+          "kind": "callable",
+          "doc": "set_epochs(self: ml_core.NeuralNetwork, epochs: typing.SupportsInt) -> None"
+        },
+        "set_learning_rate": {
+          "kind": "callable",
+          "doc": "set_learning_rate(self: ml_core.Estimator, learning_rate: typing.SupportsFloat) -> None"
+        },
+        "set_loss_function": {
+          "kind": "callable",
+          "doc": "set_loss_function(self: ml_core.NeuralNetwork, loss: str) -> None"
+        },
+        "set_optimizer": {
+          "kind": "callable",
+          "doc": "set_optimizer(self: ml_core.NeuralNetwork, type: ml_core.OptimizerType, learning_rate: typing.SupportsFloat = 0.01) -> None"
+        },
+        "set_regularizer": {
+          "kind": "callable",
+          "doc": "set_regularizer(self: ml_core.NeuralNetwork, type: ml_core.RegularizerType, strength: typing.SupportsFloat = 0.01, params: collections.abc.Mapping[str, typing.SupportsFloat] = {}) -> None"
+        },
+        "set_validation_split": {
+          "kind": "callable",
+          "doc": "set_validation_split(self: ml_core.NeuralNetwork, split: typing.SupportsFloat) -> None"
+        },
+        "set_verbose": {
+          "kind": "callable",
+          "doc": "set_verbose(self: ml_core.NeuralNetwork, verbose: bool) -> None"
+        },
+        "set_weights_for_layer": {
+          "kind": "callable",
+          "doc": "set_weights_for_layer(self: ml_core.NeuralNetwork, idx: typing.SupportsInt, weights: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, n]\"]) -> None"
+        },
+        "summary": {
+          "kind": "callable",
+          "doc": "summary(self: ml_core.NeuralNetwork) -> None"
+        },
+        "to_string": {
+          "kind": "callable",
+          "doc": "to_string(self: ml_core.NeuralNetwork) -> str"
+        },
+        "val_loss_history": {
+          "kind": "property",
+          "doc": ""
+        }
+      }
+    },
+    "Optimizer": {
+      "kind": "class",
+      "doc": "",
+      "members": {
+        "clone": {
+          "kind": "callable",
+          "doc": "clone(self: ml_core.Optimizer) -> ml_core.Optimizer"
+        },
+        "get_current_learning_rate": {
+          "kind": "callable",
+          "doc": "get_current_learning_rate(self: ml_core.Optimizer) -> float"
+        },
+        "get_decay": {
+          "kind": "callable",
+          "doc": "get_decay(self: ml_core.Optimizer) -> float"
+        },
+        "get_iterations": {
+          "kind": "callable",
+          "doc": "get_iterations(self: ml_core.Optimizer) -> int"
+        },
+        "get_learning_rate": {
+          "kind": "callable",
+          "doc": "get_learning_rate(self: ml_core.Optimizer) -> float"
+        },
+        "get_type": {
+          "kind": "callable",
+          "doc": "get_type(self: ml_core.Optimizer) -> ml_core.OptimizerType"
+        },
+        "get_type_str": {
+          "kind": "callable",
+          "doc": "get_type_str(self: ml_core.Optimizer) -> str"
+        },
+        "reset": {
+          "kind": "callable",
+          "doc": "reset(self: ml_core.Optimizer) -> None"
+        },
+        "set_decay": {
+          "kind": "callable",
+          "doc": "set_decay(self: ml_core.Optimizer, decay: typing.SupportsFloat) -> None"
+        },
+        "set_learning_rate": {
+          "kind": "callable",
+          "doc": "set_learning_rate(self: ml_core.Optimizer, lr: typing.SupportsFloat) -> None"
+        },
+        "update_bias": {
+          "kind": "callable",
+          "doc": "update_bias(self: ml_core.Optimizer, bias: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, 1]\"], gradient: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, 1]\"]) -> None"
+        },
+        "update_weights": {
+          "kind": "callable",
+          "doc": "update_weights(self: ml_core.Optimizer, weights: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, n]\"], gradient: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, n]\"]) -> None"
+        }
+      }
+    },
+    "OptimizerFactory": {
+      "kind": "class",
+      "doc": "",
+      "members": {
+        "create_by_name": {
+          "kind": "callable",
+          "doc": "create_by_name(type_str: str, learning_rate: typing.SupportsFloat = 0.01, params: collections.abc.Mapping[str, typing.SupportsFloat] = {}) -> ml_core.Optimizer\n\nCreate optimizer by name string"
+        },
+        "create_by_type": {
+          "kind": "callable",
+          "doc": "create_by_type(type: ml_core.OptimizerType, learning_rate: typing.SupportsFloat = 0.01, params: collections.abc.Mapping[str, typing.SupportsFloat] = {}) -> ml_core.Optimizer\n\nCreate optimizer by type enum"
+        },
+        "list_optimizers": {
+          "kind": "callable",
+          "doc": "list_optimizers() -> list[str]\n\nList all available optimizer names"
+        },
+        "string_to_type": {
+          "kind": "callable",
+          "doc": "string_to_type(type_str: str) -> ml_core.OptimizerType\n\nConvert string to OptimizerType enum"
+        },
+        "type_to_string": {
+          "kind": "callable",
+          "doc": "type_to_string(type: ml_core.OptimizerType) -> str\n\nConvert OptimizerType enum to string"
+        }
+      }
+    },
+    "OptimizerType": {
+      "kind": "class",
+      "doc": "Members:\n\nSGD\n\nMOMENTUM\n\nADAM",
+      "members": {
+        "ADAM": {
+          "kind": "attribute",
+          "type": "OptimizerType",
+          "doc": "Members:\n\nSGD\n\nMOMENTUM\n\nADAM"
+        },
+        "MOMENTUM": {
+          "kind": "attribute",
+          "type": "OptimizerType",
+          "doc": "Members:\n\nSGD\n\nMOMENTUM\n\nADAM"
+        },
+        "SGD": {
+          "kind": "attribute",
+          "type": "OptimizerType",
+          "doc": "Members:\n\nSGD\n\nMOMENTUM\n\nADAM"
+        },
+        "name": {
+          "kind": "property",
+          "doc": "name(self: object, /) -> str"
+        },
+        "value": {
+          "kind": "property",
+          "doc": ""
+        }
+      },
+      "enum_values": [
+        "SGD",
+        "MOMENTUM",
+        "ADAM"
+      ]
+    },
+    "PoolType": {
+      "kind": "class",
+      "doc": "Members:\n\nMAX\n\nAVG",
+      "members": {
+        "AVG": {
+          "kind": "attribute",
+          "type": "PoolType",
+          "doc": "Members:\n\nMAX\n\nAVG"
+        },
+        "MAX": {
+          "kind": "attribute",
+          "type": "PoolType",
+          "doc": "Members:\n\nMAX\n\nAVG"
+        },
+        "name": {
+          "kind": "property",
+          "doc": "name(self: object, /) -> str"
+        },
+        "value": {
+          "kind": "property",
+          "doc": ""
+        }
+      },
+      "enum_values": [
+        "MAX",
+        "AVG"
+      ]
+    },
+    "PoolingLayer": {
+      "kind": "class",
+      "doc": "",
+      "members": {
+        "backward": {
+          "kind": "callable",
+          "doc": "backward(self: ml_core.PoolingLayer, gradient: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, n]\"]) -> typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, n]\"]"
+        },
+        "clear_cache": {
+          "kind": "callable",
+          "doc": "clear_cache(self: ml_core.Layer) -> None"
+        },
+        "forward": {
+          "kind": "callable",
+          "doc": "forward(self: ml_core.PoolingLayer, input: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, n]\"], training: bool = False) -> typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, n]\"]"
+        },
+        "get_bias_gradient": {
+          "kind": "callable",
+          "doc": "get_bias_gradient(self: ml_core.Layer) -> typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, 1]\"]"
+        },
+        "get_biases": {
+          "kind": "callable",
+          "doc": "get_biases(self: ml_core.Layer) -> typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, 1]\"]"
+        },
+        "get_config": {
+          "kind": "callable",
+          "doc": "get_config(self: ml_core.PoolingLayer) -> str"
+        },
+        "get_input_size": {
+          "kind": "callable",
+          "doc": "get_input_size(self: ml_core.PoolingLayer) -> int"
+        },
+        "get_layer_type": {
+          "kind": "callable",
+          "doc": "get_layer_type(self: ml_core.Layer) -> ml_core.LayerType"
+        },
+        "get_output_size": {
+          "kind": "callable",
+          "doc": "get_output_size(self: ml_core.PoolingLayer) -> int"
+        },
+        "get_parameter_count": {
+          "kind": "callable",
+          "doc": "get_parameter_count(self: ml_core.Layer) -> int"
+        },
+        "get_type": {
+          "kind": "callable",
+          "doc": "get_type(self: ml_core.PoolingLayer) -> str"
+        },
+        "get_use_bias": {
+          "kind": "callable",
+          "doc": "get_use_bias(self: ml_core.Layer) -> bool"
+        },
+        "get_weights": {
+          "kind": "callable",
+          "doc": "get_weights(self: ml_core.Layer) -> typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, n]\"]"
+        },
+        "get_weights_gradient": {
+          "kind": "callable",
+          "doc": "get_weights_gradient(self: ml_core.Layer) -> typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, n]\"]"
+        },
+        "has_weights": {
+          "kind": "callable",
+          "doc": "has_weights(self: ml_core.Layer) -> bool"
+        },
+        "set_biases": {
+          "kind": "callable",
+          "doc": "set_biases(self: ml_core.Layer, biases: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, 1]\"]) -> None"
+        },
+        "set_input_shape": {
+          "kind": "callable",
+          "doc": "set_input_shape(self: ml_core.PoolingLayer, input_size: typing.SupportsInt) -> None"
+        },
+        "set_weights": {
+          "kind": "callable",
+          "doc": "set_weights(self: ml_core.Layer, weights: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, n]\"]) -> None"
+        }
+      }
+    },
+    "RecurrentType": {
+      "kind": "class",
+      "doc": "Members:\n\nSIMPLE_RNN\n\nLSTM\n\nGRU",
+      "members": {
+        "GRU": {
+          "kind": "attribute",
+          "type": "RecurrentType",
+          "doc": "Members:\n\nSIMPLE_RNN\n\nLSTM\n\nGRU"
+        },
+        "LSTM": {
+          "kind": "attribute",
+          "type": "RecurrentType",
+          "doc": "Members:\n\nSIMPLE_RNN\n\nLSTM\n\nGRU"
+        },
+        "SIMPLE_RNN": {
+          "kind": "attribute",
+          "type": "RecurrentType",
+          "doc": "Members:\n\nSIMPLE_RNN\n\nLSTM\n\nGRU"
+        },
+        "name": {
+          "kind": "property",
+          "doc": "name(self: object, /) -> str"
+        },
+        "value": {
+          "kind": "property",
+          "doc": ""
+        }
+      },
+      "enum_values": [
+        "SIMPLE_RNN",
+        "LSTM",
+        "GRU"
+      ]
+    },
+    "Regularizer": {
+      "kind": "class",
+      "doc": "",
+      "members": {
+        "clone": {
+          "kind": "callable",
+          "doc": "clone(self: ml_core.Regularizer) -> ml_core.Regularizer"
+        },
+        "compute_gradient_matrix": {
+          "kind": "callable",
+          "doc": "compute_gradient_matrix(self: ml_core.Regularizer, weights: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, n]\"]) -> typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, n]\"]\n\nCompute gradient for weight matrix"
+        },
+        "compute_gradient_vector": {
+          "kind": "callable",
+          "doc": "compute_gradient_vector(self: ml_core.Regularizer, bias: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, 1]\"]) -> typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, 1]\"]\n\nCompute gradient for bias vector"
+        },
+        "compute_loss_matrix": {
+          "kind": "callable",
+          "doc": "compute_loss_matrix(self: ml_core.Regularizer, weights: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, n]\"]) -> float\n\nCompute regularization loss for weight matrix"
+        },
+        "compute_loss_vector": {
+          "kind": "callable",
+          "doc": "compute_loss_vector(self: ml_core.Regularizer, bias: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, 1]\"]) -> float\n\nCompute regularization loss for bias vector"
+        },
+        "get_strength": {
+          "kind": "callable",
+          "doc": "get_strength(self: ml_core.Regularizer) -> float"
+        },
+        "get_type": {
+          "kind": "callable",
+          "doc": "get_type(self: ml_core.Regularizer) -> ml_core.RegularizerType"
+        },
+        "get_type_str": {
+          "kind": "callable",
+          "doc": "get_type_str(self: ml_core.Regularizer) -> str"
+        },
+        "set_strength": {
+          "kind": "callable",
+          "doc": "set_strength(self: ml_core.Regularizer, strength: typing.SupportsFloat) -> None"
+        }
+      }
+    },
+    "RegularizerFactory": {
+      "kind": "class",
+      "doc": "",
+      "members": {
+        "create_by_name": {
+          "kind": "callable",
+          "doc": "create_by_name(type_str: str, strength: typing.SupportsFloat = 0.01, params: collections.abc.Mapping[str, typing.SupportsFloat] = {}) -> ml_core.Regularizer\n\nCreate regularizer by name string"
+        },
+        "create_by_type": {
+          "kind": "callable",
+          "doc": "create_by_type(type: ml_core.RegularizerType, strength: typing.SupportsFloat = 0.01, params: collections.abc.Mapping[str, typing.SupportsFloat] = {}) -> ml_core.Regularizer\n\nCreate regularizer by type enum"
+        },
+        "list_regularizers": {
+          "kind": "callable",
+          "doc": "list_regularizers() -> list[str]\n\nList all available regularizer names"
+        },
+        "string_to_type": {
+          "kind": "callable",
+          "doc": "string_to_type(type_str: str) -> ml_core.RegularizerType\n\nConvert string to RegularizerType enum"
+        },
+        "type_to_string": {
+          "kind": "callable",
+          "doc": "type_to_string(type: ml_core.RegularizerType) -> str\n\nConvert RegularizerType enum to string"
+        }
+      }
+    },
+    "RegularizerType": {
+      "kind": "class",
+      "doc": "Members:\n\nNONE\n\nL1\n\nL2\n\nELASTIC_NET",
+      "members": {
+        "ELASTIC_NET": {
+          "kind": "attribute",
+          "type": "RegularizerType",
+          "doc": "Members:\n\nNONE\n\nL1\n\nL2\n\nELASTIC_NET"
+        },
+        "L1": {
+          "kind": "attribute",
+          "type": "RegularizerType",
+          "doc": "Members:\n\nNONE\n\nL1\n\nL2\n\nELASTIC_NET"
+        },
+        "L2": {
+          "kind": "attribute",
+          "type": "RegularizerType",
+          "doc": "Members:\n\nNONE\n\nL1\n\nL2\n\nELASTIC_NET"
+        },
+        "NONE": {
+          "kind": "attribute",
+          "type": "RegularizerType",
+          "doc": "Members:\n\nNONE\n\nL1\n\nL2\n\nELASTIC_NET"
+        },
+        "name": {
+          "kind": "property",
+          "doc": "name(self: object, /) -> str"
+        },
+        "value": {
+          "kind": "property",
+          "doc": ""
+        }
+      },
+      "enum_values": [
+        "NONE",
+        "L1",
+        "L2",
+        "ELASTIC_NET"
+      ]
+    },
+    "SGD": {
+      "kind": "value",
+      "type": "OptimizerType",
+      "value": "<OptimizerType.SGD: 0>"
+    },
+    "SGDOptimizer": {
+      "kind": "class",
+      "doc": "",
+      "members": {
+        "clone": {
+          "kind": "callable",
+          "doc": "clone(self: ml_core.SGDOptimizer) -> ml_core.Optimizer"
+        },
+        "get_current_learning_rate": {
+          "kind": "callable",
+          "doc": "get_current_learning_rate(self: ml_core.Optimizer) -> float"
+        },
+        "get_decay": {
+          "kind": "callable",
+          "doc": "get_decay(self: ml_core.Optimizer) -> float"
+        },
+        "get_iterations": {
+          "kind": "callable",
+          "doc": "get_iterations(self: ml_core.Optimizer) -> int"
+        },
+        "get_learning_rate": {
+          "kind": "callable",
+          "doc": "get_learning_rate(self: ml_core.Optimizer) -> float"
+        },
+        "get_type": {
+          "kind": "callable",
+          "doc": "get_type(self: ml_core.Optimizer) -> ml_core.OptimizerType"
+        },
+        "get_type_str": {
+          "kind": "callable",
+          "doc": "get_type_str(self: ml_core.Optimizer) -> str"
+        },
+        "reset": {
+          "kind": "callable",
+          "doc": "reset(self: ml_core.SGDOptimizer) -> None"
+        },
+        "set_decay": {
+          "kind": "callable",
+          "doc": "set_decay(self: ml_core.Optimizer, decay: typing.SupportsFloat) -> None"
+        },
+        "set_learning_rate": {
+          "kind": "callable",
+          "doc": "set_learning_rate(self: ml_core.Optimizer, lr: typing.SupportsFloat) -> None"
+        },
+        "update_bias": {
+          "kind": "callable",
+          "doc": "update_bias(self: ml_core.SGDOptimizer, bias: typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, 1]\", \"flags.writeable\"], gradient: typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, 1]\"]) -> None"
+        },
+        "update_weights": {
+          "kind": "callable",
+          "doc": "update_weights(self: ml_core.SGDOptimizer, weights: typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, n]\", \"flags.writeable\", \"flags.f_contiguous\"], gradient: typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, n]\", \"flags.f_contiguous\"]) -> None"
+        }
+      }
+    },
+    "SIMPLE_RNN": {
+      "kind": "value",
+      "type": "RecurrentType",
+      "value": "<RecurrentType.SIMPLE_RNN: 0>"
+    },
+    "SVD": {
+      "kind": "value",
+      "type": "LinearSolver",
+      "value": "<LinearSolver.SVD: 2>"
+    },
+    "Scaler": {
+      "kind": "class",
+      "doc": "",
+      "members": {
+        "fit": {
+          "kind": "callable",
+          "doc": "fit(self: ml_core.Scaler, X: collections.abc.Sequence[collections.abc.Sequence[typing.SupportsFloat]]) -> None\n\nFit scaler to data"
+        },
+        "fit_transform": {
+          "kind": "callable",
+          "doc": "fit_transform(self: ml_core.Scaler, X: collections.abc.Sequence[collections.abc.Sequence[typing.SupportsFloat]]) -> list[list[float]]\n\nFit and transform data in one step"
+        },
+        "get_type": {
+          "kind": "callable",
+          "doc": "get_type(self: ml_core.Scaler) -> str"
+        },
+        "inverse_transform": {
+          "kind": "callable",
+          "doc": "inverse_transform(self: ml_core.Scaler, X_scaled: collections.abc.Sequence[collections.abc.Sequence[typing.SupportsFloat]]) -> list[list[float]]\n\nTransform back to original scale"
+        },
+        "transform": {
+          "kind": "callable",
+          "doc": "transform(self: ml_core.Scaler, X: collections.abc.Sequence[collections.abc.Sequence[typing.SupportsFloat]]) -> list[list[float]]\n\nTransform data using fitted parameters"
+        }
+      }
+    },
+    "SimpleRNNLayer": {
+      "kind": "class",
+      "doc": "",
+      "members": {
+        "backward": {
+          "kind": "callable",
+          "doc": "backward(self: ml_core.SimpleRNNLayer, gradient: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, n]\"]) -> typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, n]\"]"
+        },
+        "clear_cache": {
+          "kind": "callable",
+          "doc": "clear_cache(self: ml_core.Layer) -> None"
+        },
+        "forward": {
+          "kind": "callable",
+          "doc": "forward(self: ml_core.SimpleRNNLayer, input: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, n]\"], training: bool = False) -> typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, n]\"]"
+        },
+        "get_bias_gradient": {
+          "kind": "callable",
+          "doc": "get_bias_gradient(self: ml_core.Layer) -> typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, 1]\"]"
+        },
+        "get_biases": {
+          "kind": "callable",
+          "doc": "get_biases(self: ml_core.SimpleRNNLayer) -> typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, 1]\"]"
+        },
+        "get_config": {
+          "kind": "callable",
+          "doc": "get_config(self: ml_core.SimpleRNNLayer) -> str"
+        },
+        "get_hidden_state": {
+          "kind": "callable",
+          "doc": "get_hidden_state(self: ml_core.SimpleRNNLayer) -> typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, n]\"]"
+        },
+        "get_input_size": {
+          "kind": "callable",
+          "doc": "get_input_size(self: ml_core.SimpleRNNLayer) -> int"
+        },
+        "get_layer_type": {
+          "kind": "callable",
+          "doc": "get_layer_type(self: ml_core.Layer) -> ml_core.LayerType"
+        },
+        "get_output_size": {
+          "kind": "callable",
+          "doc": "get_output_size(self: ml_core.SimpleRNNLayer) -> int"
+        },
+        "get_parameter_count": {
+          "kind": "callable",
+          "doc": "get_parameter_count(self: ml_core.Layer) -> int"
+        },
+        "get_type": {
+          "kind": "callable",
+          "doc": "get_type(self: ml_core.SimpleRNNLayer) -> str"
+        },
+        "get_use_bias": {
+          "kind": "callable",
+          "doc": "get_use_bias(self: ml_core.Layer) -> bool"
+        },
+        "get_weights": {
+          "kind": "callable",
+          "doc": "get_weights(self: ml_core.SimpleRNNLayer) -> typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, n]\"]"
+        },
+        "get_weights_gradient": {
+          "kind": "callable",
+          "doc": "get_weights_gradient(self: ml_core.Layer) -> typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, n]\"]"
+        },
+        "has_weights": {
+          "kind": "callable",
+          "doc": "has_weights(self: ml_core.Layer) -> bool"
+        },
+        "reset_state": {
+          "kind": "callable",
+          "doc": "reset_state(self: ml_core.SimpleRNNLayer) -> None"
+        },
+        "set_biases": {
+          "kind": "callable",
+          "doc": "set_biases(self: ml_core.SimpleRNNLayer, biases: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, 1]\"]) -> None"
+        },
+        "set_input_shape": {
+          "kind": "callable",
+          "doc": "set_input_shape(self: ml_core.SimpleRNNLayer, input_size: typing.SupportsInt) -> None"
+        },
+        "set_weights": {
+          "kind": "callable",
+          "doc": "set_weights(self: ml_core.SimpleRNNLayer, weights: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, n]\"]) -> None"
+        }
+      }
+    },
+    "StandardScaler": {
+      "kind": "class",
+      "doc": "",
+      "members": {
+        "fit": {
+          "kind": "callable",
+          "doc": "fit(self: ml_core.StandardScaler, X: collections.abc.Sequence[collections.abc.Sequence[typing.SupportsFloat]]) -> None\n\nFit StandardScaler to data (mean=0, std=1)"
+        },
+        "fit_transform": {
+          "kind": "callable",
+          "doc": "fit_transform(self: ml_core.StandardScaler, X: collections.abc.Sequence[collections.abc.Sequence[typing.SupportsFloat]]) -> list[list[float]]\n\nFit and transform data in one step"
+        },
+        "get_mean": {
+          "kind": "callable",
+          "doc": "get_mean(self: ml_core.StandardScaler) -> list[float]\n\nGet mean values"
+        },
+        "get_std": {
+          "kind": "callable",
+          "doc": "get_std(self: ml_core.StandardScaler) -> list[float]\n\nGet standard deviation values"
+        },
+        "get_type": {
+          "kind": "callable",
+          "doc": "get_type(self: ml_core.StandardScaler) -> str"
+        },
+        "inverse_transform": {
+          "kind": "callable",
+          "doc": "inverse_transform(self: ml_core.StandardScaler, X_scaled: collections.abc.Sequence[collections.abc.Sequence[typing.SupportsFloat]]) -> list[list[float]]\n\nTransform back to original scale"
+        },
+        "set_params": {
+          "kind": "callable",
+          "doc": "set_params(self: ml_core.StandardScaler, mean: collections.abc.Sequence[typing.SupportsFloat], std: collections.abc.Sequence[typing.SupportsFloat]) -> None\n\nSet scaler parameters manually"
+        },
+        "transform": {
+          "kind": "callable",
+          "doc": "transform(self: ml_core.StandardScaler, X: collections.abc.Sequence[collections.abc.Sequence[typing.SupportsFloat]]) -> list[list[float]]\n\nTransform data using fitted parameters"
+        }
+      }
+    },
+    "check_version": {
+      "kind": "callable",
+      "doc": "check_version() -> str"
+    },
+    "test_library": {
+      "kind": "callable",
+      "doc": "test_library() -> str"
+    }
+  }
+}

@@ -19,7 +19,7 @@ namespace loss {
     }
 
     void LossFactory::register_all_losses() {
-        static bool registered = []() {
+        [[maybe_unused]] static bool registered = []() {
             register_loss("binary_crossentropy", 
                         []() { return std::make_unique<BinaryCrossEntropyLoss>(); });
             register_loss("categorical_crossentropy", 

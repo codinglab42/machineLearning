@@ -1,9 +1,9 @@
 # ML Library - Machine Learning in C++
 
 [![Build Status](https://github.com/codinglab42/machineLearning/actions/workflows/build.yml/badge.svg)](https://github.com/codinglab42/machineLearning/actions/workflows/build.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License: AGPL-3.0-only](https://img.shields.io/badge/License-AGPL--3.0--only-blue.svg)](https://www.gnu.org/licenses/agpl-3.0.html)
 [![C++17](https://img.shields.io/badge/C++-17-blue.svg)](https://en.cppreference.com/w/cpp/17)
-[![Python 3.7+](https://img.shields.io/badge/Python-3.7+-blue.svg)](https://www.python.org/)
+[![Python 3.11 only](https://img.shields.io/badge/Python-3.11%20only-blue.svg)](https://www.python.org/)
 
 A modern, high-performance machine learning library written in C++ with Python bindings.
 
@@ -100,11 +100,11 @@ sudo apt-get install build-essential cmake python3-dev libeigen3-dev
 ### Using the Python Package
 ```bash
    # Install directly from source
-   pip install -e
+   python -m pip install .
 
-   # Or build wheel
-   python setup.py bdist_wheel
-   pip install dist/ml_library-3.0.0-*.whl
+   # Or build a wheel, then install it
+   python -m pip wheel . --no-deps --wheel-dir dist
+   python -m pip install dist/ml_core-3.0.0-*.whl
 ```
 
 ---
@@ -143,9 +143,11 @@ nn.add_dense_layer(10, "softmax");
 nn.set_optimizer(models::OptimizerType::ADAM, 0.001);
 nn.set_loss_function("categorical_crossentropy");
 nn.set_verbose(true);
+nn.set_epochs(50);
+nn.set_batch_size(32);
 
 // Train
-nn.fit(X_train, y_train, epochs=50, batch_size=32);
+nn.fit(X_train, y_train);
 
 // Predict
 auto predictions = nn.predict(X_test);
@@ -258,7 +260,9 @@ Exceptions for error handling (see exceptions/)
 Document public APIs with Doxygen comments
 
 ## 📝 License
-Distributed under the MIT License. See LICENSE for more information.
+The community version is intended to be distributed under the GNU Affero General Public License v3.0 only (AGPL-3.0-only). The official license text is available at https://www.gnu.org/licenses/agpl-3.0.html.
+
+For a separate commercial licensing agreement, contact the copyright holder. Third-party components remain subject to their respective licenses.
 
 ## 📧 Contact
 **Maurizio Penna** - mauriziopenna@gmail.com  
@@ -275,7 +279,7 @@ Andrew Ng - Machine Learning course inspiration
 | Sezione | Modifica |
 |---------|----------|
 | **C++ standard** | C++14 → C++17 |
-| **Python version** | 3.11+ → 3.7+ (più flessibile) |
+| **Python version** | 3.11 only (`>=3.11,<3.12`, package metadata) |
 | **Features** | Aggiunti LSTM, GRU, BatchNorm, regolarizzatori |
 | **Esempi** | Aggiunti esempi LSTM e scaler |
 | **Project structure** | Aggiornata con la nuova struttura |

@@ -1,75 +1,100 @@
+from importlib.machinery import EXTENSION_SUFFIXES
 import os
+import shutil
+import subprocess
 import sys
 from pathlib import Path
-from setuptools import setup, find_packages
-from pybind11.setup_helpers import Pybind11Extension, build_ext
 
-# Directory radice del progetto
+from setuptools import Extension, setup
+from setuptools.command.build_ext import build_ext
+
+
 BASE_DIR = Path(__file__).parent.resolve()
 
-def get_relative_sources(source_dir):
-    """
-    Raccoglie tutti i sorgenti .cpp e garantisce 
-    che siano espressi con percorsi RELATIVI a BASE_DIR.
-    """
-    sources = []
-    target_path = BASE_DIR / source_dir
-    for p in target_path.rglob("*.cpp"):
-        # Convertiamo il percorso assoluto in relativo alla root del progetto
-        rel_p = p.relative_to(BASE_DIR)
-        sources.append(str(rel_p))
-    return sources
 
-# Recupera la lista dei file di binding in modo relativo
-binding_sources = get_relative_sources("pybinding/bindings")
+class CMakeExtension(Extension):
+    def __init__(self, name):
+        super().__init__(name, sources=[])
 
-# Configurazione Include / Include Eigen / Libreria C++ compilata
-include_dirs = [
-    str(BASE_DIR / "include"),
-    str(BASE_DIR / "pybinding"),
-    str(BASE_DIR / "pybinding" / "bindings"),
-    "/usr/include/eigen3",
-]
 
-library_dirs = [
-    str(BASE_DIR / "build" / "lib"),
-]
+class CMakeBuild(build_ext):
+    def build_extension(self, extension):
+        cmake = shutil.which("cmake")
+        if cmake is None:
+            raise RuntimeError("CMake 3.15 or newer is required to build ml_core")
 
-extra_objects = [
-    str(BASE_DIR / "build" / "lib" / "libml_library.a"),
-]
+        build_dir = Path(self.build_temp).resolve() / extension.name
+        output_dir = Path(self.get_ext_fullpath(extension.name)).resolve().parent
+        build_dir.mkdir(parents=True, exist_ok=True)
 
-ext_modules = [
-    Pybind11Extension(
-        "ml_core",
-        sources=binding_sources,  # <--- Ora sono tutti percorsi relativi
-        include_dirs=include_dirs,
-        library_dirs=library_dirs,
-        extra_objects=extra_objects,
-        cxx_std=17,
-        extra_compile_args=["-O3", "-fPIC", "-Wall", "-Wextra"],
-        extra_link_args=["-Wl,-rpath,$ORIGIN/../build/lib"],
-    ),
-]
+        configure_command = [
+            cmake,
+            "-S",
+            str(BASE_DIR),
+            "-B",
+            str(build_dir),
+            "-DCMAKE_BUILD_TYPE=Release",
+            f"-DCMAKE_INSTALL_PREFIX={build_dir / 'install'}",
+            f"-DPython3_EXECUTABLE={sys.executable}",
+            "-DBUILD_PYTHON_BINDINGS=ON",
+            "-DBUILD_TESTS=OFF",
+            "-DBUILD_EXAMPLES=OFF",
+        ]
+        build_environment = os.environ.copy()
+        build_environment.pop("PYENV_ROOT", None)
+        subprocess.run(
+            configure_command,
+            check=True,
+            cwd=BASE_DIR,
+            env=build_environment,
+        )
+
+        build_command = [
+            cmake,
+            "--build",
+            str(build_dir),
+            "--target",
+            extension.name,
+            "--config",
+            "Release",
+        ]
+        if self.parallel:
+            build_command.extend(["--parallel", str(self.parallel)])
+        subprocess.run(build_command, check=True, cwd=BASE_DIR, env=build_environment)
+
+        candidates = [
+            path
+            for output_root in (build_dir / "lib", build_dir / "bin")
+            if output_root.exists()
+            for path in output_root.rglob(f"{extension.name}*")
+            if path.is_file() and path.name.endswith(tuple(EXTENSION_SUFFIXES))
+        ]
+        if len(candidates) != 1:
+            raise RuntimeError(
+                f"Expected one built extension for {extension.name}, found {len(candidates)}"
+            )
+
+        output_dir.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(candidates[0], output_dir / candidates[0].name)
+
 
 setup(
     name="ml_core",
-    version="2.0.1",
+    version="3.0.0",
     author="Maurizio Penna",
     classifiers=[
         "Development Status :: 4 - Beta",
         "Intended Audience :: Science/Research",
-        "License :: OSI Approved :: MIT License",
         "Programming Language :: C++",
         "Programming Language :: Python :: 3",
         "Topic :: Scientific/Engineering :: Artificial Intelligence",
         "Topic :: Scientific/Engineering :: Mathematics",
     ],
     project_urls={
-        "Source": "https://github.com/mauriziopenna/ai-devel",
-        "Documentation": "https://github.com/mauriziopenna/ai-devel/wiki",
+        "Source": "https://github.com/codinglab42/machineLearning",
+        "Documentation": "https://github.com/codinglab42/machineLearning/tree/main/docs",
     },
-    ext_modules=ext_modules,
-    cmdclass={"build_ext": build_ext},
+    ext_modules=[CMakeExtension("ml_core")],
+    cmdclass={"build_ext": CMakeBuild},
     zip_safe=False,
 )

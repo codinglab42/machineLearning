@@ -230,7 +230,6 @@ Eigen::MatrixXd Conv2DLayer::col2im(const Eigen::MatrixXd& col, int batch_idx, i
 
 Eigen::MatrixXd Conv2DLayer::col2im_from_cols(const Eigen::MatrixXd& dCol, int batch_idx) const {
     Eigen::MatrixXd im = Eigen::MatrixXd::Zero(input_size_, 1);
-    int spatial_size = output_height_ * output_width_;
     
     for (int ph = 0; ph < output_height_; ++ph) {
         for (int pw = 0; pw < output_width_; ++pw) {
