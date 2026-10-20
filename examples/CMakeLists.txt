@@ -37,7 +37,17 @@ target_link_libraries(example_neural_network_xor PRIVATE
 )
 target_compile_options(example_neural_network_xor PRIVATE -O2)
 
-## 4. Optional: MNIST-like example (if you want to add it later)
+# 4. Energy Demand Forecast Example
+add_executable(example_energy_forecast
+    ${EXAMPLES_SRC_DIR}/cpp/example_energy_forecast.cpp
+)
+target_link_libraries(example_energy_forecast PRIVATE
+    ML::Library
+    ${EIGEN3_LIBRARIES}
+)
+target_compile_options(example_energy_forecast PRIVATE -O2)
+
+## 5. Optional: MNIST-like example (if you want to add it later)
 ## add_executable(neural_network_mnist
 #     ${EXAMPLES_SRC_DIR}/cpp/neural_network_mnist.cpp
 # )
@@ -53,6 +63,7 @@ target_compile_options(example_neural_network_xor PRIVATE -O2)
 if(CMAKE_INSTALL_PREFIX)
     install(TARGETS 
         example_linear_regression
+        example_energy_forecast
         #logistic_regression_example
         #neural_network_xor
         RUNTIME DESTINATION bin/examples
@@ -67,4 +78,5 @@ if(VERBOSE_OUTPUT)
     message(STATUS "   - example_linear_regression")
     message(STATUS "   - logistic_regression_example")
     message(STATUS "   - neural_network_xor")
+    message(STATUS "   - example_energy_forecast")
 endif()
