@@ -4,12 +4,7 @@ Edge cases, error handling, and memory layout tests for ML Library Python Bindin
 """
 
 import unittest
-import sys
-import os
 import numpy as np
-
-# Path del modulo pybind11
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../build/pybinding'))
 
 import ml_core as ml
 

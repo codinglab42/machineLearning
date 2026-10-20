@@ -4,12 +4,8 @@ Integration tests for ML Library Python Bindings
 """
 
 import unittest
-import sys
 import os
 import numpy as np
-
-# Aggiungi il path del modulo
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../build/pybinding'))
 
 import ml_core as ml
 

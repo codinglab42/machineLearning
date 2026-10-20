@@ -12,6 +12,8 @@ bindings/optimizers/
 ├── sgd_optimizer.h/cpp # SGD Optimizer
 ├── momentum_optimizer.h/cpp # Momentum Optimizer
 ├── adam_optimizer.h/cpp # Adam Optimizer
+├── rmsprop_optimizer.h/cpp # RMSprop Optimizer
+├── adagrad_optimizer.h/cpp # Adagrad Optimizer
 └── optimizer_factory.h/cpp # OptimizerFactory
 
 
@@ -76,6 +78,27 @@ Parameters:
     decay: Learning rate decay factor
 
 Update Rule: Adaptive per-parameter learning rates.
+4. RMSpropOptimizer
+
+Root Mean Square Propagation - Adapts each parameter's learning rate using an
+exponential average of squared gradients.
+
+Constructor:
+
+RMSpropOptimizer(learning_rate: float = 0.001, rho: float = 0.9,
+                 epsilon: float = 1e-8, decay: float = 0.0,
+                 momentum: float = 0.0)
+
+5. AdagradOptimizer
+
+Adaptive Gradient - Adapts each parameter's learning rate using the accumulated
+squared gradients.
+
+Constructor:
+
+AdagradOptimizer(learning_rate: float = 0.01, epsilon: float = 1e-8,
+                 decay: float = 0.0)
+
 OptimizerFactory
 
 Factory for creating optimizers dynamically.
@@ -97,6 +120,8 @@ Available Optimizer Names:
     "momentum" - Momentum Optimizer
 
     "adam" - Adam Optimizer
+    "rmsprop" - RMSprop Optimizer
+    "adagrad" - Adagrad Optimizer
 
 Usage Examples
 Example 1: Creating and Using SGD

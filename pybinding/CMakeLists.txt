@@ -58,6 +58,8 @@ set(BINDING_SOURCES
     bindings/optimizers/sgd_optimizer.cpp
     bindings/optimizers/momentum_optimizer.cpp
     bindings/optimizers/adam_optimizer.cpp
+    bindings/optimizers/rmsprop_optimizer.cpp
+    bindings/optimizers/adagrad_optimizer.cpp
     bindings/optimizers/optimizer_factory.cpp
     
     # Regularizers

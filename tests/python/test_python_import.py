@@ -1,18 +1,12 @@
-import sys
-import os
+import unittest
 from pathlib import Path
 
-## 1. Calcola i percorsi relativi
-## Siamo in 'tests/', quindi saliamo di uno e entriamo in 'build/...'
-#current_dir = Path(__file__).parent
-#project_root = current_dir.parent
-#module_dir = project_root / "build" / "python_module"
-#lib_dir = project_root / "build" / "lib"
-#
-## 2. Aggiungi i percorsi a sys.path
-#sys.path.insert(0, str(module_dir))
-#sys.path.insert(0, str(lib_dir))
-#
-#print(f"Ricerca modulo in: {module_dir}")
-
 import ml_core as ml
+
+
+class TestPythonModuleImport(unittest.TestCase):
+    def test_module_reports_version_and_smoke_check(self):
+        self.assertEqual(ml.__version__, "3.0.0")
+        self.assertIn("working correctly", ml.test_library())
+        build_root = Path(__file__).resolve().parents[2] / "build"
+        self.assertIn(build_root.resolve(), Path(ml.__file__).resolve().parents)

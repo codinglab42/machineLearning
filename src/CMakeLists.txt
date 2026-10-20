@@ -45,6 +45,8 @@ set(ML_LIBRARY_SOURCES
     components/optimizers/sgd_optimizer.cpp
     components/optimizers/adam_optimizer.cpp
     components/optimizers/momentum_optimizer.cpp
+    components/optimizers/rmsprop_optimizer.cpp
+    components/optimizers/adagrad_optimizer.cpp
     components/optimizers/optimizer.cpp
 
     # Regularizers

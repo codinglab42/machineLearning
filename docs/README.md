@@ -106,6 +106,8 @@ learning_rate: Learning rate (default: 0.01)
 | **SGD** | Stochastic Gradient Descent | learning_rate, decay |  
 | **Momentum** | SGD with momentum | learning_rate, momentum, decay, nesterov |  
 | **Adam** |	Adaptive Moment Estimation | learning_rate, beta1, beta2, epsilon, decay |  
+| **RMSprop** | Root Mean Square Propagation | learning_rate, rho, epsilon, decay, momentum |
+| **Adagrad** | Adaptive Gradient | learning_rate, epsilon, decay |
 
 Usage in Python:
 
@@ -120,6 +122,14 @@ optimizer = ml.OptimizerFactory.create("momentum", 0.01, params)
 # Adam
 params = {"beta1": 0.9, "beta2": 0.999, "epsilon": 1e-8}
 optimizer = ml.OptimizerFactory.create("adam", 0.001, params)
+
+# RMSprop
+params = {"rho": 0.9, "epsilon": 1e-8}
+optimizer = ml.OptimizerFactory.create("rmsprop", 0.001, params)
+
+# Adagrad
+params = {"epsilon": 1e-8}
+optimizer = ml.OptimizerFactory.create("adagrad", 0.01, params)
 ```
 ### Regularizers
 | Type | Description | Formula |  

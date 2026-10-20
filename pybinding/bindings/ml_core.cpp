@@ -39,6 +39,8 @@
 #include "optimizers/sgd_optimizer.h"
 #include "optimizers/momentum_optimizer.h"
 #include "optimizers/adam_optimizer.h"
+#include "optimizers/rmsprop_optimizer.h"
+#include "optimizers/adagrad_optimizer.h"
 #include "optimizers/optimizer_factory.h"
 
 // Regularizers
@@ -108,6 +110,8 @@ PYBIND11_MODULE(ml_core, m) {
     bind_sgd_optimizer(m);
     bind_momentum_optimizer(m);
     bind_adam_optimizer(m);
+    bind_rmsprop_optimizer(m);
+    bind_adagrad_optimizer(m);
     bind_optimizer_factory(m);
     
     // ========================================================================

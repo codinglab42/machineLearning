@@ -5,6 +5,8 @@
 #include "components/optimizers/momentum_optimizer.h"  // AGGIUNGI QUESTO
 #include "components/optimizers/sgd_optimizer.h"
 #include "components/optimizers/adam_optimizer.h"
+#include "components/optimizers/rmsprop_optimizer.h"
+#include "components/optimizers/adagrad_optimizer.h"
 namespace models {
 
 void Estimator::set_optimizer(OptimizerType type, double learning_rate) {
@@ -22,9 +24,10 @@ void Estimator::set_optimizer(OptimizerType type, double learning_rate) {
             optimizer_ = std::make_unique<AdamOptimizer>(learning_rate);
             break;
         case OptimizerType::RMSPROP:
+            optimizer_ = std::make_unique<RMSpropOptimizer>(learning_rate);
+            break;
         case OptimizerType::ADAGRAD:
-            // TODO: implementare quando disponibili
-            ML_THROW_NOT_IMPLEMENTED_ERROR("Optimizer type", get_model_type());
+            optimizer_ = std::make_unique<AdagradOptimizer>(learning_rate);
             break;
         default:
             ML_THROW_PARAMETER_ERROR("optimizer type", "unknown optimizer type", get_model_type());

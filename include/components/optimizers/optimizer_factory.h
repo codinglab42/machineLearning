@@ -9,8 +9,8 @@
 #include "components/optimizers/sgd_optimizer.h"
 #include "components/optimizers/momentum_optimizer.h"
 #include "components/optimizers/adam_optimizer.h"
-//#include "components/optimizers/rmsprop_optimizer.h"
-//#include "components/optimizers/adagrad_optimizer.h"
+#include "components/optimizers/rmsprop_optimizer.h"
+#include "components/optimizers/adagrad_optimizer.h"
 #include "exceptions/exception_macros.h"
 
 namespace models {
@@ -28,12 +28,10 @@ namespace models {
                     return create_momentum(learning_rate, params);
                 case OptimizerType::ADAM:
                     return create_adam(learning_rate, params);
-                /*
                 case OptimizerType::RMSPROP:
                     return create_rmsprop(learning_rate, params);
                 case OptimizerType::ADAGRAD:
                     return create_adagrad(learning_rate, params);
-                */
                 default:
                     ML_THROW_PARAMETER_ERROR("optimizer type", "unknown optimizer type", "OptimizerFactory");
                     return nullptr;
@@ -113,7 +111,6 @@ namespace models {
             return std::make_unique<AdamOptimizer>(lr, beta1, beta2, epsilon, decay);
         }
         
-        /*
         static std::unique_ptr<Optimizer> create_rmsprop(double lr, 
                                                          const std::unordered_map<std::string, double>& params) {
             double rho = params.count("rho") ? params.at("rho") : 0.9;
@@ -131,7 +128,6 @@ namespace models {
             
             return std::make_unique<AdagradOptimizer>(lr, epsilon, decay);
         }
-            */
     };
 
 } // namespace models

@@ -25,6 +25,8 @@ void bind_enums(py::module_& m) {
         .value("SGD", models::OptimizerType::SGD)
         .value("MOMENTUM", models::OptimizerType::MOMENTUM)
         .value("ADAM", models::OptimizerType::ADAM)
+        .value("RMSPROP", models::OptimizerType::RMSPROP)
+        .value("ADAGRAD", models::OptimizerType::ADAGRAD)
         .export_values();
 
     // ========================================================================

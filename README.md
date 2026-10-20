@@ -33,6 +33,8 @@ A modern, high-performance machine learning library written in C++ with Python b
 - SGD
 - Momentum (with Nesterov)
 - Adam (β₁=0.9, β₂=0.999, ε=1e-8)
+- RMSprop (ρ=0.9)
+- Adagrad
 
 ### Regularizers
 - L1 (Lasso)

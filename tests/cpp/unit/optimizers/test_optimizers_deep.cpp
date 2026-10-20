@@ -1,10 +1,13 @@
 // test/optimizers/optimizer_test.cpp
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
+#include <cmath>
 #include "utils/serializable.h"
 #include "components/optimizers/sgd_optimizer.h"
 #include "components/optimizers/momentum_optimizer.h"
 #include "components/optimizers/adam_optimizer.h"
+#include "components/optimizers/rmsprop_optimizer.h"
+#include "components/optimizers/adagrad_optimizer.h"
 #include "components/optimizers/optimizer_factory.h"
 #include "exceptions/ml_exception.h"
 
@@ -287,6 +290,132 @@ TEST_F(AdamOptimizerTest, ParameterBounds) {
 }
 
 //=============================================================================
+// RMSPROP OPTIMIZER TESTS
+//=============================================================================
+
+TEST(RMSpropOptimizerTest, UpdatesWeightsAndBias) {
+    RMSpropOptimizer optimizer(0.1, 0.9, 1e-8);
+    Eigen::MatrixXd weights = Eigen::MatrixXd::Constant(1, 1, 1.0);
+    Eigen::MatrixXd gradient = Eigen::MatrixXd::Constant(1, 1, 2.0);
+    Eigen::VectorXd bias = Eigen::VectorXd::Constant(1, 1.0);
+    Eigen::VectorXd bias_gradient = Eigen::VectorXd::Constant(1, 2.0);
+    const double expected_step = 0.1 * 2.0 / (std::sqrt(0.4) + 1e-8);
+
+    optimizer.update_weights(weights, gradient);
+    optimizer.update_bias(bias, bias_gradient);
+
+    EXPECT_NEAR(weights(0, 0), 1.0 - expected_step, 1e-12);
+    EXPECT_NEAR(bias(0), 1.0 - expected_step, 1e-12);
+    EXPECT_EQ(optimizer.get_iterations(), 1);
+}
+
+TEST(RMSpropOptimizerTest, AppliesMomentumAndReset) {
+    RMSpropOptimizer optimizer(0.1, 0.9, 1e-8, 0.0, 0.5);
+    Eigen::MatrixXd weights = Eigen::MatrixXd::Constant(1, 1, 1.0);
+    const Eigen::MatrixXd gradient = Eigen::MatrixXd::Ones(1, 1);
+    const double first_step = 0.1 / (std::sqrt(0.1) + 1e-8);
+    const double second_step = 0.1 / (std::sqrt(0.19) + 1e-8);
+
+    optimizer.update_weights(weights, gradient);
+    optimizer.update_weights(weights, gradient);
+
+    EXPECT_NEAR(weights(0, 0), 1.0 - first_step - (0.5 * first_step + second_step), 1e-12);
+    EXPECT_EQ(optimizer.get_iterations(), 2);
+
+    optimizer.reset();
+    EXPECT_EQ(optimizer.get_iterations(), 0);
+    weights.setConstant(1.0);
+    optimizer.update_weights(weights, gradient);
+    EXPECT_NEAR(weights(0, 0), 1.0 - first_step, 1e-12);
+}
+
+TEST(RMSpropOptimizerTest, RejectsInvalidParameters) {
+    EXPECT_THROW(RMSpropOptimizer(0.0), ml_exception::InvalidParameterException);
+    EXPECT_THROW(RMSpropOptimizer(0.1, 1.0), ml_exception::InvalidParameterException);
+    EXPECT_THROW(RMSpropOptimizer(0.1, 0.9, 0.0), ml_exception::InvalidParameterException);
+    EXPECT_THROW(RMSpropOptimizer(0.1, 0.9, 1e-8, -0.1), ml_exception::InvalidParameterException);
+    EXPECT_THROW(RMSpropOptimizer(0.1, 0.9, 1e-8, 0.0, 1.0), ml_exception::InvalidParameterException);
+}
+
+TEST(RMSpropOptimizerTest, ClonePreservesOptimizerState) {
+    RMSpropOptimizer optimizer(0.1, 0.9, 1e-8, 0.0, 0.5);
+    Eigen::MatrixXd weights = Eigen::MatrixXd::Ones(1, 1);
+    const Eigen::MatrixXd gradient = Eigen::MatrixXd::Ones(1, 1);
+    optimizer.update_weights(weights, gradient);
+    auto clone = optimizer.clone();
+
+    Eigen::MatrixXd original_weights = Eigen::MatrixXd::Ones(1, 1);
+    Eigen::MatrixXd cloned_weights = original_weights;
+    optimizer.update_weights(original_weights, gradient);
+    clone->update_weights(cloned_weights, gradient);
+
+    EXPECT_TRUE(original_weights.isApprox(cloned_weights));
+    EXPECT_EQ(clone->get_iterations(), optimizer.get_iterations());
+}
+
+//=============================================================================
+// ADAGRAD OPTIMIZER TESTS
+//=============================================================================
+
+TEST(AdagradOptimizerTest, UpdatesWeightsAndBias) {
+    AdagradOptimizer optimizer(0.1, 1e-8);
+    Eigen::MatrixXd weights = Eigen::MatrixXd::Constant(1, 1, 1.0);
+    Eigen::MatrixXd gradient = Eigen::MatrixXd::Constant(1, 1, 2.0);
+    Eigen::VectorXd bias = Eigen::VectorXd::Constant(1, 1.0);
+    Eigen::VectorXd bias_gradient = Eigen::VectorXd::Constant(1, 2.0);
+    const double expected_step = 0.1 * 2.0 / (2.0 + 1e-8);
+
+    optimizer.update_weights(weights, gradient);
+    optimizer.update_bias(bias, bias_gradient);
+
+    EXPECT_NEAR(weights(0, 0), 1.0 - expected_step, 1e-12);
+    EXPECT_NEAR(bias(0), 1.0 - expected_step, 1e-12);
+    EXPECT_EQ(optimizer.get_iterations(), 1);
+}
+
+TEST(AdagradOptimizerTest, AccumulatesGradientsAndReset) {
+    AdagradOptimizer optimizer(0.1, 1e-8);
+    Eigen::MatrixXd weights = Eigen::MatrixXd::Constant(1, 1, 1.0);
+    const Eigen::MatrixXd gradient = Eigen::MatrixXd::Ones(1, 1);
+    const double first_step = 0.1 / (1.0 + 1e-8);
+    const double second_step = 0.1 / (std::sqrt(2.0) + 1e-8);
+
+    optimizer.update_weights(weights, gradient);
+    optimizer.update_weights(weights, gradient);
+
+    EXPECT_NEAR(weights(0, 0), 1.0 - first_step - second_step, 1e-12);
+    EXPECT_EQ(optimizer.get_iterations(), 2);
+
+    optimizer.reset();
+    EXPECT_EQ(optimizer.get_iterations(), 0);
+    weights.setConstant(1.0);
+    optimizer.update_weights(weights, gradient);
+    EXPECT_NEAR(weights(0, 0), 1.0 - first_step, 1e-12);
+}
+
+TEST(AdagradOptimizerTest, RejectsInvalidParameters) {
+    EXPECT_THROW(AdagradOptimizer(0.0), ml_exception::InvalidParameterException);
+    EXPECT_THROW(AdagradOptimizer(0.1, 0.0), ml_exception::InvalidParameterException);
+    EXPECT_THROW(AdagradOptimizer(0.1, 1e-8, -0.1), ml_exception::InvalidParameterException);
+}
+
+TEST(AdagradOptimizerTest, ClonePreservesOptimizerState) {
+    AdagradOptimizer optimizer(0.1, 1e-8);
+    Eigen::MatrixXd weights = Eigen::MatrixXd::Ones(1, 1);
+    const Eigen::MatrixXd gradient = Eigen::MatrixXd::Ones(1, 1);
+    optimizer.update_weights(weights, gradient);
+    auto clone = optimizer.clone();
+
+    Eigen::MatrixXd original_weights = Eigen::MatrixXd::Ones(1, 1);
+    Eigen::MatrixXd cloned_weights = original_weights;
+    optimizer.update_weights(original_weights, gradient);
+    clone->update_weights(cloned_weights, gradient);
+
+    EXPECT_TRUE(original_weights.isApprox(cloned_weights));
+    EXPECT_EQ(clone->get_iterations(), optimizer.get_iterations());
+}
+
+//=============================================================================
 // OPTIMIZER FACTORY TESTS
 //=============================================================================
 
@@ -327,6 +456,19 @@ TEST_F(OptimizerFactoryTest, CreateAdam) {
     EXPECT_EQ(optimizer->get_type_str(), "adam");
 }
 
+TEST_F(OptimizerFactoryTest, CreateRMSpropAndAdagrad) {
+    std::unordered_map<std::string, double> rmsprop_params{{"rho", 0.8}, {"momentum", 0.2}};
+    auto rmsprop = OptimizerFactory::create("rmsprop", 0.01, rmsprop_params);
+    auto adagrad = OptimizerFactory::create(OptimizerType::ADAGRAD, 0.02);
+
+    EXPECT_EQ(rmsprop->get_type(), OptimizerType::RMSPROP);
+    EXPECT_EQ(rmsprop->get_type_str(), "rmsprop");
+    EXPECT_DOUBLE_EQ(rmsprop->get_learning_rate(), 0.01);
+    EXPECT_EQ(adagrad->get_type(), OptimizerType::ADAGRAD);
+    EXPECT_EQ(adagrad->get_type_str(), "adagrad");
+    EXPECT_DOUBLE_EQ(adagrad->get_learning_rate(), 0.02);
+}
+
 TEST_F(OptimizerFactoryTest, InvalidType) {
     EXPECT_THROW(OptimizerFactory::create("invalid"), ml_exception::InvalidParameterException);
 }
@@ -335,10 +477,14 @@ TEST_F(OptimizerFactoryTest, StringConversion) {
     EXPECT_EQ(OptimizerFactory::string_to_type("sgd"), OptimizerType::SGD);
     EXPECT_EQ(OptimizerFactory::string_to_type("momentum"), OptimizerType::MOMENTUM);
     EXPECT_EQ(OptimizerFactory::string_to_type("adam"), OptimizerType::ADAM);
+    EXPECT_EQ(OptimizerFactory::string_to_type("rmsprop"), OptimizerType::RMSPROP);
+    EXPECT_EQ(OptimizerFactory::string_to_type("adagrad"), OptimizerType::ADAGRAD);
     
     EXPECT_EQ(OptimizerFactory::type_to_string(OptimizerType::SGD), "sgd");
     EXPECT_EQ(OptimizerFactory::type_to_string(OptimizerType::MOMENTUM), "momentum");
     EXPECT_EQ(OptimizerFactory::type_to_string(OptimizerType::ADAM), "adam");
+    EXPECT_EQ(OptimizerFactory::type_to_string(OptimizerType::RMSPROP), "rmsprop");
+    EXPECT_EQ(OptimizerFactory::type_to_string(OptimizerType::ADAGRAD), "adagrad");
 }
 
 //=============================================================================
@@ -394,6 +540,46 @@ TEST_F(OptimizerTest, AdamSerialization) {
     
     // Dopo deserializzazione, un altro update dovrebbe funzionare
     EXPECT_NO_THROW(deserialized.update_weights(w, g));
+}
+
+TEST_F(OptimizerTest, RMSpropSerialization) {
+    RMSpropOptimizer original(0.001, 0.8, 1e-7, 0.1, 0.2);
+    Eigen::MatrixXd weights = Eigen::MatrixXd::Ones(2, 2);
+    const Eigen::MatrixXd gradient = Eigen::MatrixXd::Constant(2, 2, 0.5);
+    original.update_weights(weights, gradient);
+
+    std::stringstream ss;
+    original.serialize(ss);
+
+    RMSpropOptimizer deserialized;
+    deserialized.deserialize(ss);
+    Eigen::MatrixXd original_next = Eigen::MatrixXd::Ones(2, 2);
+    Eigen::MatrixXd deserialized_next = original_next;
+    original.update_weights(original_next, gradient);
+    deserialized.update_weights(deserialized_next, gradient);
+
+    EXPECT_TRUE(original_next.isApprox(deserialized_next));
+    EXPECT_EQ(deserialized.get_iterations(), original.get_iterations());
+}
+
+TEST_F(OptimizerTest, AdagradSerialization) {
+    AdagradOptimizer original(0.01, 1e-7, 0.1);
+    Eigen::MatrixXd weights = Eigen::MatrixXd::Ones(2, 2);
+    const Eigen::MatrixXd gradient = Eigen::MatrixXd::Constant(2, 2, 0.5);
+    original.update_weights(weights, gradient);
+
+    std::stringstream ss;
+    original.serialize(ss);
+
+    AdagradOptimizer deserialized;
+    deserialized.deserialize(ss);
+    Eigen::MatrixXd original_next = Eigen::MatrixXd::Ones(2, 2);
+    Eigen::MatrixXd deserialized_next = original_next;
+    original.update_weights(original_next, gradient);
+    deserialized.update_weights(deserialized_next, gradient);
+
+    EXPECT_TRUE(original_next.isApprox(deserialized_next));
+    EXPECT_EQ(deserialized.get_iterations(), original.get_iterations());
 }
 
 //=============================================================================

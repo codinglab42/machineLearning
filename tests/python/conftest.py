@@ -1,22 +1,29 @@
 import sys
-import os
+from importlib.machinery import EXTENSION_SUFFIXES
+from pathlib import Path
 
-# Ottieni il percorso assoluto della cartella 'tests/python'
-current_dir = os.path.dirname(os.path.abspath(__file__))
 
-# Se la struttura è:
-# machineLearning/
-# ├── build/            <-- La libreria è qui
-# └── tests/
-#     └── python/
-#         └── conftest.py
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+BUILD_ROOT = PROJECT_ROOT / "build"
+EXTENSION_DIRECTORIES = [
+    BUILD_ROOT / "lib",
+    BUILD_ROOT / "pybinding",
+    *BUILD_ROOT.glob("lib.*"),
+    *(build_dir / "lib" for build_dir in BUILD_ROOT.glob("temp.*/ml_core")),
+]
+extensions = [
+    path
+    for directory in EXTENSION_DIRECTORIES
+    if directory.is_dir()
+    for path in directory.glob("ml_core*")
+    if path.is_file() and path.name.endswith(tuple(EXTENSION_SUFFIXES))
+]
 
-# Dobbiamo risalire di DUE livelli per arrivare alla radice 'machineLearning'
-project_root = os.path.abspath(os.path.join(current_dir, '..', '..'))
-build_path = os.path.join(project_root, 'build', 'lib')
+if not extensions:
+    raise ImportError(
+        "No local ml_core extension found. Build it with "
+        "`python setup.py build_ext --inplace` before running the Python tests."
+    )
 
-if build_path not in sys.path:
-    sys.path.insert(0, build_path)
-
-print(f"\n[DEBUG] Percorso progetto: {project_root}")
-print(f"[DEBUG] Cercando la libreria in: {build_path}")
+extension = max(extensions, key=lambda path: path.stat().st_mtime_ns)
+sys.path.insert(0, str(extension.parent))

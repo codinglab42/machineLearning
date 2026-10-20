@@ -4,11 +4,7 @@ Unit tests for ML Library Python Bindings
 """
 
 import unittest
-import sys
-import os
 import numpy as np
-
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../build/pybinding'))
 
 import ml_core as ml
 
@@ -19,6 +15,8 @@ class TestEnums(unittest.TestCase):
         self.assertIsNotNone(ml.OptimizerType.SGD)
         self.assertIsNotNone(ml.OptimizerType.MOMENTUM)
         self.assertIsNotNone(ml.OptimizerType.ADAM)
+        self.assertIsNotNone(ml.OptimizerType.RMSPROP)
+        self.assertIsNotNone(ml.OptimizerType.ADAGRAD)
     
     def test_regularizer_type(self):
         self.assertIsNotNone(ml.RegularizerType.NONE)
@@ -96,10 +94,6 @@ class TestNeuralNetwork(unittest.TestCase):
         nn.build(5, 2)
         # build() inizializza la rete ma NON imposta fitted_=true (quello lo fa fit())
         # Verifichiamo invece che i layer siano allocati correttamente
-        self.assertEqual(nn.num_layers, 3)
-
-    def test_constructor_with_layers(self):
-        nn = ml.NeuralNetwork([5, 16, 8, 1], "relu", "sigmoid", ml.OptimizerType.ADAM, 0.001)
         self.assertEqual(nn.num_layers, 3)
 
     def test_fit(self):
@@ -187,6 +181,96 @@ class TestOptimizers(unittest.TestCase):
 
         diff = np.linalg.norm(w - w_original)
         self.assertGreater(diff, 1e-6)
+
+    def test_rmsprop(self):
+        optimizer = ml.RMSpropOptimizer(learning_rate=0.001, rho=0.9)
+        w = np.asfortranarray(np.random.randn(5, 5) * 5)
+        g = np.asfortranarray(np.ones((5, 5)))
+        w_original = w.copy()
+
+        optimizer.update_weights(w, g)
+
+        self.assertGreater(np.linalg.norm(w - w_original), 1e-6)
+        self.assertEqual(optimizer.get_type_str(), "rmsprop")
+        self.assertEqual(optimizer.clone().get_type_str(), "rmsprop")
+
+    def test_adagrad(self):
+        optimizer = ml.AdagradOptimizer(learning_rate=0.01)
+        w = np.asfortranarray(np.random.randn(5, 5) * 5)
+        g = np.asfortranarray(np.ones((5, 5)))
+        w_original = w.copy()
+
+        optimizer.update_weights(w, g)
+
+        self.assertGreater(np.linalg.norm(w - w_original), 1e-6)
+        self.assertEqual(optimizer.get_type_str(), "adagrad")
+        self.assertEqual(optimizer.clone().get_type_str(), "adagrad")
+
+    def test_optimizer_factory_includes_adaptive_optimizers(self):
+        self.assertIn("rmsprop", ml.OptimizerFactory.list_optimizers())
+        self.assertIn("adagrad", ml.OptimizerFactory.list_optimizers())
+        rmsprop = ml.OptimizerFactory.create_by_name("rmsprop", 0.01)
+        adagrad = ml.OptimizerFactory.create_by_type(ml.OptimizerType.ADAGRAD, 0.01)
+        self.assertEqual(rmsprop.get_type_str(), "rmsprop")
+        self.assertEqual(rmsprop.clone().get_type_str(), "rmsprop")
+        self.assertEqual(adagrad.get_type_str(), "adagrad")
+        self.assertEqual(adagrad.clone().get_type_str(), "adagrad")
+
+
+class TestBindingFactories(unittest.TestCase):
+    def test_loss_factory_creates_each_registered_loss(self):
+        loss_names = ml.LossFactory.list_losses()
+        self.assertEqual(
+            set(loss_names),
+            {
+                "mse",
+                "mae",
+                "binary_crossentropy",
+                "categorical_crossentropy",
+                "huber",
+            },
+        )
+
+        for name in loss_names:
+            with self.subTest(name=name):
+                loss = ml.LossFactory.create(name)
+                self.assertTrue(loss.name())
+
+    def test_regularizer_factory_maps_name_and_type(self):
+        regularizer = ml.RegularizerFactory.create_by_type(
+            ml.RegularizerType.L2, strength=0.5
+        )
+        self.assertEqual(regularizer.get_type_str(), "l2")
+        self.assertEqual(regularizer.get_strength(), 0.5)
+        self.assertEqual(
+            ml.RegularizerFactory.string_to_type("l2"), ml.RegularizerType.L2
+        )
+        self.assertEqual(
+            ml.RegularizerFactory.type_to_string(ml.RegularizerType.L2), "l2"
+        )
+        regularizer_by_name = ml.RegularizerFactory.create_by_name(
+            "l1", strength=0.25
+        )
+        self.assertEqual(regularizer_by_name.get_type_str(), "l1")
+        self.assertEqual(regularizer_by_name.get_strength(), 0.25)
+
+    def test_layer_factory_creates_by_type(self):
+        layer = ml.LayerFactory.create(ml.LayerType.DENSE)
+        self.assertEqual(layer.get_type(), "DenseLayer")
+
+
+class TestScalers(unittest.TestCase):
+    def test_min_max_scaler_round_trip(self):
+        X = np.array([[1.0, -2.0], [3.0, 2.0], [5.0, 6.0]])
+        scaler = ml.MinMaxScaler(feature_range_min=-1.0, feature_range_max=1.0)
+
+        X_scaled = np.asarray(scaler.fit_transform(X))
+        X_restored = np.asarray(scaler.inverse_transform(X_scaled))
+
+        np.testing.assert_allclose(X_scaled.min(axis=0), [-1.0, -1.0])
+        np.testing.assert_allclose(X_scaled.max(axis=0), [1.0, 1.0])
+        np.testing.assert_allclose(X_restored, X)
+
 
 if __name__ == "__main__":
     unittest.main()

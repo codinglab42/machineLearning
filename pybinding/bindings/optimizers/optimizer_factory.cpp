@@ -2,6 +2,7 @@
 #include "components/optimizers/optimizer_factory.h"
 #include "components/optimizers/optimizer.h"
 #include <pybind11/stl.h>
+#include <memory>
 
 namespace py = pybind11;
 
@@ -9,8 +10,10 @@ void bind_optimizer_factory(py::module_& m) {
     py::class_<models::OptimizerFactory>(m, "OptimizerFactory")
         .def_static("create_by_type",
             [](models::OptimizerType type, double learning_rate,
-               const std::unordered_map<std::string, double>& params) {
-                return models::OptimizerFactory::create(type, learning_rate, params);
+               const std::unordered_map<std::string, double>& params)
+                -> std::shared_ptr<models::Optimizer> {
+                return std::shared_ptr<models::Optimizer>(
+                    models::OptimizerFactory::create(type, learning_rate, params));
             },
             py::arg("type"),
             py::arg("learning_rate") = 0.01,
@@ -18,8 +21,10 @@ void bind_optimizer_factory(py::module_& m) {
             "Create optimizer by type enum")
         .def_static("create_by_name",
             [](const std::string& type_str, double learning_rate,
-               const std::unordered_map<std::string, double>& params) {
-                return models::OptimizerFactory::create(type_str, learning_rate, params);
+               const std::unordered_map<std::string, double>& params)
+                -> std::shared_ptr<models::Optimizer> {
+                return std::shared_ptr<models::Optimizer>(
+                    models::OptimizerFactory::create(type_str, learning_rate, params));
             },
             py::arg("type_str"),
             py::arg("learning_rate") = 0.01,
@@ -35,7 +40,7 @@ void bind_optimizer_factory(py::module_& m) {
             "Convert OptimizerType enum to string")
         .def_static("list_optimizers",
             []() -> std::vector<std::string> {
-                return {"sgd", "momentum", "adam"};
+                return {"sgd", "momentum", "adam", "rmsprop", "adagrad"};
             },
             "List all available optimizer names");
 }
