@@ -65,6 +65,12 @@ void DenseLayer::set_input_shape(int input_size) {
 }
 
 void DenseLayer::initialize_weights() {
+    std::random_device device;
+    std::mt19937 generator(device());
+    initialize_weights(generator);
+}
+
+void DenseLayer::initialize_weights(std::mt19937& generator) {
     ML_CHECK_PARAM(input_size_ > 0, "input_size", "must be > 0", "DenseLayer");
     ML_CHECK_PARAM(units_ > 0, "units", "must be > 0", "DenseLayer");
     
@@ -73,13 +79,11 @@ void DenseLayer::initialize_weights() {
         ? std::sqrt(2.0 / input_size_) 
         : std::sqrt(2.0 / (input_size_ + units_));
     
-    std::random_device rd;
-    std::mt19937 gen(rd());
     std::normal_distribution<double> dist(0.0, scale);
     
     for (int i = 0; i < weights_.rows(); ++i) {
         for (int j = 0; j < weights_.cols(); ++j) {
-            weights_(i, j) = dist(gen);
+            weights_(i, j) = dist(generator);
         }
     }
     

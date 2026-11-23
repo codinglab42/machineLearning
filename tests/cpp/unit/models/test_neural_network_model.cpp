@@ -71,6 +71,31 @@ TEST_F(NeuralNetworkModelTest, ConstructorWithLayerSizes) {
     EXPECT_EQ(nn.get_num_layers(), 3);
 }
 
+TEST_F(NeuralNetworkModelTest, DenseInitializationUsesConfiguredSeed) {
+    NeuralNetwork default_seed({2, 4, 1}, "relu", "sigmoid", OptimizerType::ADAM, 0.001);
+    NeuralNetwork first({2, 4, 1}, "relu", "sigmoid", OptimizerType::ADAM, 0.001,
+                        RegularizerType::NONE, 0.01, 42);
+    NeuralNetwork same_seed({2, 4, 1}, "relu", "sigmoid", OptimizerType::ADAM, 0.001,
+                            RegularizerType::NONE, 0.01, 42);
+    NeuralNetwork different_seed({2, 4, 1}, "relu", "sigmoid", OptimizerType::ADAM, 0.001,
+                                 RegularizerType::NONE, 0.01, 43);
+    default_seed.build(2, 1);
+    first.build(2, 1);
+    same_seed.build(2, 1);
+    different_seed.build(2, 1);
+
+    ASSERT_EQ(default_seed.get_layers().size(), first.get_layers().size());
+    ASSERT_EQ(first.get_layers().size(), same_seed.get_layers().size());
+    ASSERT_EQ(first.get_layers().size(), different_seed.get_layers().size());
+    for (std::size_t i = 0; i < first.get_layers().size(); ++i) {
+        const auto& weights = first.get_layers()[i]->get_weights();
+        EXPECT_EQ((weights - default_seed.get_layers()[i]->get_weights()).norm(), 0.0);
+        EXPECT_EQ((weights - same_seed.get_layers()[i]->get_weights()).norm(), 0.0);
+    }
+    EXPECT_GT((first.get_layers()[0]->get_weights() -
+               different_seed.get_layers()[0]->get_weights()).norm(), 0.0);
+}
+
 TEST_F(NeuralNetworkModelTest, ConfigureTrainingParameters) {
     NeuralNetwork nn({2, 8, 2}, "relu", "softmax", OptimizerType::ADAM, 0.001);
     nn.set_batch_size(64);

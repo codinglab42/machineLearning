@@ -73,7 +73,8 @@ tolerance: Convergence tolerance (default: 1e-4)
 ```cpp
 // Create network
 NeuralNetwork network({input_size, hidden1, hidden2, output_size}, 
-                      "relu", "softmax", OptimizerType::ADAM, 0.01);
+                      "relu", "softmax", OptimizerType::ADAM, 0.01,
+                      RegularizerType::NONE, 0.01, 42);
 network.set_loss_function("categorical_crossentropy");
 network.set_epochs(100);
 network.set_batch_size(32);
@@ -198,11 +199,13 @@ y_pred = model.predict_class(X_test)
 cm = model.confusion_matrix(X_test, y_test)
 
 # Neural Network
-network = ml.NeuralNetwork([2, 8, 1], "relu", "sigmoid")
+network = ml.NeuralNetwork([2, 8, 1], "relu", "sigmoid", seed=42)
 network.set_loss_function("binary_crossentropy")
 network.set_epochs(500)
 network.fit(X, y)
 ```
+The optional `seed` parameter defaults to `42` and controls dense-layer weight
+initialization and the network's training shuffle.
 ## Examples
 ### Example 1: Iris Classification with Logistic Regression
 ```python

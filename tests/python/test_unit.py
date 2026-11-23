@@ -96,6 +96,35 @@ class TestNeuralNetwork(unittest.TestCase):
         # Verifichiamo invece che i layer siano allocati correttamente
         self.assertEqual(nn.num_layers, 3)
 
+    def test_seed_reproducibility(self):
+        def initial_weights(seed=None):
+            seed_argument = {} if seed is None else {"seed": seed}
+            nn = ml.NeuralNetwork(
+                [5, 4, 1],
+                "relu",
+                "sigmoid",
+                ml.OptimizerType.ADAM,
+                0.001,
+                **seed_argument,
+            )
+            nn.build(5, 2)
+            return [nn.get_weights_for_layer(index) for index in range(nn.num_layers)]
+
+        default_weights = initial_weights()
+        weights = initial_weights(42)
+        same_seed_weights = initial_weights(42)
+        different_seed_weights = initial_weights(43)
+        for expected, actual in zip(weights, default_weights):
+            np.testing.assert_array_equal(expected, actual)
+        for expected, actual in zip(weights, same_seed_weights):
+            np.testing.assert_array_equal(expected, actual)
+        self.assertTrue(
+            any(
+                not np.array_equal(expected, actual)
+                for expected, actual in zip(weights, different_seed_weights)
+            )
+        )
+
     def test_fit(self):
         nn = ml.NeuralNetwork([5, 16, 8, 1], "relu", "sigmoid", ml.OptimizerType.ADAM, 0.001)
         nn.set_loss_function("binary_crossentropy")

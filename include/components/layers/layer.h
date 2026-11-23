@@ -4,6 +4,7 @@
 
 #include <Eigen/Dense>
 #include <memory>
+#include <random>
 #include <string>
 #include <iostream>
 #include "exceptions/exception_macros.h"
@@ -36,6 +37,7 @@ public:
     // Gestione pesi (ORA SONO SOLO QUI!)
     virtual bool has_weights() const = 0;
     virtual void initialize_weights() = 0;
+    virtual void initialize_weights(std::mt19937&) { initialize_weights(); }
     virtual Eigen::MatrixXd get_weights() const = 0;
     virtual void set_weights(const Eigen::MatrixXd& weights) = 0;
     virtual void set_weights_gradient(const Eigen::MatrixXd& gradient) = 0;

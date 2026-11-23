@@ -16,14 +16,16 @@ void bind_neural_network(py::module_& m) {
         // Costruttori
         .def(py::init<>())
         .def(py::init<const std::vector<int>&, const std::string&, const std::string&,
-                      models::OptimizerType, double, models::RegularizerType, double>(),
+                      models::OptimizerType, double, models::RegularizerType, double,
+                      std::uint32_t>(),
              py::arg("layer_sizes"),
              py::arg("activation") = "relu",
              py::arg("output_activation") = "softmax",
              py::arg("optimizer_type") = models::OptimizerType::SGD,
              py::arg("learning_rate") = 0.01,
              py::arg("regularizer_type") = models::RegularizerType::NONE,
-             py::arg("regularizer_strength") = 0.01)
+             py::arg("regularizer_strength") = 0.01,
+             py::arg("seed") = 42)
 
         // Layer construction
         .def("add_dense_layer", &models::NeuralNetwork::add_dense_layer,

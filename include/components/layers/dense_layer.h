@@ -28,6 +28,7 @@ public:
     // ========================================================================
     bool has_weights() const override { return true; }
     void initialize_weights() override;
+    void initialize_weights(std::mt19937& rng) override;
     
     // Getter pesi
     Eigen::MatrixXd get_weights() const override;

@@ -30,6 +30,8 @@ void bind_dense_layer(py::module_& m) {
         .def("get_parameter_count", &layers::DenseLayer::get_parameter_count)
         .def("has_weights", &layers::DenseLayer::has_weights)
         .def("get_use_bias", &layers::DenseLayer::get_use_bias)
-        .def("initialize_weights", &layers::DenseLayer::initialize_weights)
+        .def("initialize_weights", [](layers::DenseLayer& layer) {
+            layer.initialize_weights();
+        })
         .def("__repr__", &layers::DenseLayer::get_config);
 }

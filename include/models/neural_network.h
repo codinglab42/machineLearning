@@ -4,6 +4,7 @@
 #include <vector>
 #include <memory>
 #include <string>
+#include <cstdint>
 #include <random>
 #include <unordered_map>
 #include <Eigen/Dense>
@@ -50,7 +51,8 @@ namespace models {
                      OptimizerType optimizer_type = OptimizerType::SGD,
                      double learning_rate = 0.01,
                      RegularizerType regularizer_type = RegularizerType::NONE,
-                     double regularizer_strength = 0.01);
+                     double regularizer_strength = 0.01,
+                     std::uint32_t seed = 42);
         
         virtual ~NeuralNetwork() override = default;
 

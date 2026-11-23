@@ -39,7 +39,8 @@ namespace models {
                          OptimizerType optimizer_type,
                          double learning_rate,
                          RegularizerType regularizer_type,
-                         double regularizer_strength)
+                         double regularizer_strength,
+                         std::uint32_t seed)
     : batch_size_(32),
       epochs_(100),
       validation_split_(0.0),
@@ -49,7 +50,7 @@ namespace models {
       n_features_(layer_sizes.front()),
       n_classes_(layer_sizes.back()),
       fitted_(false),
-      rng_(42) {
+      rng_(seed) {
 
         ML_CHECK_PARAM(layer_sizes.size() >= 2, "layer_sizes",
                     "must have at least input and output layer", "NeuralNetwork");
@@ -504,7 +505,7 @@ namespace models {
             layers_[i]->set_input_shape(current_dim);
             
             // Inizializza i pesi (se il layer li ha)
-            layers_[i]->initialize_weights();
+            layers_[i]->initialize_weights(rng_);
             
             // Aggiorna la dimensione per il layer successivo
             current_dim = layers_[i]->get_output_size();
