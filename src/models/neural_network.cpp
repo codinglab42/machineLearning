@@ -18,7 +18,7 @@ namespace models {
 
 namespace {
     constexpr int NETWORK_FORMAT_MARKER = -1296977744;
-    constexpr std::uint32_t NETWORK_FORMAT_VERSION = 1;
+    constexpr std::uint32_t NETWORK_FORMAT_VERSION = 2;
 
     template<typename T>
     void read_checked(std::istream& in, T& value) {
@@ -723,9 +723,12 @@ namespace {
             if (!optimizer) {
                 ML_THROW_FITTING_ERROR("NeuralNetwork", "optimizer state missing for trainable layer");
             }
-            Eigen::MatrixXd gradient = layer->get_weights_gradient();
-            clip_gradient(gradient, 1.0);
             Eigen::MatrixXd weights = layer->get_weights();
+            Eigen::MatrixXd gradient = layer->get_weights_gradient();
+            if (regularizer_) {
+                gradient += regularizer_->compute_gradient(weights);
+            }
+            clip_gradient(gradient, 1.0);
             optimizer->update_weights(weights, gradient);
             layer->set_weights(weights);
 
@@ -978,6 +981,12 @@ namespace {
                 write_optimizer(out, *layer_optimizers_[i]);
             }
         }
+        const auto regularizer_type = regularizer_ ? regularizer_->get_type() : RegularizerType::NONE;
+        const auto regularizer_tag = static_cast<std::uint8_t>(regularizer_type);
+        utils::write_scalar(out, regularizer_tag);
+        if (regularizer_) {
+            regularizer_->serialize(out);
+        }
         if (!out) {
             ML_THROW_SERIALIZATION_ERROR("Failed to write network", "NeuralNetwork");
         }
@@ -987,10 +996,10 @@ namespace {
         layer_optimizers_.clear();
         read_checked(in, n_features_);
         const bool versioned = n_features_ == NETWORK_FORMAT_MARKER;
+        std::uint32_t version = 0;
         if (versioned) {
-            std::uint32_t version = 0;
             read_checked(in, version);
-            if (version != NETWORK_FORMAT_VERSION) {
+            if (version == 0 || version > NETWORK_FORMAT_VERSION) {
                 ML_THROW_DESERIALIZATION_ERROR("Unsupported network version", "NeuralNetwork");
             }
             read_checked(in, n_features_);
@@ -1030,6 +1039,7 @@ namespace {
 
         if (!versioned) {
             optimizer_ = OptimizerFactory::create(OptimizerType::SGD, learning_rate_);
+            regularizer_.reset();
             return;
         }
 
@@ -1064,8 +1074,33 @@ namespace {
             }
             layer_optimizers.push_back(std::move(layer_optimizer));
         }
+
+        std::unique_ptr<Regularizer> regularizer;
+        if (version >= 2) {
+            std::uint8_t tag = 0;
+            read_checked(in, tag);
+            if (tag > static_cast<std::uint8_t>(RegularizerType::ELASTIC_NET)) {
+                ML_THROW_DESERIALIZATION_ERROR("Unknown regularizer type", "NeuralNetwork");
+            }
+            const auto type = static_cast<RegularizerType>(tag);
+            if (type != RegularizerType::NONE) {
+                double strength = 0.0;
+                read_checked(in, strength);
+                if (type == RegularizerType::ELASTIC_NET) {
+                    double ratio = 0.0;
+                    read_checked(in, ratio);
+                    if (ratio < 0.0 || ratio > 1.0) {
+                        ML_THROW_DESERIALIZATION_ERROR("Invalid Elastic Net ratio", "NeuralNetwork");
+                    }
+                    regularizer = RegularizerFactory::create(type, strength, {{"l1_ratio", ratio}});
+                } else {
+                    regularizer = RegularizerFactory::create(type, strength);
+                }
+            }
+        }
         optimizer_ = std::move(optimizer);
         layer_optimizers_ = std::move(layer_optimizers);
+        regularizer_ = std::move(regularizer);
     }
 
 

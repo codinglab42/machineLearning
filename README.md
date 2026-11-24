@@ -161,10 +161,16 @@ without resetting it. `build`, `reset`, and changing the layer list also reset
 optimizer state. A subsequent matrix-target `fit` continues training an already
 fitted network, while the vector-target overload rebuilds it. New network saves
 preserve the optimizer type and per-layer state in a versioned format; they
-require an updated library to load. Older network files can still be loaded, but
-contain no optimizer state and therefore resume with fresh SGD.
+require an updated library to load. Older network files can still be loaded:
+unversioned files resume with fresh SGD, while version 1 retains optimizer state.
 Random generator and recurrent hidden states are not restored, so resumed
 training is not necessarily identical to uninterrupted training.
+
+Neural-network regularization applies to each trainable layer's weight matrix,
+including any parameters packed into it; separate bias vectors are excluded.
+Its gradient is added before weight-gradient clipping. New network saves preserve
+the regularizer configuration. Older files contain no such configuration and
+load without regularization.
 
 ### Neural Network in Python (LSTM Example)
 ```python

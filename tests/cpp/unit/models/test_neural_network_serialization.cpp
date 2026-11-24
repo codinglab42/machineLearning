@@ -74,7 +74,7 @@ TEST_F(NeuralNetworkSerializationDebugTest, FullBinaryDumpAndAnalysis) {
     in.read(reinterpret_cast<char*>(&marker), sizeof(marker));
     in.read(reinterpret_cast<char*>(&version), sizeof(version));
     ASSERT_LT(marker, 0);
-    ASSERT_EQ(version, 1u);
+    ASSERT_EQ(version, 2u);
     in.read(reinterpret_cast<char*>(&n_features), sizeof(int));
     in.read(reinterpret_cast<char*>(&n_classes), sizeof(int));
     in.read(reinterpret_cast<char*>(&learning_rate), sizeof(learning_rate));
@@ -305,6 +305,7 @@ TEST_F(NeuralNetworkSerializationDebugTest, ReadsLegacyNetworkWithoutConsumingNe
     stream.seekg(0);
 
     NeuralNetwork restored;
+    restored.set_regularizer(RegularizerType::L1, 0.9);
     restored.deserialize_binary(stream);
     std::uint32_t actual = 0;
     utils::read_scalar(stream, actual);
@@ -350,11 +351,97 @@ TEST_F(NeuralNetworkSerializationDebugTest, RejectsTruncatedOptimizerState) {
     std::ostringstream out(std::ios::binary);
     original.serialize_binary(out);
     std::string data = out.str();
-    ASSERT_GT(data.size(), 1u);
-    data.pop_back();
+    ASSERT_GT(data.size(), 2u);
+    data.resize(data.size() - 2);
     std::istringstream in(data, std::ios::binary);
     NeuralNetwork restored;
     EXPECT_THROW(restored.deserialize_binary(in), ml_exception::MLException);
+}
+
+TEST_F(NeuralNetworkSerializationDebugTest, RestoresRegularizerAndItsParameters) {
+    struct Case {
+        RegularizerType type;
+        double strength;
+        double ratio;
+    };
+    const Case cases[] = {
+        {RegularizerType::NONE, 0.0, 0.5},
+        {RegularizerType::L1, 0.2, 0.5},
+        {RegularizerType::L2, 0.2, 0.5},
+        {RegularizerType::L2, 0.0, 0.5},
+        {RegularizerType::ELASTIC_NET, 0.3, 0.0},
+        {RegularizerType::ELASTIC_NET, 0.3, 0.25},
+        {RegularizerType::ELASTIC_NET, 0.3, 1.0},
+    };
+    const Eigen::MatrixXd X = Eigen::MatrixXd::Zero(1, 2);
+    const Eigen::MatrixXd y = Eigen::MatrixXd::Zero(1, 1);
+    for (const auto& test : cases) {
+        NeuralNetwork original({2, 1}, "linear", "linear", OptimizerType::SGD, 0.1);
+        original.set_loss_function("mse");
+        original.fit(X, y, 1, 1, false);
+        Eigen::MatrixXd weights(2, 1);
+        weights << 0.25, -0.5;
+        original.get_layers()[0]->set_weights(weights);
+        original.get_layers()[0]->set_biases(Eigen::VectorXd::Constant(1, 0.3));
+        original.set_regularizer(test.type, test.strength, {{"l1_ratio", test.ratio}});
+        original.fit(X, y, 2, 1, false);
+        const bool wrapped = test.type == RegularizerType::ELASTIC_NET && test.ratio == 0.25;
+        if (wrapped) {
+            utils::BinarySerializer<NeuralNetwork>::save(original, filename_);
+        } else {
+            original.save(filename_);
+        }
+
+        NeuralNetwork restored;
+        restored.set_regularizer(RegularizerType::L1, 0.9);
+        if (wrapped) {
+            utils::BinarySerializer<NeuralNetwork>::load(restored, filename_);
+        } else {
+            restored.load(filename_);
+        }
+        original.fit(X, y, 2, 1, false);
+        restored.fit(X, y, 2, 1, false);
+        EXPECT_TRUE(original.get_layers()[0]->get_weights().isApprox(
+            restored.get_layers()[0]->get_weights(), 1e-12))
+            << "regularizer " << static_cast<int>(test.type) << ", ratio " << test.ratio;
+        EXPECT_NEAR(original.get_loss_history().back(), restored.get_loss_history().back(), 1e-12);
+        EXPECT_TRUE(original.get_layers()[0]->get_biases().isApprox(
+            restored.get_layers()[0]->get_biases(), 1e-12));
+    }
+}
+
+TEST_F(NeuralNetworkSerializationDebugTest, ReadsVersionOneWithoutRetainingOldRegularizer) {
+    NeuralNetwork original({1, 2, 1}, "linear", "linear", OptimizerType::ADAM, 0.01);
+    original.set_loss_function("mse");
+    const Eigen::MatrixXd X = Eigen::MatrixXd::Constant(1, 1, 0.5);
+    const Eigen::MatrixXd y = Eigen::MatrixXd::Constant(1, 1, 0.25);
+    original.fit(X, y, 3, 1, false);
+    std::ostringstream out(std::ios::binary);
+    original.serialize_binary(out);
+    std::string data = out.str();
+    std::uint32_t version = 0;
+    std::memcpy(&version, &data[sizeof(int)], sizeof(version));
+    ASSERT_EQ(version, 2u);
+    ASSERT_EQ(data.back(), '\0');
+    data.pop_back();
+    const std::uint32_t old_version = 1;
+    std::memcpy(&data[sizeof(int)], &old_version, sizeof(old_version));
+    const std::uint32_t next_record = 0x12345678;
+    data.append(reinterpret_cast<const char*>(&next_record), sizeof(next_record));
+    std::istringstream in(data, std::ios::binary);
+    NeuralNetwork restored;
+    restored.set_regularizer(RegularizerType::L1, 0.9);
+    restored.deserialize_binary(in);
+    std::uint32_t actual = 0;
+    utils::read_scalar(in, actual);
+    EXPECT_EQ(actual, next_record);
+    original.fit(X, y, 2, 1, false);
+    restored.fit(X, y, 2, 1, false);
+    for (size_t i = 0; i < original.get_layers().size(); ++i) {
+        EXPECT_TRUE(original.get_layers()[i]->get_weights().isApprox(
+            restored.get_layers()[i]->get_weights(), 1e-12));
+    }
+    EXPECT_NEAR(original.get_loss_history().back(), restored.get_loss_history().back(), 1e-12);
 }
 
 TEST_F(NeuralNetworkSerializationDebugTest, RejectsUnsupportedNetworkVersion) {
@@ -409,6 +496,64 @@ TEST_F(NeuralNetworkSerializationDebugTest, RejectsInvalidOptimizerDimensions) {
     const int invalid_rows = std::numeric_limits<int>::max();
     std::memcpy(&data[offset], &invalid_rows, sizeof(invalid_rows));
 
+    std::istringstream in(data, std::ios::binary);
+    NeuralNetwork restored;
+    EXPECT_THROW(restored.deserialize_binary(in), ml_exception::MLException);
+}
+
+TEST_F(NeuralNetworkSerializationDebugTest, RestoresRegularizerBeforeTraining) {
+    NeuralNetwork original({1, 2, 1}, "linear", "linear", OptimizerType::SGD, 0.1);
+    original.set_loss_function("mse");
+    original.set_regularizer(RegularizerType::ELASTIC_NET, 0.3, {{"l1_ratio", 0.2}});
+    original.build(1, 1);
+    original.save(filename_);
+    NeuralNetwork restored;
+    restored.load(filename_);
+    restored.build(1, 1);
+
+    const Eigen::MatrixXd X = Eigen::MatrixXd::Zero(1, 1);
+    const Eigen::MatrixXd y = Eigen::MatrixXd::Zero(1, 1);
+    original.fit(X, y, 1, 1, false);
+    restored.fit(X, y, 1, 1, false);
+    for (size_t i = 0; i < original.get_layers().size(); ++i) {
+        EXPECT_TRUE(original.get_layers()[i]->get_weights().isApprox(
+            restored.get_layers()[i]->get_weights(), 1e-12));
+    }
+    EXPECT_NEAR(original.get_loss_history().back(), restored.get_loss_history().back(), 1e-12);
+}
+
+TEST_F(NeuralNetworkSerializationDebugTest, RejectsInvalidRegularizerData) {
+    for (auto type : {RegularizerType::L1, RegularizerType::ELASTIC_NET}) {
+        NeuralNetwork original({1, 1}, "linear", "linear", OptimizerType::SGD, 0.1);
+        original.set_regularizer(type, 0.3, {{"l1_ratio", 0.2}});
+        original.build(1, 1);
+        std::ostringstream out(std::ios::binary);
+        original.serialize_binary(out);
+        std::string data = out.str();
+        ASSERT_FALSE(data.empty());
+        if (type == RegularizerType::ELASTIC_NET) {
+            std::string invalid_ratio_data = data;
+            const double invalid_ratio = 1.5;
+            std::memcpy(&invalid_ratio_data[invalid_ratio_data.size() - sizeof(double)],
+                        &invalid_ratio, sizeof(invalid_ratio));
+            std::istringstream invalid_ratio_stream(invalid_ratio_data, std::ios::binary);
+            NeuralNetwork invalid_ratio_model;
+            EXPECT_THROW(invalid_ratio_model.deserialize_binary(invalid_ratio_stream),
+                         ml_exception::MLException);
+        }
+        data.pop_back();
+        std::istringstream in(data, std::ios::binary);
+        NeuralNetwork restored;
+        EXPECT_THROW(restored.deserialize_binary(in), ml_exception::MLException);
+    }
+
+    NeuralNetwork original({1, 1}, "linear", "linear", OptimizerType::SGD, 0.1);
+    original.build(1, 1);
+    std::ostringstream out(std::ios::binary);
+    original.serialize_binary(out);
+    std::string data = out.str();
+    ASSERT_FALSE(data.empty());
+    data.back() = static_cast<char>(255);
     std::istringstream in(data, std::ios::binary);
     NeuralNetwork restored;
     EXPECT_THROW(restored.deserialize_binary(in), ml_exception::MLException);

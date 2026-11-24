@@ -13,6 +13,9 @@
 #include <gmock/gmock.h>
 #include <memory>
 #include <iostream>
+#include <cmath>
+#include <utility>
+#include <vector>
 #include <Eigen/Dense>
 
 #include "models/neural_network.h"
@@ -50,6 +53,16 @@ protected:
     
     MatrixXd X_;
     VectorXd y_;
+
+    static double weight_norm(const NeuralNetwork& nn) {
+        double squared_norm = 0.0;
+        for (const auto& layer : nn.get_layers()) {
+            if (layer->has_weights()) {
+                squared_norm += layer->get_weights().squaredNorm();
+            }
+        }
+        return std::sqrt(squared_norm);
+    }
 };
 
 // ============================================================================
@@ -133,6 +146,9 @@ TEST_F(NeuralNetworkRegularizerIntegrationTest, TrainWithL1Regularization) {
  */
 TEST_F(NeuralNetworkRegularizerIntegrationTest, L1RegularizationWithDifferentStrengths) {
     std::vector<double> strengths = {0.0001, 0.001, 0.01, 0.1};
+    NeuralNetwork baseline({2, 16, 1}, "relu", "sigmoid", OptimizerType::ADAM, 0.01);
+    baseline.set_loss_function("binary_crossentropy");
+    baseline.fit(X_, y_, 80, 32, false);
     
     for (double strength : strengths) {
         NeuralNetwork nn({2, 16, 1}, "relu", "sigmoid", OptimizerType::ADAM, 0.01);
@@ -147,8 +163,11 @@ TEST_F(NeuralNetworkRegularizerIntegrationTest, L1RegularizationWithDifferentStr
         
         double score = nn.score(X_, y_);
         std::cout << "L1 strength=" << strength << " accuracy: " << score << std::endl;
-        EXPECT_GT(score, 0.80)
-            << "Low accuracy with L1 strength = " << strength;
+        if (strength < 0.1) {
+            EXPECT_GT(score, 0.80) << "Low accuracy with L1 strength = " << strength;
+        } else {
+            EXPECT_LT(weight_norm(nn), weight_norm(baseline));
+        }
     }
 }
 
@@ -304,6 +323,9 @@ TEST_F(NeuralNetworkRegularizerIntegrationTest, ZeroRegularizationStrength) {
  * Very strong regularization may degrade performance but should not crash
  */
 TEST_F(NeuralNetworkRegularizerIntegrationTest, VeryStrongRegularization) {
+    NeuralNetwork baseline({2, 16, 1}, "relu", "sigmoid", OptimizerType::ADAM, 0.01);
+    baseline.set_loss_function("binary_crossentropy");
+    baseline.fit(X_, y_, 80, 32, false);
     NeuralNetwork nn({2, 16, 1}, "relu", "sigmoid", OptimizerType::ADAM, 0.01);
     nn.set_loss_function("binary_crossentropy");
     nn.set_regularizer(RegularizerType::L2, 1.0);  // Very strong
@@ -316,8 +338,150 @@ TEST_F(NeuralNetworkRegularizerIntegrationTest, VeryStrongRegularization) {
     
     double score = nn.score(X_, y_);
     std::cout << "Very strong regularization (1.0) accuracy: " << score << std::endl;
-    // Accuracy may be lower but should still be better than random (0.5)
-    EXPECT_GT(score, 0.55);
+    EXPECT_TRUE(std::isfinite(score));
+    EXPECT_LT(weight_norm(nn), weight_norm(baseline));
+}
+
+TEST(NeuralNetworkRegularizerGradientTest, UpdatesWeightsButNotBiasForEachPenalty) {
+    struct Case {
+        RegularizerType type;
+        double strength;
+        double positive_gradient;
+        double negative_gradient;
+        double penalty;
+    };
+    const Case cases[] = {
+        {RegularizerType::NONE, 0.2, 0.0, 0.0, 0.0},
+        {RegularizerType::L1, 0.2, 0.2, -0.2, 0.15},
+        {RegularizerType::L2, 0.2, 0.05, -0.1, 0.03125},
+        {RegularizerType::ELASTIC_NET, 0.2, 0.0875, -0.125, 0.0609375},
+        {RegularizerType::L2, 0.0, 0.0, 0.0, 0.0},
+    };
+    const MatrixXd X = MatrixXd::Zero(1, 3);
+    const MatrixXd y = MatrixXd::Zero(1, 1);
+    for (const auto& test : cases) {
+        NeuralNetwork nn({3, 1}, "linear", "linear", OptimizerType::SGD, 0.1);
+        nn.set_loss_function("mse");
+        nn.fit(X, y, 1, 1, false);
+        MatrixXd weights(3, 1);
+        weights << 0.25, -0.5, 0.0;
+        nn.get_layers()[0]->set_weights(weights);
+        nn.get_layers()[0]->set_biases(VectorXd::Constant(1, 0.3));
+        nn.set_regularizer(test.type, test.strength, {{"l1_ratio", 0.25}});
+
+        nn.fit(X, y, 1, 1, false);
+        const auto actual = nn.get_layers()[0]->get_weights();
+        EXPECT_NEAR(actual(0, 0), 0.25 - 0.1 * test.positive_gradient, 1e-12);
+        EXPECT_NEAR(actual(1, 0), -0.5 - 0.1 * test.negative_gradient, 1e-12);
+        EXPECT_DOUBLE_EQ(actual(2, 0), 0.0);
+        EXPECT_NEAR(nn.get_layers()[0]->get_biases()(0), 0.24, 1e-12);
+        ASSERT_EQ(nn.get_loss_history().size(), 1u);
+        EXPECT_NEAR(nn.get_loss_history()[0], 0.09 + test.penalty, 1e-12);
+    }
+}
+
+TEST(NeuralNetworkRegularizerGradientTest, AddsPenaltyBeforeGradientClipping) {
+    NeuralNetwork nn({2, 1}, "linear", "linear", OptimizerType::SGD, 0.1);
+    nn.set_loss_function("mse");
+    MatrixXd X(1, 2);
+    X << 1.0, -2.0;
+    const MatrixXd y = MatrixXd::Zero(1, 1);
+    nn.fit(X, y, 1, 1, false);
+    MatrixXd weights(2, 1);
+    weights << 0.4, -0.2;
+    nn.get_layers()[0]->set_weights(weights);
+    nn.get_layers()[0]->set_biases(VectorXd::Constant(1, 0.1));
+    nn.set_regularizer(RegularizerType::L2, 0.5);
+
+    nn.fit(X, y, 1, 1, false);
+    const double norm = std::sqrt(2.0 * 2.0 + 3.7 * 3.7);
+    EXPECT_NEAR(nn.get_layers()[0]->get_weights()(0, 0), 0.4 - 0.1 * 2.0 / norm, 1e-12);
+    EXPECT_NEAR(nn.get_layers()[0]->get_weights()(1, 0), -0.2 + 0.1 * 3.7 / norm, 1e-12);
+    EXPECT_NEAR(nn.get_layers()[0]->get_biases()(0), -0.08, 1e-12);
+    EXPECT_NEAR(nn.get_loss_history()[0], 0.86, 1e-12);
+}
+
+TEST(NeuralNetworkRegularizerGradientTest, UpdatesEveryTrainableLayer) {
+    NeuralNetwork nn({2, 2, 1}, "linear", "linear", OptimizerType::SGD, 0.1);
+    nn.set_loss_function("mse");
+    const MatrixXd X = MatrixXd::Zero(1, 2);
+    const MatrixXd y = MatrixXd::Zero(1, 1);
+    nn.fit(X, y, 1, 1, false);
+    MatrixXd first(2, 2);
+    first << 0.2, -0.4, 0.3, -0.1;
+    MatrixXd second(2, 1);
+    second << 0.5, -0.25;
+    nn.get_layers()[0]->set_weights(first);
+    nn.get_layers()[1]->set_weights(second);
+    nn.get_layers()[0]->set_biases(VectorXd::Zero(2));
+    nn.get_layers()[1]->set_biases(VectorXd::Zero(1));
+    nn.set_regularizer(RegularizerType::L2, 0.2);
+
+    nn.fit(X, y, 1, 1, false);
+    EXPECT_TRUE(nn.get_layers()[0]->get_weights().isApprox(0.98 * first, 1e-12));
+    EXPECT_TRUE(nn.get_layers()[1]->get_weights().isApprox(0.98 * second, 1e-12));
+}
+
+TEST(NeuralNetworkRegularizerGradientTest, AppliesPenaltyForVectorTargets) {
+    NeuralNetwork probe({2, 1}, "linear", "linear", OptimizerType::SGD, 0.1);
+    NeuralNetwork nn({2, 1}, "linear", "linear", OptimizerType::SGD, 0.1);
+    probe.build(2, 1);
+    const MatrixXd initial = probe.get_layers()[0]->get_weights();
+    nn.set_loss_function("mse");
+    nn.set_regularizer(RegularizerType::L2, 0.01);
+    const MatrixXd X = MatrixXd::Zero(1, 2);
+    const VectorXd y = VectorXd::Zero(1);
+
+    nn.fit(X, y, 1, 1, false);
+    EXPECT_TRUE(nn.get_layers()[0]->get_weights().isApprox(0.999 * initial, 1e-12));
+}
+
+TEST(NeuralNetworkRegularizerGradientTest, UpdatesConvolutionalAndRecurrentWeights) {
+    auto verify = [](NeuralNetwork& nn, const MatrixXd& X) {
+        const MatrixXd y = MatrixXd::Zero(1, 1);
+        nn.set_loss_function("mse");
+        nn.fit(X, y, 1, 1, false);
+        std::vector<MatrixXd> initial;
+        for (const auto& layer : nn.get_layers()) {
+            if (!layer->has_weights()) {
+                continue;
+            }
+            MatrixXd weights = layer->get_weights();
+            weights.setConstant(0.1);
+            layer->set_weights(weights);
+            if (layer->get_use_bias()) {
+                layer->set_biases(VectorXd::Zero(layer->get_biases().size()));
+            }
+            if (auto* recurrent = dynamic_cast<layers::RecurrentLayer*>(layer.get())) {
+                recurrent->reset_state();
+            }
+            initial.push_back(weights);
+        }
+        nn.set_regularizer(RegularizerType::L2, 0.2);
+        nn.fit(X, y, 1, 1, false);
+        size_t index = 0;
+        for (const auto& layer : nn.get_layers()) {
+            if (layer->has_weights()) {
+                EXPECT_TRUE(layer->get_weights().isApprox(0.98 * initial[index], 1e-12));
+                ++index;
+            }
+        }
+    };
+
+    NeuralNetwork conv({36, 1}, "linear", "linear", OptimizerType::SGD, 0.1);
+    conv.reset();
+    auto conv_layer = std::make_unique<layers::Conv2DLayer>(1, 3, 1, "valid", "linear");
+    conv_layer->set_input_shape(36);
+    conv.add_layer(std::move(conv_layer));
+    conv.add_flatten_layer();
+    conv.add_dense_layer(1, "linear");
+    verify(conv, MatrixXd::Zero(1, 36));
+
+    NeuralNetwork recurrent({2, 1}, "linear", "linear", OptimizerType::SGD, 0.1);
+    recurrent.reset();
+    recurrent.add_recurrent_layer(RecurrentType::SIMPLE_RNN, 2);
+    recurrent.add_dense_layer(1, "linear");
+    verify(recurrent, MatrixXd::Zero(1, 2));
 }
 
 // ============================================================================
