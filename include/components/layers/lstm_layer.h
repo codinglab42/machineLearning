@@ -43,7 +43,7 @@ public:
     int get_parameter_count() const override;
     
     // Cache
-    void clear_cache() override { if (cache_) cache_->clear(); }
+    void clear_cache() override { clear_sequence_cache(); if (cache_) cache_->clear(); }
     std::shared_ptr<LayerCache> get_cache() const override { return cache_; }
     void set_cache(std::shared_ptr<LayerCache> cache) override { 
         cache_ = std::dynamic_pointer_cast<LSTMCache>(cache);
@@ -70,6 +70,10 @@ public:
     void deserialize(std::istream& in) override;
 
 private:
+    Eigen::MatrixXd backward_step(const Eigen::MatrixXd& gradient,
+                                  const Eigen::MatrixXd& cell_gradient,
+                                  Eigen::MatrixXd& previous_hidden_gradient,
+                                  Eigen::MatrixXd& previous_cell_gradient) override;
     // Metodi privati
     Eigen::MatrixXd apply_activation(const Eigen::MatrixXd& z, const std::string& activation) const;
     Eigen::MatrixXd apply_activation_derivative(const Eigen::MatrixXd& z, const std::string& activation) const;
@@ -107,7 +111,6 @@ private:
     std::string activation_ = "tanh";
     std::string recurrent_activation_ = "sigmoid";
     bool use_bias_ = true;
-    bool return_sequences_ = false;
     
     // Stato
     Eigen::MatrixXd hidden_state_;

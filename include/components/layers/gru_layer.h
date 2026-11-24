@@ -24,11 +24,12 @@ namespace layers {
         
         void serialize(std::ostream& out) const override;
         void deserialize(std::istream& in) override;
+        void deserialize_versioned(std::istream& in, uint32_t version) override;
         
         std::string get_type() const override { return "GRULayer"; }
         LayerType get_layer_type() const override { return LayerType::GRU; }
         std::string get_config() const override;
-        uint32_t get_version() const override { return 1; }
+        uint32_t get_version() const override { return 2; }
         
         bool has_weights() const override { return true; }
         void initialize_weights() override;
@@ -39,7 +40,7 @@ namespace layers {
         int get_input_size() const override { return input_size_; }
         int get_output_size() const override { return units_; }
         
-        void clear_cache() override { if (cache_) cache_->clear(); }
+        void clear_cache() override { clear_sequence_cache(); if (cache_) cache_->clear(); }
         std::shared_ptr<LayerCache> get_cache() const override { return cache_; }
         void set_cache(std::shared_ptr<LayerCache> cache) override { 
             cache_ = std::dynamic_pointer_cast<GRUCache>(cache);
@@ -61,6 +62,10 @@ namespace layers {
         bool get_use_bias() const { return use_bias_; }
         
     private:
+        Eigen::MatrixXd backward_step(const Eigen::MatrixXd& gradient,
+                                      const Eigen::MatrixXd& cell_gradient,
+                                      Eigen::MatrixXd& previous_hidden_gradient,
+                                      Eigen::MatrixXd& previous_cell_gradient) override;
         Eigen::MatrixXd sigmoid(const Eigen::MatrixXd& x) const;
         Eigen::MatrixXd sigmoid_derivative(const Eigen::MatrixXd& x) const;
         Eigen::MatrixXd tanh(const Eigen::MatrixXd& x) const;

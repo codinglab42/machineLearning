@@ -1,4 +1,5 @@
 #include "estimator.h"
+#include <pybind11/eigen.h>
 #include "models/estimator.h"
 
 namespace py = pybind11;

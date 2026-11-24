@@ -18,6 +18,7 @@ set(ML_LIBRARY_SOURCES
     components/layers/layer_registry.cpp    
     components/layers/dense_layer.cpp
     components/layers/pooling_layer.cpp  
+    components/layers/recurrent_layer.cpp
     components/layers/simple_rnn_layer.cpp    
     components/layers/lstm_layer.cpp          
     components/layers/gru_layer.cpp

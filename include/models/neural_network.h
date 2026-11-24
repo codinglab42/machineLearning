@@ -96,6 +96,11 @@ namespace models {
         void fit(const Eigen::MatrixXd& X, const Eigen::MatrixXd& y,
                  int epochs, int batch_size, bool verbose);
 
+        void fit_sequences(const layers::SequenceTensor& X, const layers::SequenceTensor& y);
+        void fit_sequences(const layers::SequenceTensor& X, const layers::SequenceTensor& y,
+                           int epochs, int batch_size, bool verbose);
+        layers::SequenceTensor predict_sequences(const layers::SequenceTensor& X) const;
+
         void build(int n_features, int n_classes);
     
         // PREDICT - const corretto
@@ -179,6 +184,8 @@ namespace models {
 
         void initialize_optimizer_states();
         void update_parameters();
+        layers::SequenceTensor forward_sequences(const layers::SequenceTensor& X, bool training) const;
+        layers::SequenceTensor backward_sequences(const layers::SequenceTensor& gradient);
 
         std::vector<double> loss_history_;
         std::vector<double> val_loss_history_;

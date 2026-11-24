@@ -17,8 +17,7 @@ LSTMLayer::LSTMLayer(int units, int input_size,
                      const std::string& recurrent_activation,
                      bool use_bias)
     : units_(units), input_size_(input_size), activation_(activation),
-      recurrent_activation_(recurrent_activation), use_bias_(use_bias),
-      return_sequences_(false) {
+      recurrent_activation_(recurrent_activation), use_bias_(use_bias) {
     
     ML_CHECK_PARAM(units > 0, "units", "must be > 0", "LSTMLayer");
     ML_CHECK_PARAM(input_size > 0, "input_size", "must be > 0", "LSTMLayer");
@@ -74,6 +73,7 @@ LSTMLayer::LSTMLayer(int units, int input_size,
 // ============================================================================
 
 void LSTMLayer::set_input_shape(int input_size) {
+    clear_sequence_cache();
     ML_CHECK_PARAM(input_size > 0, "input_size", "must be > 0", "LSTMLayer");
     
     input_size_ = input_size;
@@ -171,7 +171,7 @@ void LSTMLayer::initialize_weights() {
 void LSTMLayer::reset_state() {
     hidden_state_.resize(0, 0);
     cell_state_.resize(0, 0);
-    if (cache_) cache_->clear();
+    clear_cache();
 }
 
 Eigen::MatrixXd LSTMLayer::get_hidden_state() const {
@@ -202,15 +202,15 @@ Eigen::MatrixXd LSTMLayer::apply_activation(const Eigen::MatrixXd& z, const std:
 }
 
 Eigen::MatrixXd LSTMLayer::apply_activation_derivative(const Eigen::MatrixXd& z, const std::string& activation) const {
-    // ⭐ Clip anche per la derivata!
     Eigen::MatrixXd z_clipped = z.cwiseMax(-10.0).cwiseMin(10.0);
+    const auto in_range = ((z.array() >= -10.0) && (z.array() <= 10.0)).cast<double>();
     
     if (activation == "tanh") {
         Eigen::MatrixXd tanh_z = z_clipped.array().tanh().matrix();
-        return (1.0 - tanh_z.array().square()).matrix();
+        return ((1.0 - tanh_z.array().square()) * in_range).matrix();
     } else if (activation == "sigmoid") {
         Eigen::MatrixXd sig = (1.0 / (1.0 + (-z_clipped).array().exp())).matrix();
-        return (sig.array() * (1.0 - sig.array())).matrix();
+        return (sig.array() * (1.0 - sig.array()) * in_range).matrix();
     } else if (activation == "relu") {
         return (z.array() > 0.0).cast<double>().matrix();
     }
@@ -226,6 +226,7 @@ Eigen::MatrixXd LSTMLayer::forward(const Eigen::MatrixXd& input) {
 }
 
 Eigen::MatrixXd LSTMLayer::forward(const Eigen::MatrixXd& input, bool training) {
+    clear_sequence_cache();
     ML_CHECK_NOT_EMPTY(input, "input", "LSTMLayer");
     ML_CHECK_PARAM(input_size_ > 0, "input_size", "layer not initialized", "LSTMLayer");
     
@@ -254,12 +255,20 @@ Eigen::MatrixXd LSTMLayer::forward(const Eigen::MatrixXd& input, bool training) 
         cache_->forget_gates.clear();
         cache_->cell_candidates.clear();
         cache_->output_gates.clear();
+        cache_->z_i.clear();
+        cache_->z_f.clear();
+        cache_->z_c.clear();
+        cache_->z_o.clear();
     }
     
     // Inizializza stati nascosti se necessario
     if (hidden_state_.rows() != batch_size || hidden_state_.cols() != units_) {
         hidden_state_ = Eigen::MatrixXd::Zero(batch_size, units_);
         cell_state_ = Eigen::MatrixXd::Zero(batch_size, units_);
+    }
+
+    if (training) {
+        cache_->previous_hidden_state = hidden_state_;
     }
     
     // Calcolo pre-attivazioni per i 4 gate
@@ -294,6 +303,10 @@ Eigen::MatrixXd LSTMLayer::forward(const Eigen::MatrixXd& input, bool training) 
         cache_->output_gates.push_back(o_t);
         cache_->cell_states.push_back(cell_state_);
         cache_->hidden_states.push_back(new_hidden);
+        cache_->z_i.push_back(z_i);
+        cache_->z_f.push_back(z_f);
+        cache_->z_c.push_back(z_c);
+        cache_->z_o.push_back(z_o);
     }
     
     cell_state_ = new_cell;
@@ -308,6 +321,14 @@ Eigen::MatrixXd LSTMLayer::forward(const Eigen::MatrixXd& input, bool training) 
 // ============================================================================
 
 Eigen::MatrixXd LSTMLayer::backward(const Eigen::MatrixXd& gradient) {
+    Eigen::MatrixXd previous_hidden_gradient, previous_cell_gradient;
+    return backward_step(gradient, Eigen::MatrixXd(), previous_hidden_gradient, previous_cell_gradient);
+}
+
+Eigen::MatrixXd LSTMLayer::backward_step(const Eigen::MatrixXd& gradient,
+                                         const Eigen::MatrixXd& cell_gradient,
+                                         Eigen::MatrixXd& previous_hidden_gradient,
+                                         Eigen::MatrixXd& previous_cell_gradient) {
     //std::cout << "\n[DEBUG LSTM] --- Entrato in backward ---" << std::endl;
     if (!cache_) {
         //std::cout << "[DEBUG LSTM] Errore: cache_ è nullptr!" << std::endl;
@@ -370,21 +391,30 @@ Eigen::MatrixXd LSTMLayer::backward(const Eigen::MatrixXd& gradient) {
     //std::cout << "[DEBUG LSTM] Calcolo dO..." << std::endl;
     Eigen::MatrixXd act_cell = apply_activation(current_cell, activation_);
     Eigen::MatrixXd dO = dH.array() * act_cell.array();
-    dO = dO.array() * apply_activation_derivative(o_t, recurrent_activation_).array();
+    dO = dO.array() * apply_activation_derivative(lstm_cache->z_o[0], recurrent_activation_).array();
     
     //std::cout << "[DEBUG LSTM] Calcolo dC..." << std::endl;
     Eigen::MatrixXd dC = dH.array() * o_t.array();
     dC = dC.array() * apply_activation_derivative(current_cell, activation_).array();
+    if (cell_gradient.size() != 0) {
+        dC += cell_gradient;
+    }
+    previous_cell_gradient = dC.array() * f_t.array();
     
     //std::cout << "[DEBUG LSTM] Calcolo dF, dI, dCell..." << std::endl;
     Eigen::MatrixXd dF = dC.array() * prev_cell.array();
-    dF = dF.array() * apply_activation_derivative(f_t, recurrent_activation_).array();
+    dF = dF.array() * apply_activation_derivative(lstm_cache->z_f[0], recurrent_activation_).array();
     
     Eigen::MatrixXd dI = dC.array() * c_t.array();
-    dI = dI.array() * apply_activation_derivative(i_t, recurrent_activation_).array();
+    dI = dI.array() * apply_activation_derivative(lstm_cache->z_i[0], recurrent_activation_).array();
     
     Eigen::MatrixXd dCell = dC.array() * i_t.array();
-    dCell = dCell.array() * apply_activation_derivative(c_t, activation_).array();
+    dCell = dCell.array() * apply_activation_derivative(lstm_cache->z_c[0], activation_).array();
+
+    previous_hidden_gradient = dI * recurrent_i_.transpose() +
+                               dF * recurrent_f_.transpose() +
+                               dCell * recurrent_c_.transpose() +
+                               dO * recurrent_o_.transpose();
     
     //std::cout << "[DEBUG LSTM] Calcolo dK_i, dK_f, dK_c, dK_o..." << std::endl;
     Eigen::MatrixXd dK_i = X.transpose() * dI;
@@ -393,10 +423,7 @@ Eigen::MatrixXd LSTMLayer::backward(const Eigen::MatrixXd& gradient) {
     Eigen::MatrixXd dK_o = X.transpose() * dO;
     
     //std::cout << "[DEBUG LSTM] Calcolo dR_i, dR_f, dR_c, dR_o..." << std::endl;
-    Eigen::MatrixXd prev_hidden = Eigen::MatrixXd::Zero(batch_size, units_);
-    if (lstm_cache->hidden_states.size() > 1) {
-        prev_hidden = lstm_cache->hidden_states[0]; 
-    }
+    const Eigen::MatrixXd& prev_hidden = lstm_cache->previous_hidden_state;
     Eigen::MatrixXd dR_i = prev_hidden.transpose() * dI;
     Eigen::MatrixXd dR_f = prev_hidden.transpose() * dF;
     Eigen::MatrixXd dR_c = prev_hidden.transpose() * dCell;
@@ -676,7 +703,8 @@ std::string LSTMLayer::get_config() const {
         << ", input_size=" << input_size_
         << ", activation=" << activation_
         << ", recurrent_activation=" << recurrent_activation_
-        << ", use_bias=" << (use_bias_ ? "true" : "false") << ")";
+        << ", use_bias=" << (use_bias_ ? "true" : "false")
+        << ", return_sequences=" << (return_sequences_ ? "true" : "false") << ")";
     return oss.str();
 }
 

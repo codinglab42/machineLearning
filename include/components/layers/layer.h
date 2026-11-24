@@ -70,6 +70,7 @@ public:
     // Serializzazione
     virtual void serialize(std::ostream& out) const = 0;
     virtual void deserialize(std::istream& in) = 0;
+    virtual void deserialize_versioned(std::istream& in, uint32_t) { deserialize(in); }
 
 protected:
 

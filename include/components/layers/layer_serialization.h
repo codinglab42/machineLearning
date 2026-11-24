@@ -42,7 +42,7 @@ inline std::unique_ptr<Layer> deserialize_layer(std::istream& in) {
     auto layer = LayerFactory::create(type);
     
     // Deserializza i dati
-    layer->deserialize(in);
+    layer->deserialize_versioned(in, version);
     
     if (!in.good()) {
         ML_THROW_IO_ERROR("stream", "read", layer->get_type());

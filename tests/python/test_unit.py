@@ -288,6 +288,54 @@ class TestBindingFactories(unittest.TestCase):
         self.assertEqual(layer.get_type(), "DenseLayer")
 
 
+class TestEigenLayerBindings(unittest.TestCase):
+    def test_weight_and_bias_setters(self):
+        layers = [
+            ml.DenseLayer(2, "linear"),
+            ml.Conv2DLayer(1, 1),
+            ml.BatchNormLayer(),
+        ]
+        for layer in layers:
+            with self.subTest(layer=layer.get_type()):
+                layer.set_input_shape(4)
+                shape = layer.get_weights().shape
+                weights = np.arange(np.prod(shape), dtype=np.float64).reshape(shape) + 0.25
+                layer.set_weights(weights)
+                np.testing.assert_array_equal(layer.get_weights(), weights)
+                ml.Layer.set_weights(layer, weights * 2)
+                np.testing.assert_array_equal(layer.get_weights(), weights * 2)
+
+                biases = np.arange(layer.get_biases().size, dtype=np.float64) + 0.5
+                layer.set_biases(biases)
+                np.testing.assert_array_equal(layer.get_biases(), biases)
+                ml.Layer.set_biases(layer, biases * 2)
+                np.testing.assert_array_equal(layer.get_biases(), biases * 2)
+
+    def test_dense_setters_noncontiguous_and_invalid_shapes(self):
+        layer = ml.DenseLayer(2, "linear")
+        layer.set_input_shape(4)
+        weights = np.arange(16, dtype=np.float64).reshape(4, 4)[:, ::2]
+        biases = np.arange(4, dtype=np.float64)[::2]
+        self.assertFalse(weights.flags.c_contiguous)
+        self.assertFalse(biases.flags.c_contiguous)
+        layer.set_weights(weights)
+        layer.set_biases(biases)
+        np.testing.assert_array_equal(layer.get_weights(), weights)
+        np.testing.assert_array_equal(layer.get_biases(), biases)
+        with self.assertRaises(ValueError):
+            layer.set_weights(np.zeros((3, 2)))
+        with self.assertRaises(ValueError):
+            layer.set_biases(np.zeros(3))
+
+    def test_estimator_base_accepts_numpy_arrays(self):
+        model = ml.LinearRegression(learning_rate=0.01, max_iter=200)
+        x = np.arange(10, dtype=np.float64).reshape(5, 2)
+        y = x[:, 0] * 0.2
+        ml.Estimator.fit(model, x, y)
+        self.assertEqual(ml.Estimator.predict(model, x).shape, (5,))
+        self.assertTrue(np.isfinite(ml.Estimator.score(model, x, y)))
+
+
 class TestScalers(unittest.TestCase):
     def test_min_max_scaler_round_trip(self):
         X = np.array([[1.0, -2.0], [3.0, 2.0], [5.0, 6.0]])

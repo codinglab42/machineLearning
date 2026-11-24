@@ -18,7 +18,7 @@ namespace models {
 
 namespace {
     constexpr int NETWORK_FORMAT_MARKER = -1296977744;
-    constexpr std::uint32_t NETWORK_FORMAT_VERSION = 2;
+    constexpr std::uint32_t NETWORK_FORMAT_VERSION = 3;
 
     template<typename T>
     void read_checked(std::istream& in, T& value) {
@@ -435,18 +435,23 @@ namespace {
         RecurrentType type, int units, bool return_sequences,
         const std::string& activation) {
 
-        int input_size = layers_.empty() ? n_features_ : layers_.back()->get_output_size();
-        ML_CHECK_PARAM(input_size > 0, "input_size", "must be > 0", "NeuralNetwork");
-
+        const int input_size = layers_.empty() ? std::max(n_features_, 1) : layers_.back()->get_output_size();
+        std::unique_ptr<layers::RecurrentLayer> layer;
         switch (type) {
             case RecurrentType::SIMPLE_RNN:
-                return std::make_unique<layers::SimpleRNNLayer>(units, input_size, activation);
+                layer = std::make_unique<layers::SimpleRNNLayer>(units, input_size, activation);
+                break;
             case RecurrentType::LSTM:
-                return std::make_unique<layers::LSTMLayer>(units, input_size, activation);
+                layer = std::make_unique<layers::LSTMLayer>(units, input_size, activation);
+                break;
             case RecurrentType::GRU:
-                return std::make_unique<layers::GRULayer>(units, input_size, activation);
+                layer = std::make_unique<layers::GRULayer>(units, input_size, activation);
+                break;
+            default:
+                ML_THROW_PARAMETER_ERROR("type", "unknown recurrent layer type", "NeuralNetwork");
         }
-        return nullptr;
+        layer->set_return_sequences(return_sequences);
+        return layer;
     }
 
     //===========================================================================
@@ -628,6 +633,154 @@ namespace {
         }
 
         fitted_ = true;
+    }
+
+    namespace {
+        Eigen::MatrixXd sequence_matrix(const layers::SequenceTensor& tensor) {
+            tensor.validate();
+            using RowMajorMatrix = Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>;
+            return Eigen::Map<const RowMajorMatrix>(tensor.data.data(),
+                static_cast<Eigen::Index>(tensor.batch_size) * tensor.time_steps, tensor.features);
+        }
+
+        layers::SequenceTensor matrix_tensor(const Eigen::MatrixXd& matrix) {
+            layers::SequenceTensor tensor{{}, static_cast<int>(matrix.rows()), 1,
+                                           static_cast<int>(matrix.cols()), false};
+            tensor.data.resize(static_cast<std::size_t>(matrix.rows()) * matrix.cols());
+            for (Eigen::Index row = 0; row < matrix.rows(); ++row) {
+                for (Eigen::Index col = 0; col < matrix.cols(); ++col) {
+                    tensor.data[static_cast<std::size_t>(row) * matrix.cols() + col] = matrix(row, col);
+                }
+            }
+            return tensor;
+        }
+
+        layers::SequenceTensor sequence_batch(const layers::SequenceTensor& tensor,
+                                               const std::vector<int>& indices,
+                                               int begin, int end) {
+            layers::SequenceTensor batch{{}, end - begin, tensor.time_steps,
+                                          tensor.features, tensor.is_sequence};
+            const auto sample_size = static_cast<std::size_t>(tensor.time_steps) * tensor.features;
+            batch.data.resize(static_cast<std::size_t>(end - begin) * sample_size);
+            for (int i = begin; i < end; ++i) {
+                std::copy_n(tensor.data.begin() + static_cast<std::size_t>(indices[i]) * sample_size,
+                            sample_size, batch.data.begin() + static_cast<std::size_t>(i - begin) * sample_size);
+            }
+            return batch;
+        }
+    }
+
+    void NeuralNetwork::fit_sequences(const layers::SequenceTensor& X, const layers::SequenceTensor& y) {
+        fit_sequences(X, y, epochs_, batch_size_, verbose_);
+    }
+
+    void NeuralNetwork::fit_sequences(const layers::SequenceTensor& X, const layers::SequenceTensor& y,
+                                      int epochs, int batch_size, bool verbose) {
+        X.validate();
+        y.validate();
+        ML_CHECK_PARAM(X.is_sequence, "X", "must be a 3D sequence", "NeuralNetwork");
+        ML_CHECK_PARAM(X.batch_size == y.batch_size, "y", "batch size must match X", "NeuralNetwork");
+        ML_CHECK_PARAM(!y.is_sequence || X.time_steps == y.time_steps,
+                       "y", "time steps must match X", "NeuralNetwork");
+        ML_CHECK_PARAM(epochs > 0, "epochs", "must be > 0", "NeuralNetwork");
+        ML_CHECK_PARAM(batch_size > 0, "batch_size", "must be > 0", "NeuralNetwork");
+        ML_CHECK_PARAM(!layers_.empty(), "layers", "add a recurrent layer before fitting sequences", "NeuralNetwork");
+        if (fitted_ && X.features != n_features_) {
+            ML_THROW_PARAMETER_ERROR("X", "feature count differs from the fitted network", "NeuralNetwork");
+        }
+        verbose_ = verbose;
+        if (!fitted_) {
+            build(X.features, y.features);
+        } else if (y.features != n_classes_) {
+            ML_THROW_PARAMETER_ERROR("y", "feature count differs from the fitted network", "NeuralNetwork");
+        }
+        initialize_optimizer_states();
+        std::vector<int> indices(X.batch_size);
+        std::iota(indices.begin(), indices.end(), 0);
+        loss_history_.clear();
+        loss_history_.reserve(epochs);
+        for (int epoch = 0; epoch < epochs; ++epoch) {
+            std::shuffle(indices.begin(), indices.end(), rng_);
+            double epoch_loss = 0.0;
+            for (int begin = 0; begin < X.batch_size; begin += batch_size) {
+                const int end = std::min(begin + batch_size, X.batch_size);
+                const auto x_batch = sequence_batch(X, indices, begin, end);
+                const auto y_batch = sequence_batch(y, indices, begin, end);
+                const auto prediction = forward_sequences(x_batch, true);
+                if (prediction.is_sequence != y_batch.is_sequence ||
+                    prediction.time_steps != y_batch.time_steps ||
+                    prediction.features != y_batch.features) {
+                    ML_THROW_PARAMETER_ERROR("y", "shape must match the network output", "NeuralNetwork");
+                }
+                const Eigen::MatrixXd expected = sequence_matrix(y_batch);
+                const Eigen::MatrixXd actual = sequence_matrix(prediction);
+                epoch_loss += compute_loss(expected, actual) * (end - begin);
+                const Eigen::MatrixXd loss_gradient = loss_function_->gradient(expected, actual);
+                layers::SequenceTensor gradient = prediction;
+                for (Eigen::Index row = 0; row < loss_gradient.rows(); ++row) {
+                    for (Eigen::Index col = 0; col < loss_gradient.cols(); ++col) {
+                        gradient.data[static_cast<std::size_t>(row) * loss_gradient.cols() + col] =
+                            loss_gradient(row, col);
+                    }
+                }
+                backward_sequences(gradient);
+                update_parameters();
+            }
+            loss_history_.push_back(epoch_loss / X.batch_size);
+            if (verbose && epoch % std::max(1, epochs / 10) == 0) {
+                std::cout << "Epoch " << epoch << "/" << epochs
+                          << " - Loss: " << loss_history_.back() << std::endl;
+            }
+        }
+        fitted_ = true;
+    }
+
+    layers::SequenceTensor NeuralNetwork::forward_sequences(const layers::SequenceTensor& X,
+                                                             bool training) const {
+        X.validate();
+        ML_CHECK_PARAM(X.is_sequence, "X", "must be a 3D sequence", "NeuralNetwork");
+        ML_CHECK_PARAM(!layers_.empty(), "layers", "network must contain a recurrent layer", "NeuralNetwork");
+        const layers::SequenceTensor* current = &X;
+        layers::SequenceTensor next;
+        for (const auto& layer : layers_) {
+            auto* recurrent = dynamic_cast<layers::RecurrentLayer*>(layer.get());
+            if (recurrent) {
+                if (!current->is_sequence) {
+                    ML_THROW_PARAMETER_ERROR("layers", "a recurrent layer requires sequence output from the previous layer", "NeuralNetwork");
+                }
+                next = recurrent->forward_sequence(*current, training);
+            } else {
+                if (current->is_sequence) {
+                    ML_THROW_PARAMETER_ERROR("layers", "sequence output must be followed by a recurrent layer", "NeuralNetwork");
+                }
+                next = matrix_tensor(layer->forward(sequence_matrix(*current), training));
+            }
+            current = &next;
+        }
+        return next;
+    }
+
+    layers::SequenceTensor NeuralNetwork::backward_sequences(const layers::SequenceTensor& gradient) {
+        layers::SequenceTensor current = gradient;
+        for (auto it = layers_.rbegin(); it != layers_.rend(); ++it) {
+            auto* recurrent = dynamic_cast<layers::RecurrentLayer*>(it->get());
+            if (recurrent) {
+                current = recurrent->backward_sequence(current);
+            } else {
+                if (current.is_sequence) {
+                    ML_THROW_FITTING_ERROR("NeuralNetwork", "unexpected sequence gradient for a non-recurrent layer");
+                }
+                current = matrix_tensor((*it)->backward(sequence_matrix(current)));
+            }
+        }
+        return current;
+    }
+
+    layers::SequenceTensor NeuralNetwork::predict_sequences(const layers::SequenceTensor& X) const {
+        ML_CHECK_FITTED(fitted_, "NeuralNetwork");
+        X.validate();
+        ML_CHECK_FEATURE_DIMENSIONS(X.features, n_features_, "NeuralNetwork");
+        return forward_sequences(X, false);
     }
 
     void NeuralNetwork::build(int n_features, int n_classes) {

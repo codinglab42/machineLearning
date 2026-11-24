@@ -59,7 +59,7 @@ public:
     // ========================================================================
     // CACHE MANAGEMENT
     // ========================================================================
-    void clear_cache() override { if (cache_) cache_->clear(); }
+    void clear_cache() override { clear_sequence_cache(); if (cache_) cache_->clear(); }
     std::shared_ptr<LayerCache> get_cache() const override { return cache_; }
     void set_cache(std::shared_ptr<LayerCache> cache) override { 
         cache_ = std::dynamic_pointer_cast<SimpleRNNCache>(cache);
@@ -93,6 +93,10 @@ public:
     void deserialize(std::istream& in) override;
 
 private:
+    Eigen::MatrixXd backward_step(const Eigen::MatrixXd& gradient,
+                                  const Eigen::MatrixXd& cell_gradient,
+                                  Eigen::MatrixXd& previous_hidden_gradient,
+                                  Eigen::MatrixXd& previous_cell_gradient) override;
     // ========================================================================
     // METODI PRIVATI
     // ========================================================================
@@ -124,7 +128,6 @@ private:
     int input_size_;
     std::string activation_;
     bool use_bias_;
-    bool return_sequences_ = false;
     
     // Stato
     Eigen::MatrixXd hidden_state_;  // Stato nascosto corrente [batch, units]

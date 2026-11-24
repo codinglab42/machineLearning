@@ -16,7 +16,7 @@ SimpleRNNLayer::SimpleRNNLayer(int units, int input_size,
                              const std::string& activation,
                              bool use_bias)
     : units_(units), input_size_(input_size), activation_(activation), 
-      use_bias_(use_bias), return_sequences_(false) {
+      use_bias_(use_bias) {
     
     ML_CHECK_PARAM(units > 0, "units", "must be > 0", "SimpleRNNLayer");
     ML_CHECK_PARAM(input_size > 0, "input_size", "must be > 0", "SimpleRNNLayer");
@@ -65,6 +65,7 @@ SimpleRNNLayer::SimpleRNNLayer(int units, int input_size,
 // ============================================================================
 
 void SimpleRNNLayer::set_input_shape(int input_size) {
+    clear_sequence_cache();
     ML_CHECK_PARAM(input_size > 0, "input_size", "must be > 0", "SimpleRNNLayer");
     
     input_size_ = input_size;
@@ -128,6 +129,7 @@ void SimpleRNNLayer::initialize_weights() {
 
 void SimpleRNNLayer::reset_state() {
     hidden_state_.resize(0, 0);
+    clear_cache();
 }
 
 Eigen::MatrixXd SimpleRNNLayer::get_hidden_state() const {
@@ -143,6 +145,7 @@ Eigen::MatrixXd SimpleRNNLayer::forward(const Eigen::MatrixXd& input) {
 }
 
 Eigen::MatrixXd SimpleRNNLayer::forward(const Eigen::MatrixXd& input, bool training) {
+    clear_sequence_cache();
     ML_CHECK_NOT_EMPTY(input, "input", "SimpleRNNLayer");
     
     if (input.cols() != input_size_) {
@@ -173,6 +176,10 @@ Eigen::MatrixXd SimpleRNNLayer::forward(const Eigen::MatrixXd& input, bool train
     if (hidden_state_.rows() != batch_size || hidden_state_.cols() != units_) {
         hidden_state_ = Eigen::MatrixXd::Zero(batch_size, units_);
     }
+
+    if (training) {
+        cache_->previous_hidden_state = hidden_state_;
+    }
     
     Eigen::MatrixXd z = input * kernel_ + hidden_state_ * recurrent_;
     
@@ -200,6 +207,14 @@ Eigen::MatrixXd SimpleRNNLayer::forward(const Eigen::MatrixXd& input, bool train
 // ============================================================================
 
 Eigen::MatrixXd SimpleRNNLayer::backward(const Eigen::MatrixXd& gradient) {
+    Eigen::MatrixXd previous_hidden_gradient, previous_cell_gradient;
+    return backward_step(gradient, Eigen::MatrixXd(), previous_hidden_gradient, previous_cell_gradient);
+}
+
+Eigen::MatrixXd SimpleRNNLayer::backward_step(const Eigen::MatrixXd& gradient,
+                                              const Eigen::MatrixXd&,
+                                              Eigen::MatrixXd& previous_hidden_gradient,
+                                              Eigen::MatrixXd& previous_cell_gradient) {
     if (!cache_) {
         ML_THROW_FITTING_ERROR("SimpleRNNLayer", "cache not initialized. Call forward first.");
     }
@@ -219,13 +234,12 @@ Eigen::MatrixXd SimpleRNNLayer::backward(const Eigen::MatrixXd& gradient) {
     }
     
     const Eigen::MatrixXd& z = rnn_cache->z_values[0];
-    Eigen::MatrixXd prev_h = Eigen::MatrixXd::Zero(batch_size, units_);
-    if (rnn_cache->hidden_states.size() > 1) {
-        prev_h = rnn_cache->hidden_states[0];
-    }
+    const Eigen::MatrixXd& prev_h = rnn_cache->previous_hidden_state;
     
     // Calcolo gradiente rispetto alla pre-attivazione
     Eigen::MatrixXd dZ = gradient.array() * apply_activation_derivative(z).array();
+    previous_hidden_gradient = dZ * recurrent_.transpose();
+    previous_cell_gradient.resize(0, 0);
     
     // Calcolo dei gradienti dei pesi
     Eigen::MatrixXd dKernel = rnn_cache->input_cache.transpose() * dZ;
@@ -270,19 +284,19 @@ Eigen::MatrixXd SimpleRNNLayer::apply_activation(const Eigen::MatrixXd& z) const
 }
 
 Eigen::MatrixXd SimpleRNNLayer::apply_activation_derivative(const Eigen::MatrixXd& z) const {
-    // ⭐ Clip anche per la derivata!
     Eigen::MatrixXd z_clipped = z.cwiseMax(-10.0).cwiseMin(10.0);
+    const auto in_range = ((z.array() >= -10.0) && (z.array() <= 10.0)).cast<double>();
     
     if (activation_ == "tanh") {
         Eigen::MatrixXd tanh_z = z_clipped.array().tanh().matrix();
-        return (1.0 - tanh_z.array().square()).matrix();
+        return ((1.0 - tanh_z.array().square()) * in_range).matrix();
     } else if (activation_ == "relu") {
         return (z.array() > 0.0).cast<double>().matrix();
     } else if (activation_ == "sigmoid") {
         Eigen::MatrixXd sig = (1.0 / (1.0 + (-z_clipped).array().exp())).matrix();
-        return (sig.array() * (1.0 - sig.array())).matrix();
+        return (sig.array() * (1.0 - sig.array()) * in_range).matrix();
     }
-    return (1.0 - z_clipped.array().tanh().square()).matrix();
+    return ((1.0 - z_clipped.array().tanh().square()) * in_range).matrix();
 }
 
 // ============================================================================
@@ -462,7 +476,8 @@ std::string SimpleRNNLayer::get_config() const {
     oss << "SimpleRNNLayer(units=" << units_
         << ", input_size=" << input_size_
         << ", activation=" << activation_
-        << ", use_bias=" << (use_bias_ ? "true" : "false") << ")";
+        << ", use_bias=" << (use_bias_ ? "true" : "false")
+        << ", return_sequences=" << (return_sequences_ ? "true" : "false") << ")";
     return oss.str();
 }
 

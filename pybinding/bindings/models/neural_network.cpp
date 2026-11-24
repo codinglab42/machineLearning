@@ -55,6 +55,10 @@ void bind_neural_network(py::module_& m) {
         // Training (Fit)
         // Training (Fit)
         .def("fit", [](models::NeuralNetwork& self, PyArrayDouble X, PyArrayDouble y) {
+            if (X.ndim() == 3) {
+                self.fit_sequences(array_to_sequence(X, "X"), array_to_sequence(y, "y"));
+                return;
+            }
             auto X_map = array_to_matrix(X, "X");
             py::buffer_info buf_y = y.request();
 
@@ -73,6 +77,11 @@ void bind_neural_network(py::module_& m) {
 
         .def("fit_advanced", [](models::NeuralNetwork& self, PyArrayDouble X, PyArrayDouble y,
                                 int epochs, int batch_size, bool verbose) {
+            if (X.ndim() == 3) {
+                self.fit_sequences(array_to_sequence(X, "X"), array_to_sequence(y, "y"),
+                                   epochs, batch_size, verbose);
+                return;
+            }
             auto X_map = array_to_matrix(X, "X");
             py::buffer_info buf_y = y.request();
 
@@ -90,6 +99,9 @@ void bind_neural_network(py::module_& m) {
            
         // Prediction (Gestione corretta per 1D -> conversione in Matrice 1xN)
         .def("predict", [](const models::NeuralNetwork& self, const PyArrayDouble& X) -> py::object {
+            if (X.ndim() == 3) {
+                return sequence_to_array(self.predict_sequences(array_to_sequence(X, "X")));
+            }
             if (X.ndim() == 1) {
                 auto x_vec = array_to_vector(X, "X");
                 Eigen::MatrixXd X_mat = x_vec.transpose(); // Converte VectorXd in MatrixXd 1xN
@@ -101,6 +113,9 @@ void bind_neural_network(py::module_& m) {
         }, py::arg("X"))
 
         .def("predict_proba", [](const models::NeuralNetwork& self, const PyArrayDouble& X) -> py::object {
+            if (X.ndim() == 3) {
+                return sequence_to_array(self.predict_sequences(array_to_sequence(X, "X")));
+            }
             if (X.ndim() == 1) {
                 auto x_vec = array_to_vector(X, "X");
                 Eigen::MatrixXd X_mat = x_vec.transpose();

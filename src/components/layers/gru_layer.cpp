@@ -61,6 +61,7 @@ GRULayer::GRULayer(int units, int input_size,
 // ============================================================================
 
 void GRULayer::set_input_shape(int input_size) {
+    clear_sequence_cache();
     ML_CHECK_PARAM(input_size > 0, "input_size", "must be > 0", "GRULayer");
     
     input_size_ = input_size;
@@ -152,7 +153,7 @@ void GRULayer::initialize_weights() {
 
 void GRULayer::reset_state() {
     hidden_state_.resize(0, 0);
-    if (cache_) cache_->clear();
+    clear_cache();
 }
 
 Eigen::MatrixXd GRULayer::get_hidden_state() const {
@@ -169,9 +170,9 @@ Eigen::MatrixXd GRULayer::sigmoid(const Eigen::MatrixXd& x) const {
 }
 
 Eigen::MatrixXd GRULayer::sigmoid_derivative(const Eigen::MatrixXd& x) const {
-    // ⭐ Usa la sigmoid già clippata
     Eigen::MatrixXd sig = sigmoid(x);
-    return (sig.array() * (1.0 - sig.array())).matrix();
+    return (sig.array() * (1.0 - sig.array()) *
+            ((x.array() >= -10.0) && (x.array() <= 10.0)).cast<double>()).matrix();
 }
 
 Eigen::MatrixXd GRULayer::tanh(const Eigen::MatrixXd& x) const {
@@ -180,9 +181,9 @@ Eigen::MatrixXd GRULayer::tanh(const Eigen::MatrixXd& x) const {
 }
 
 Eigen::MatrixXd GRULayer::tanh_derivative(const Eigen::MatrixXd& x) const {
-    // ⭐ Usa la tanh già clippata
     Eigen::MatrixXd t = tanh(x);
-    return (1.0 - t.array().square()).matrix();
+    return ((1.0 - t.array().square()) *
+            ((x.array() >= -10.0) && (x.array() <= 10.0)).cast<double>()).matrix();
 }
 
 // ============================================================================
@@ -194,6 +195,7 @@ Eigen::MatrixXd GRULayer::forward(const Eigen::MatrixXd& input) {
 }
 
 Eigen::MatrixXd GRULayer::forward(const Eigen::MatrixXd& input, bool training) {
+    clear_sequence_cache();
     ML_CHECK_NOT_EMPTY(input, "input", "GRULayer");
     ML_CHECK_PARAM(input_size_ > 0, "input_size", "layer not initialized", "GRULayer");
     
@@ -228,6 +230,10 @@ Eigen::MatrixXd GRULayer::forward(const Eigen::MatrixXd& input, bool training) {
     
     if (hidden_state_.rows() != batch_size || hidden_state_.cols() != units_) {
         hidden_state_ = Eigen::MatrixXd::Zero(batch_size, units_);
+    }
+
+    if (training) {
+        cache_->previous_hidden_state = hidden_state_;
     }
     
     // Calcolo reset gate (r_t) e update gate (z_t)
@@ -276,6 +282,14 @@ Eigen::MatrixXd GRULayer::forward(const Eigen::MatrixXd& input, bool training) {
 // ============================================================================
 
 Eigen::MatrixXd GRULayer::backward(const Eigen::MatrixXd& gradient) {
+    Eigen::MatrixXd previous_hidden_gradient, previous_cell_gradient;
+    return backward_step(gradient, Eigen::MatrixXd(), previous_hidden_gradient, previous_cell_gradient);
+}
+
+Eigen::MatrixXd GRULayer::backward_step(const Eigen::MatrixXd& gradient,
+                                        const Eigen::MatrixXd&,
+                                        Eigen::MatrixXd& previous_hidden_gradient,
+                                        Eigen::MatrixXd& previous_cell_gradient) {
     if (!cache_ || !cache_->training) {
         return gradient;
     }
@@ -301,17 +315,19 @@ Eigen::MatrixXd GRULayer::backward(const Eigen::MatrixXd& gradient) {
     const Eigen::MatrixXd& z_h = gru_cache->z_h[0];
     const Eigen::MatrixXd& input = gru_cache->input_cache;
     
-    Eigen::MatrixXd prev_h = Eigen::MatrixXd::Zero(batch_size, units_);
-    if (gru_cache->hidden_states.size() > 1) {
-        prev_h = gru_cache->hidden_states[0]; 
-    }
+    const Eigen::MatrixXd& prev_h = gru_cache->previous_hidden_state;
     
     Eigen::MatrixXd dH = gradient;
     
-    // 2. Calcolo dei gradienti intermedi dei Gate (BPTT)
+    // 2. Calcolo dei gradienti intermedi dei Gate
     Eigen::MatrixXd dZ_t = dH.array() * (h_tilde - prev_h).array() * sigmoid_derivative(z_z).array();
     Eigen::MatrixXd dH_tilde = dH.array() * z_t.array() * tanh_derivative(z_h).array();
     Eigen::MatrixXd dR_t = (dH_tilde * recurrent_h.transpose()).array() * prev_h.array() * sigmoid_derivative(z_r).array();
+    previous_hidden_gradient =
+        (dH.array() * (1.0 - z_t.array())).matrix() +
+        dZ_t * recurrent_z.transpose() + dR_t * recurrent_r.transpose() +
+        ((dH_tilde * recurrent_h.transpose()).array() * r_t.array()).matrix();
+    previous_cell_gradient.resize(0, 0);
     
     // 3. Gradienti dei Pesi dei Kernel (Input -> Hidden)
     Eigen::MatrixXd dKernel_r = input.transpose() * dR_t;
@@ -377,6 +393,9 @@ Eigen::MatrixXd GRULayer::get_weights() const {
 }
 
 void GRULayer::set_weights(const Eigen::MatrixXd& weights) {
+    if (weights.rows() != (input_size_ + units_) * 3 || weights.cols() != units_) {
+        ML_THROW_PARAMETER_ERROR("weights", "invalid dimensions for GRU weights matrix", "GRULayer");
+    }
     int current_row = 0;
     
     kernel_r = weights.block(current_row, 0, input_size_, units_); current_row += input_size_;
@@ -456,6 +475,9 @@ void GRULayer::serialize(std::ostream& out) const {
         write_mat(bias_z);
         write_mat(bias_h);
     }
+
+    const int8_t return_sequences_flag = return_sequences_ ? 1 : 0;
+    out.write(reinterpret_cast<const char*>(&return_sequences_flag), sizeof(return_sequences_flag));
     
     if (!out.good()) {
         throw ml_exception::SerializationException("Failed to write GRULayer", "GRULayer");
@@ -463,6 +485,13 @@ void GRULayer::serialize(std::ostream& out) const {
 }
 
 void GRULayer::deserialize(std::istream& in) {
+    deserialize_versioned(in, get_version());
+}
+
+void GRULayer::deserialize_versioned(std::istream& in, uint32_t version) {
+    if (version != 1 && version != 2) {
+        throw ml_exception::DeserializationException("Unsupported GRULayer version", "GRULayer");
+    }
     int32_t in_size, u;
     in.read(reinterpret_cast<char*>(&in_size), sizeof(int32_t));
     in.read(reinterpret_cast<char*>(&u), sizeof(int32_t));
@@ -517,11 +546,20 @@ void GRULayer::deserialize(std::istream& in) {
         bias_z = read_mat();
         bias_h = read_mat();
     }
+
+    return_sequences_ = false;
+    if (version >= 2) {
+        int8_t return_sequences_flag = 0;
+        if (!in.read(reinterpret_cast<char*>(&return_sequences_flag), sizeof(return_sequences_flag)) ||
+            (return_sequences_flag != 0 && return_sequences_flag != 1)) {
+            throw ml_exception::DeserializationException("Invalid return_sequences flag", "GRULayer");
+        }
+        return_sequences_ = return_sequences_flag != 0;
+    }
     
     // Alloca gradienti
     int total_rows = (input_size_ + units_) * 3;
-    int total_cols = 3 * units_ + (use_bias_ ? 3 : 0);
-    weights_gradient_.resize(total_rows, total_cols);
+    weights_gradient_.resize(total_rows, units_);
     weights_gradient_.setZero();
     
     if (use_bias_) {
@@ -551,7 +589,8 @@ std::string GRULayer::get_config() const {
         << ", input_size=" << input_size_
         << ", activation=" << activation_
         << ", recurrent_activation=" << recurrent_activation_
-        << ", use_bias=" << (use_bias_ ? "true" : "false") << ")";
+        << ", use_bias=" << (use_bias_ ? "true" : "false")
+        << ", return_sequences=" << (return_sequences_ ? "true" : "false") << ")";
     return oss.str();
 }
 

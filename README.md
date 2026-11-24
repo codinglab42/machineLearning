@@ -65,7 +65,6 @@ A modern, high-performance machine learning library written in C++ with Python b
 | **Linear Regression** | 100k samples, 10 features | ~335 ms | 0.9988 |
 | **Logistic Regression** | 10k samples, 10 features | ~289 ms | 0.955 |
 | **Neural Network (Dense)** | 10k samples, 10 features | ~1.06 s | 0.98 |
-| **LSTM** | Sequence 100, 64 units | ~2.5 s | - |
 
 ---
 
@@ -161,10 +160,15 @@ without resetting it. `build`, `reset`, and changing the layer list also reset
 optimizer state. A subsequent matrix-target `fit` continues training an already
 fitted network, while the vector-target overload rebuilds it. New network saves
 preserve the optimizer type and per-layer state in a versioned format; they
-require an updated library to load. Older network files can still be loaded:
-unversioned files resume with fresh SGD, while version 1 retains optimizer state.
+require an updated library to load. New files use network format version 3 and
+preserve recurrent `return_sequences` settings. Older network files can still
+be loaded: unversioned files resume with fresh SGD, while version 1 retains
+optimizer state and version 2 also retains regularization settings.
 Random generator and recurrent hidden states are not restored, so resumed
 training is not necessarily identical to uninterrupted training.
+For an older standalone GRU payload written without a layer-version header,
+call `GRULayer::deserialize_versioned(stream, 1)`; network and versioned layer
+files select the correct GRU reader automatically.
 
 Neural-network regularization applies to each trainable layer's weight matrix,
 including any parameters packed into it; separate bias vectors are excluded.
@@ -172,29 +176,55 @@ Its gradient is added before weight-gradient clipping. New network saves preserv
 the regularizer configuration. Older files contain no such configuration and
 load without regularization.
 
-### Neural Network in Python (LSTM Example)
-```python
+### Recurrent sequences
 
+SimpleRNN, LSTM and GRU accept batch-first sequences of shape
+`(batch_size, time_steps, features)`, reset their hidden (and LSTM cell) state at
+the start of each sequence call, and train using backpropagation through time.
+With `return_sequences=False`, the output is `(batch_size, units)`; with
+`True`, it is `(batch_size, time_steps, units)`. Sequence outputs can feed
+another recurrent layer or be the network output. Non-recurrent layers such as
+Dense require a preceding recurrent layer with `return_sequences=False`.
+Targets must match the network output shape, except a single-output 2D target
+may also be supplied as a 1D vector.
+
+```python
 import ml_core as ml
 import numpy as np
 
-# Create LSTM network for sequence prediction
 nn = ml.NeuralNetwork()
-nn.add_recurrent_layer(ml.RecurrentType.LSTM, 64, activation="tanh")
+nn.add_recurrent_layer(ml.RecurrentType.LSTM, 32, return_sequences=True)
+nn.add_recurrent_layer(ml.RecurrentType.GRU, 16)
 nn.add_dense_layer(1, "linear")
 
-nn.set_optimizer(ml.OptimizerType.ADAM, 0.001)
-nn.set_loss_function("mse")
-
-# Train on sequence data
-X = np.random.randn(1000, 10, 1)  # (samples, timesteps, features)
-y = np.random.randn(1000, 1)
-
-nn.fit(X, y, epochs=100, batch_size=32)
-
-# Predict
-predictions = nn.predict(X)
+X = np.random.randn(100, 10, 2)
+y = np.random.randn(100, 1)
+nn.fit_advanced(X, y, epochs=20, batch_size=16)
+predictions = nn.predict(X)  # shape (100, 1)
 ```
+
+For 3D inputs, `predict` and `predict_proba` both return raw network outputs
+with the shapes above. NumPy inputs are converted to contiguous `float64`
+when needed and copied into the C++ sequence buffer. C++ callers use
+`layers::SequenceTensor`, whose `data` is
+contiguous batch-first, with `forward_sequence`/`backward_sequence` on
+recurrent layers or `fit_sequences`/`predict_sequences` on networks.
+
+```cpp
+models::NeuralNetwork nn;
+nn.add_recurrent_layer(models::RecurrentType::GRU, 8);
+nn.add_dense_layer(1, "linear");
+layers::SequenceTensor X{{0.1, 0.2, 0.3, 0.4, 0.5, 0.6}, 2, 3, 1, true};
+layers::SequenceTensor y{{0.4, 0.7}, 2, 1, 1, false};
+nn.fit_sequences(X, y, 20, 2, false);
+auto predictions = nn.predict_sequences(X);
+```
+
+The existing 2D interface remains a single-step, stateful interface: hidden
+state persists between calls until the batch size changes or `reset_state()`
+is called on the layer. In network training, samples are shuffled, so 2D
+state may carry between unrelated samples; use 3D input for independent
+sequences.
 
 ### Using Scaler
 ```python

@@ -74,7 +74,7 @@ TEST_F(NeuralNetworkSerializationDebugTest, FullBinaryDumpAndAnalysis) {
     in.read(reinterpret_cast<char*>(&marker), sizeof(marker));
     in.read(reinterpret_cast<char*>(&version), sizeof(version));
     ASSERT_LT(marker, 0);
-    ASSERT_EQ(version, 2u);
+    ASSERT_EQ(version, 3u);
     in.read(reinterpret_cast<char*>(&n_features), sizeof(int));
     in.read(reinterpret_cast<char*>(&n_classes), sizeof(int));
     in.read(reinterpret_cast<char*>(&learning_rate), sizeof(learning_rate));
@@ -421,7 +421,7 @@ TEST_F(NeuralNetworkSerializationDebugTest, ReadsVersionOneWithoutRetainingOldRe
     std::string data = out.str();
     std::uint32_t version = 0;
     std::memcpy(&version, &data[sizeof(int)], sizeof(version));
-    ASSERT_EQ(version, 2u);
+    ASSERT_EQ(version, 3u);
     ASSERT_EQ(data.back(), '\0');
     data.pop_back();
     const std::uint32_t old_version = 1;
@@ -442,6 +442,29 @@ TEST_F(NeuralNetworkSerializationDebugTest, ReadsVersionOneWithoutRetainingOldRe
             restored.get_layers()[i]->get_weights(), 1e-12));
     }
     EXPECT_NEAR(original.get_loss_history().back(), restored.get_loss_history().back(), 1e-12);
+}
+
+TEST_F(NeuralNetworkSerializationDebugTest, ReadsVersionTwoWithRegularizer) {
+    NeuralNetwork original({1, 2, 1}, "linear", "linear", OptimizerType::ADAM, 0.01);
+    original.set_loss_function("mse");
+    original.set_regularizer(RegularizerType::L2, 0.1);
+    const Eigen::MatrixXd X = Eigen::MatrixXd::Constant(1, 1, 0.5);
+    const Eigen::MatrixXd y = Eigen::MatrixXd::Constant(1, 1, 0.25);
+    original.fit(X, y, 3, 1, false);
+    std::ostringstream out(std::ios::binary);
+    original.serialize_binary(out);
+    std::string data = out.str();
+    const std::uint32_t old_version = 2;
+    std::memcpy(&data[sizeof(int)], &old_version, sizeof(old_version));
+    std::istringstream in(data, std::ios::binary);
+    NeuralNetwork restored;
+    restored.deserialize_binary(in);
+    original.fit(X, y, 2, 1, false);
+    restored.fit(X, y, 2, 1, false);
+    for (size_t i = 0; i < original.get_layers().size(); ++i) {
+        EXPECT_TRUE(original.get_layers()[i]->get_weights().isApprox(
+            restored.get_layers()[i]->get_weights(), 1e-12));
+    }
 }
 
 TEST_F(NeuralNetworkSerializationDebugTest, RejectsUnsupportedNetworkVersion) {

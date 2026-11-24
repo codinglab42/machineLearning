@@ -14,6 +14,7 @@ public:
         : timesteps(0), batch_size(0), input_size(0), hidden_size(0), training(false) {
         input_cache.resize(0, 0);
         output_cache.resize(0, 0);
+        previous_hidden_state.resize(0, 0);
         hidden_states.clear();
         pre_activations.clear();
     }
@@ -23,6 +24,7 @@ public:
     void clear() override {
         input_cache.resize(0, 0);
         output_cache.resize(0, 0);
+        previous_hidden_state.resize(0, 0);
         hidden_states.clear();
         pre_activations.clear();
         
@@ -45,6 +47,7 @@ public:
     // Dati temporanei RNN
     Eigen::MatrixXd input_cache;
     Eigen::MatrixXd output_cache;
+    Eigen::MatrixXd previous_hidden_state;
     std::vector<Eigen::MatrixXd> hidden_states;
     std::vector<Eigen::MatrixXd> pre_activations;
     
