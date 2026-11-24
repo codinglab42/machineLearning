@@ -65,6 +65,70 @@ TEST_F(OptimizerTest, Reset) {
     // Non possiamo testare direttamente, ma non dovrebbe crashare
 }
 
+TEST_F(OptimizerTest, PairedWeightsAndBiasUseTheSameDecayedStep) {
+    for (auto type : {OptimizerType::SGD, OptimizerType::MOMENTUM, OptimizerType::ADAM,
+                      OptimizerType::RMSPROP, OptimizerType::ADAGRAD}) {
+        auto optimizer = OptimizerFactory::create(type, 0.1, {{"decay", 0.5}});
+        Eigen::MatrixXd weights = Eigen::MatrixXd::Ones(1, 1);
+        Eigen::VectorXd bias = Eigen::VectorXd::Ones(1);
+        const Eigen::MatrixXd gradient = Eigen::MatrixXd::Constant(1, 1, 0.25);
+        const Eigen::VectorXd bias_gradient = Eigen::VectorXd::Constant(1, 0.25);
+
+        for (int step = 0; step < 3; ++step) {
+            optimizer->update_weights(weights, gradient);
+            optimizer->update_bias(bias, bias_gradient);
+            EXPECT_NEAR(weights(0, 0), bias(0), 1e-12) << optimizer->get_type_str();
+            EXPECT_EQ(optimizer->get_iterations(), step + 1);
+        }
+    }
+}
+
+TEST_F(OptimizerTest, AdamRejectsBiasBeforeWeights) {
+    AdamOptimizer optimizer(0.1);
+    Eigen::VectorXd bias = Eigen::VectorXd::Ones(1);
+    const Eigen::VectorXd gradient = Eigen::VectorXd::Constant(1, 0.25);
+    EXPECT_THROW(optimizer.update_bias(bias, gradient), ml_exception::NotFittedException);
+}
+
+TEST_F(OptimizerTest, DecayedUpdatesMatchScalarReferences) {
+    struct Reference {
+        OptimizerType type;
+        double first;
+        double second;
+    };
+    const Reference references[] = {
+        {OptimizerType::SGD, 0.975, 1.008333333333333},
+        {OptimizerType::MOMENTUM, 0.975, 0.985833333333333},
+        {OptimizerType::ADAM, 0.900000004, 0.924406905185031},
+        {OptimizerType::RMSPROP, 0.683772273983157, 0.874248453574994},
+        {OptimizerType::ADAGRAD, 0.900000004, 0.959628482333328},
+    };
+    for (const auto& reference : references) {
+        auto optimizer = OptimizerFactory::create(reference.type, 0.1, {{"decay", 0.5}});
+        Eigen::MatrixXd weights = Eigen::MatrixXd::Ones(1, 1);
+        Eigen::VectorXd bias = Eigen::VectorXd::Ones(1);
+        for (int step = 0; step < 2; ++step) {
+            const double value = step == 0 ? 0.25 : -0.5;
+            const Eigen::MatrixXd gradient = Eigen::MatrixXd::Constant(1, 1, value);
+            const Eigen::VectorXd bias_gradient = Eigen::VectorXd::Constant(1, value);
+            optimizer->update_weights(weights, gradient);
+            optimizer->update_bias(bias, bias_gradient);
+            const double expected = step == 0 ? reference.first : reference.second;
+            EXPECT_NEAR(weights(0, 0), expected, 1e-12) << optimizer->get_type_str();
+            EXPECT_NEAR(bias(0), expected, 1e-12) << optimizer->get_type_str();
+        }
+        optimizer->reset();
+        weights.setOnes();
+        bias.setOnes();
+        const Eigen::MatrixXd gradient = Eigen::MatrixXd::Constant(1, 1, 0.25);
+        const Eigen::VectorXd bias_gradient = Eigen::VectorXd::Constant(1, 0.25);
+        optimizer->update_weights(weights, gradient);
+        optimizer->update_bias(bias, bias_gradient);
+        EXPECT_NEAR(weights(0, 0), reference.first, 1e-12);
+        EXPECT_NEAR(bias(0), reference.first, 1e-12);
+    }
+}
+
 //=============================================================================
 // SGD OPTIMIZER TESTS
 //=============================================================================
@@ -261,6 +325,9 @@ TEST_F(AdamOptimizerTest, BiasUpdate) {
     g << 0.1, 0.1, 0.1;
     
     Eigen::VectorXd b_before = b;
+    Eigen::MatrixXd weights = Eigen::MatrixXd::Ones(1, 3);
+    Eigen::MatrixXd weight_gradient = Eigen::MatrixXd::Constant(1, 3, 0.1);
+    optimizer->update_weights(weights, weight_gradient);
     optimizer->update_bias(b, g);
     
     EXPECT_FALSE(b.isApprox(b_before));

@@ -96,6 +96,135 @@ TEST_F(NeuralNetworkModelTest, DenseInitializationUsesConfiguredSeed) {
                different_seed.get_layers()[0]->get_weights()).norm(), 0.0);
 }
 
+TEST_F(NeuralNetworkModelTest, OptimizerStateIsIndependentForEachLayer) {
+    for (auto type : {OptimizerType::SGD, OptimizerType::MOMENTUM, OptimizerType::ADAM,
+                      OptimizerType::RMSPROP, OptimizerType::ADAGRAD}) {
+        for (int hidden_size : {1, 2}) {
+            NeuralNetwork nn({1, hidden_size, 1}, "linear", "linear", type, 0.01);
+            nn.set_loss_function("mse");
+            MatrixXd X = MatrixXd::Constant(1, 1, 0.5);
+            MatrixXd y = MatrixXd::Constant(1, 1, 0.25);
+            nn.fit(X, y, 1, 1, false);
+            nn.set_optimizer(type, 0.01);
+
+            std::vector<std::unique_ptr<Optimizer>> expected_optimizers;
+            for (int i = 0; i < 2; ++i) {
+                expected_optimizers.push_back(OptimizerFactory::create(type, 0.01));
+            }
+
+            for (int step = 0; step < 3; ++step) {
+                if (step == 1) {
+                    Estimator& estimator = nn;
+                    estimator.set_learning_rate(0.02);
+                    for (auto& optimizer : expected_optimizers) {
+                        optimizer->set_learning_rate(0.02);
+                    }
+                }
+                if (step == 2) {
+                    Estimator& estimator = nn;
+                    estimator.set_optimizer(type, 0.01);
+                    for (auto& optimizer : expected_optimizers) {
+                        optimizer = OptimizerFactory::create(type, 0.01);
+                    }
+                }
+
+                const auto& layers = nn.get_layers();
+                MatrixXd activation = X;
+                for (const auto& layer : layers) {
+                    activation = layer->forward(activation, true);
+                }
+                MatrixXd gradient = 2.0 * (activation - y);
+                for (int i = 1; i >= 0; --i) {
+                    gradient = layers[i]->backward(gradient);
+                }
+
+                std::vector<MatrixXd> expected_weights;
+                std::vector<VectorXd> expected_biases;
+                for (int i = 0; i < 2; ++i) {
+                    MatrixXd weights = layers[i]->get_weights();
+                    VectorXd bias = layers[i]->get_biases();
+                    MatrixXd weight_gradient = layers[i]->get_weights_gradient();
+                    if (weight_gradient.norm() > 1.0) {
+                        weight_gradient /= weight_gradient.norm();
+                    }
+                    expected_optimizers[i]->update_weights(weights, weight_gradient);
+                    expected_optimizers[i]->update_bias(bias, layers[i]->get_bias_gradient());
+                    expected_weights.push_back(weights);
+                    expected_biases.push_back(bias);
+                }
+
+                nn.fit(X, y, 1, 1, false);
+                for (int i = 0; i < 2; ++i) {
+                    EXPECT_TRUE(layers[i]->get_weights().isApprox(expected_weights[i], 1e-10))
+                        << "optimizer " << static_cast<int>(type) << ", layer " << i;
+                    EXPECT_TRUE(layers[i]->get_biases().isApprox(expected_biases[i], 1e-10))
+                        << "optimizer " << static_cast<int>(type) << ", layer " << i;
+                }
+            }
+        }
+    }
+}
+
+TEST_F(NeuralNetworkModelTest, OptimizerHandlesLayersWithoutWeightsOrBias) {
+    NeuralNetwork nn({1, 1}, "linear", "linear", OptimizerType::ADAM, 0.01);
+    nn.reset();
+    nn.add_dense_layer(1, "linear", false);
+    nn.add_dropout_layer(0.0);
+    nn.add_dense_layer(1, "linear", false);
+    nn.set_loss_function("mse");
+    MatrixXd X = MatrixXd::Constant(1, 1, 0.5);
+    MatrixXd y = MatrixXd::Constant(1, 1, 0.25);
+    nn.fit(X, y, 1, 1, false);
+    nn.set_optimizer(OptimizerType::ADAM, 0.01);
+
+    const auto& layers = nn.get_layers();
+    MatrixXd activation = X;
+    for (const auto& layer : layers) {
+        activation = layer->forward(activation, true);
+    }
+    MatrixXd gradient = 2.0 * (activation - y);
+    for (int i = 2; i >= 0; --i) {
+        gradient = layers[i]->backward(gradient);
+    }
+    std::vector<MatrixXd> expected;
+    for (int i : {0, 2}) {
+        MatrixXd weights = layers[i]->get_weights();
+        MatrixXd weight_gradient = layers[i]->get_weights_gradient();
+        if (weight_gradient.norm() > 1.0) {
+            weight_gradient /= weight_gradient.norm();
+        }
+        AdamOptimizer optimizer(0.01);
+        optimizer.update_weights(weights, weight_gradient);
+        expected.push_back(weights);
+    }
+    nn.fit(X, y, 1, 1, false);
+    EXPECT_TRUE(layers[0]->get_weights().isApprox(expected[0], 1e-10));
+    EXPECT_TRUE(layers[2]->get_weights().isApprox(expected[1], 1e-10));
+}
+
+TEST_F(NeuralNetworkModelTest, RebuildDiscardsOptimizerState) {
+    NeuralNetwork trained({1, 2, 1}, "linear", "linear", OptimizerType::ADAM, 0.01);
+    NeuralNetwork fresh({1, 2, 1}, "linear", "linear", OptimizerType::ADAM, 0.01);
+    trained.set_loss_function("mse");
+    fresh.set_loss_function("mse");
+    MatrixXd X = MatrixXd::Constant(1, 1, 0.5);
+    MatrixXd y = MatrixXd::Constant(1, 1, 0.25);
+
+    trained.fit(X, y, 1, 1, false);
+    trained.build(1, 1);
+    fresh.build(1, 1);
+    fresh.build(1, 1);
+    trained.fit(X, y, 1, 1, false);
+    fresh.fit(X, y, 1, 1, false);
+
+    for (size_t i = 0; i < trained.get_layers().size(); ++i) {
+        EXPECT_TRUE(trained.get_layers()[i]->get_weights().isApprox(
+            fresh.get_layers()[i]->get_weights(), 1e-10));
+        EXPECT_TRUE(trained.get_layers()[i]->get_biases().isApprox(
+            fresh.get_layers()[i]->get_biases(), 1e-10));
+    }
+}
+
 TEST_F(NeuralNetworkModelTest, ConfigureTrainingParameters) {
     NeuralNetwork nn({2, 8, 2}, "relu", "softmax", OptimizerType::ADAM, 0.001);
     nn.set_batch_size(64);

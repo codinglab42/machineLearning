@@ -23,7 +23,7 @@ namespace models {
         Optimizer(double learning_rate = 0.01, double decay = 0.0);
         virtual ~Optimizer() = default;
         
-        // Metodo principale: aggiorna i pesi
+        // Call update_weights before update_bias for each training step.
         virtual void update_weights(Eigen::Ref<Eigen::MatrixXd> weights, const Eigen::Ref<const Eigen::MatrixXd>& gradient) = 0;
         virtual void update_bias(Eigen::Ref<Eigen::VectorXd> bias, const Eigen::Ref<const Eigen::VectorXd>& gradient) = 0;
         
@@ -52,6 +52,7 @@ namespace models {
         virtual std::unique_ptr<Optimizer> clone() const = 0;
         
     protected:
+        double get_bias_learning_rate() const;
         double learning_rate_;
         double decay_;
         int iterations_;  // numero di iterazioni eseguite

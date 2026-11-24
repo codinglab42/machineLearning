@@ -45,7 +45,7 @@ namespace models {
     }
 
     void MomentumOptimizer::update_bias(Eigen::Ref<Eigen::VectorXd> bias, const Eigen::Ref<const Eigen::VectorXd>& gradient) {
-        double lr = get_current_learning_rate();
+        double lr = get_bias_learning_rate();
         initialize_if_needed(bias.size());
         
         velocity_b_ = momentum_ * velocity_b_ - lr * gradient;

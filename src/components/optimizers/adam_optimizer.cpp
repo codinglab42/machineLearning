@@ -77,7 +77,10 @@ namespace models {
     }
 
     void AdamOptimizer::update_bias(Eigen::Ref<Eigen::VectorXd> bias, const Eigen::Ref<const Eigen::VectorXd>& gradient) {
-        double lr = get_current_learning_rate();
+        if (iterations_ == 0) {
+            ML_THROW_FITTING_ERROR("AdamOptimizer", "update_weights must be called before update_bias");
+        }
+        double lr = get_bias_learning_rate();
         initialize_if_needed(bias.size());
         
         m_b_ = beta1_ * m_b_ + (1.0 - beta1_) * gradient;

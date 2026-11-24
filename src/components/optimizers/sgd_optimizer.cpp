@@ -17,7 +17,7 @@ namespace models {
     }
 
     void SGDOptimizer::update_bias(Eigen::Ref<Eigen::VectorXd> bias, const Eigen::Ref<const Eigen::VectorXd>& gradient) {
-        double lr = get_current_learning_rate();
+        double lr = get_bias_learning_rate();
         
         bias -= lr * gradient;
     }

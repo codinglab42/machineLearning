@@ -32,9 +32,9 @@ namespace models {
         using utils::SerializableModel::load;
 
         // Metodi comuni per optimizer
-        void set_learning_rate(double lr);
+        virtual void set_learning_rate(double lr);
         double get_learning_rate() const;
-        void set_optimizer(OptimizerType type, double learning_rate);
+        virtual void set_optimizer(OptimizerType type, double learning_rate);
         
 
     protected:

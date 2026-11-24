@@ -146,7 +146,8 @@ namespace models {
         bool is_fitted() const { return fitted_; }
         
         // Settings
-        void set_optimizer(OptimizerType type, double learning_rate = 0.01);
+        void set_optimizer(OptimizerType type, double learning_rate = 0.01) override;
+        void set_learning_rate(double learning_rate) override;
         void set_loss_function(const std::string& loss);
         void set_verbose(bool verbose) { verbose_ = verbose; }
         
@@ -174,6 +175,10 @@ namespace models {
 
     private:
         std::vector<std::unique_ptr<layers::Layer>> layers_;
+        std::vector<std::unique_ptr<Optimizer>> layer_optimizers_;
+
+        void initialize_optimizer_states();
+        void update_parameters();
 
         std::vector<double> loss_history_;
         std::vector<double> val_loss_history_;

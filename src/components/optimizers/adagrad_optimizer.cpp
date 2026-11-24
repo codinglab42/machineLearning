@@ -45,7 +45,7 @@ namespace models {
     void AdagradOptimizer::update_bias(
         Eigen::Ref<Eigen::VectorXd> bias,
         const Eigen::Ref<const Eigen::VectorXd>& gradient) {
-        const double learning_rate = get_current_learning_rate();
+        const double learning_rate = get_bias_learning_rate();
         initialize_if_needed(bias.size());
 
         accumulated_squared_gradients_b_.array() += gradient.array().square();

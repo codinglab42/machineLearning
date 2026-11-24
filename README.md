@@ -155,6 +155,17 @@ nn.fit(X_train, y_train);
 auto predictions = nn.predict(X_test);
 ```
 
+For neural networks, optimizer state is maintained separately for each trainable
+layer. `set_optimizer` resets that state; `set_learning_rate` updates the rate
+without resetting it. `build`, `reset`, and changing the layer list also reset
+optimizer state. A subsequent matrix-target `fit` continues training an already
+fitted network, while the vector-target overload rebuilds it. New network saves
+preserve the optimizer type and per-layer state in a versioned format; they
+require an updated library to load. Older network files can still be loaded, but
+contain no optimizer state and therefore resume with fresh SGD.
+Random generator and recurrent hidden states are not restored, so resumed
+training is not necessarily identical to uninterrupted training.
+
 ### Neural Network in Python (LSTM Example)
 ```python
 

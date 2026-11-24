@@ -105,6 +105,12 @@ TEST_F(NeuralNetworkFullArchitectureTest, VerifyAllLayerTypesSerialization) {
     bool fitted = false;
     int epochs = 0, batch_size = 0;
     
+    int marker = 0;
+    std::uint32_t version = 0;
+    in_check.read(reinterpret_cast<char*>(&marker), sizeof(marker));
+    in_check.read(reinterpret_cast<char*>(&version), sizeof(version));
+    ASSERT_LT(marker, 0);
+    ASSERT_EQ(version, 1u);
     in_check.read(reinterpret_cast<char*>(&n_features), sizeof(int));
     in_check.read(reinterpret_cast<char*>(&n_classes), sizeof(int));
     in_check.read(reinterpret_cast<char*>(&lr), sizeof(double));

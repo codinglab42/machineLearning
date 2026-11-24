@@ -9,8 +9,200 @@
 #include <fstream>
 #include <iostream>
 #include <stdexcept>
+#include <sstream>
+#include <cstring>
+#include <limits>
+#include <cmath>
 
 namespace models {
+
+namespace {
+    constexpr int NETWORK_FORMAT_MARKER = -1296977744;
+    constexpr std::uint32_t NETWORK_FORMAT_VERSION = 1;
+
+    template<typename T>
+    void read_checked(std::istream& in, T& value) {
+        if (!in.read(reinterpret_cast<char*>(&value), sizeof(value))) {
+            ML_THROW_DESERIALIZATION_ERROR("Truncated network data", "NeuralNetwork");
+        }
+    }
+
+    class OptimizerPayloadReader {
+    public:
+        explicit OptimizerPayloadReader(const std::string& data) : data_(data) {}
+
+        template<typename T>
+        T read() {
+            if (sizeof(T) > data_.size() - offset_) {
+                ML_THROW_DESERIALIZATION_ERROR("Truncated optimizer state", "NeuralNetwork");
+            }
+            T value;
+            std::memcpy(&value, data_.data() + offset_, sizeof(T));
+            offset_ += sizeof(T);
+            return value;
+        }
+
+        void skip(std::size_t count) {
+            if (count > data_.size() - offset_) {
+                ML_THROW_DESERIALIZATION_ERROR("Truncated optimizer state", "NeuralNetwork");
+            }
+            offset_ += count;
+        }
+
+        void matrix(Eigen::Index expected_rows, Eigen::Index expected_cols, bool initialized) {
+            const int rows = read<int>();
+            const int cols = read<int>();
+            if (initialized ? (rows != expected_rows || cols != expected_cols)
+                            : (rows != 0 || cols != 0)) {
+                ML_THROW_DESERIALIZATION_ERROR("Invalid optimizer matrix dimensions", "NeuralNetwork");
+            }
+            skip(static_cast<std::size_t>(rows) * static_cast<std::size_t>(cols) * sizeof(double));
+        }
+
+        void vector(Eigen::Index expected_size, bool initialized) {
+            const int size = read<int>();
+            if (size != (initialized ? expected_size : 0)) {
+                ML_THROW_DESERIALIZATION_ERROR("Invalid optimizer vector dimensions", "NeuralNetwork");
+            }
+            skip(static_cast<std::size_t>(size) * sizeof(double));
+        }
+
+        void boolean() {
+            if (sizeof(bool) > data_.size() - offset_) {
+                ML_THROW_DESERIALIZATION_ERROR("Truncated optimizer state", "NeuralNetwork");
+            }
+            const bool false_value = false;
+            const bool true_value = true;
+            const char* value = data_.data() + offset_;
+            if (std::memcmp(value, &false_value, sizeof(bool)) != 0 &&
+                std::memcmp(value, &true_value, sizeof(bool)) != 0) {
+                ML_THROW_DESERIALIZATION_ERROR("Invalid optimizer boolean", "NeuralNetwork");
+            }
+            offset_ += sizeof(bool);
+        }
+
+        bool finished() const { return offset_ == data_.size(); }
+
+    private:
+        const std::string& data_;
+        std::size_t offset_ = 0;
+    };
+
+    void validate_optimizer_payload(const std::string& data, OptimizerType type,
+                                    Eigen::Index rows, Eigen::Index cols, Eigen::Index bias_size) {
+        OptimizerPayloadReader reader(data);
+        const double learning_rate = reader.read<double>();
+        const double decay = reader.read<double>();
+        const int iterations = reader.read<int>();
+        if (!std::isfinite(learning_rate) || learning_rate <= 0 ||
+            !std::isfinite(decay) || decay < 0 || iterations < 0) {
+            ML_THROW_DESERIALIZATION_ERROR("Invalid optimizer settings", "NeuralNetwork");
+        }
+        const bool initialized = iterations > 0;
+        switch (type) {
+            case OptimizerType::SGD:
+                break;
+            case OptimizerType::MOMENTUM:
+                if (!std::isfinite(reader.read<double>())) {
+                    ML_THROW_DESERIALIZATION_ERROR("Invalid momentum", "NeuralNetwork");
+                }
+                reader.boolean();
+                reader.matrix(rows, cols, initialized);
+                reader.vector(bias_size, initialized);
+                break;
+            case OptimizerType::ADAM:
+            {
+                const double beta1 = reader.read<double>();
+                const double beta2 = reader.read<double>();
+                const double epsilon = reader.read<double>();
+                if (!(beta1 > 0 && beta1 < 1 && beta2 > 0 && beta2 < 1 &&
+                      std::isfinite(epsilon) && epsilon > 0)) {
+                    ML_THROW_DESERIALIZATION_ERROR("Invalid Adam settings", "NeuralNetwork");
+                }
+                reader.matrix(rows, cols, initialized);
+                reader.matrix(rows, cols, initialized);
+                reader.vector(bias_size, initialized);
+                reader.vector(bias_size, initialized);
+                break;
+            }
+            case OptimizerType::RMSPROP:
+            {
+                const double rho = reader.read<double>();
+                const double epsilon = reader.read<double>();
+                const double momentum = reader.read<double>();
+                if (!(rho > 0 && rho < 1 && std::isfinite(epsilon) && epsilon > 0 &&
+                      momentum >= 0 && momentum < 1)) {
+                    ML_THROW_DESERIALIZATION_ERROR("Invalid RMSprop settings", "NeuralNetwork");
+                }
+                reader.matrix(rows, cols, initialized);
+                reader.vector(bias_size, initialized);
+                reader.matrix(rows, cols, initialized);
+                reader.vector(bias_size, initialized);
+                break;
+            }
+            case OptimizerType::ADAGRAD:
+            {
+                const double epsilon = reader.read<double>();
+                if (!std::isfinite(epsilon) || epsilon <= 0) {
+                    ML_THROW_DESERIALIZATION_ERROR("Invalid Adagrad settings", "NeuralNetwork");
+                }
+                reader.matrix(rows, cols, initialized);
+                reader.vector(bias_size, initialized);
+                break;
+            }
+        }
+        if (!reader.finished()) {
+            ML_THROW_DESERIALIZATION_ERROR("Unexpected optimizer state data", "NeuralNetwork");
+        }
+    }
+
+    void write_optimizer(std::ostream& out, const Optimizer& optimizer) {
+        const auto type = static_cast<std::uint8_t>(optimizer.get_type());
+        std::ostringstream payload(std::ios::out | std::ios::binary);
+        optimizer.serialize(payload);
+        if (!payload) {
+            ML_THROW_SERIALIZATION_ERROR("Failed to serialize optimizer", "NeuralNetwork");
+        }
+        const std::string data = payload.str();
+        const std::uint64_t size = data.size();
+        utils::write_scalar(out, type);
+        utils::write_scalar(out, size);
+        out.write(data.data(), data.size());
+    }
+
+    std::unique_ptr<Optimizer> read_optimizer(std::istream& in, double learning_rate,
+                                               Eigen::Index rows, Eigen::Index cols,
+                                               Eigen::Index bias_size) {
+        std::uint8_t type_value = 0;
+        std::uint64_t size = 0;
+        read_checked(in, type_value);
+        read_checked(in, size);
+        if (type_value > static_cast<std::uint8_t>(OptimizerType::ADAGRAD)) {
+            ML_THROW_DESERIALIZATION_ERROR("Unknown optimizer type", "NeuralNetwork");
+        }
+        const auto type = static_cast<OptimizerType>(type_value);
+        const auto elements = static_cast<std::uint64_t>(rows) * static_cast<std::uint64_t>(cols)
+                            + static_cast<std::uint64_t>(bias_size);
+        if (elements > (std::numeric_limits<std::uint64_t>::max() - 512) / (2 * sizeof(double)) ||
+            size > 512 + elements * 2 * sizeof(double) ||
+            size > std::numeric_limits<std::size_t>::max() ||
+            size > static_cast<std::uint64_t>(std::numeric_limits<std::streamsize>::max())) {
+            ML_THROW_DESERIALIZATION_ERROR("Invalid optimizer state size", "NeuralNetwork");
+        }
+        std::string data(static_cast<std::size_t>(size), '\0');
+        if (!in.read(data.data(), static_cast<std::streamsize>(size))) {
+            ML_THROW_DESERIALIZATION_ERROR("Truncated optimizer state", "NeuralNetwork");
+        }
+        validate_optimizer_payload(data, type, rows, cols, bias_size);
+        auto optimizer = OptimizerFactory::create(type, learning_rate);
+        std::istringstream payload(data, std::ios::in | std::ios::binary);
+        optimizer->deserialize(payload);
+        if (!payload) {
+            ML_THROW_DESERIALIZATION_ERROR("Invalid optimizer state", "NeuralNetwork");
+        }
+        return optimizer;
+    }
+}
 
     //===========================================================================
     // COSTRUTTORI
@@ -101,6 +293,7 @@ namespace models {
         }
         layers_.push_back(std::move(layer));
         forward_cache_.resize(layers_.size());
+        layer_optimizers_.clear();
     }
 
     void NeuralNetwork::add_layer(LayerType type,
@@ -289,6 +482,7 @@ namespace models {
         }
 
         build(n_features_, n_classes_);
+        initialize_optimizer_states();
 
         int n_samples = X.rows();
         std::vector<int> indices(n_samples);
@@ -334,30 +528,7 @@ namespace models {
                     current_grad = layers_[l]->backward(current_grad);
                 }
 
-                // 5. Aggiorna i pesi e i bias usando l'ottimizzatore impostato
-                for (auto& layer : layers_) {
-                    if (layer->has_weights()) {
-                        // --- 5a. Aggiornamento Pesi (W) ---
-                        Eigen::MatrixXd dW = layer->get_weights_gradient();
-                        clip_gradient(dW, 1.0);
-                        
-                        Eigen::MatrixXd W = layer->get_weights();
-                        optimizer_->update_weights(W, dW);
-                        layer->set_weights(W);
-
-                        // --- 5b. Aggiornamento Bias (b) ---
-                        // Controlla se il layer usa effettivamente il bias ed espone i metodi
-                        if (layer->get_use_bias()) { 
-                            Eigen::VectorXd db = layer->get_bias_gradient();
-                            // Applica il clipping anche al gradiente del bias se necessario
-                            // clip_gradient(db, 1.0); 
-                            
-                            Eigen::VectorXd b = layer->get_biases();
-                            optimizer_->update_bias(b, db);
-                            layer->set_biases(b); // Usa il metodo set_biases che abbiamo visto nel file
-                        }
-                    }
-                }
+                update_parameters();
             }
 
             epoch_loss /= n_samples;
@@ -401,6 +572,7 @@ namespace models {
         if (!fitted_) {
             build(n_features_, n_classes_);
         }
+        initialize_optimizer_states();
 
         int n_samples = X.rows();
         std::vector<int> indices(n_samples);
@@ -444,30 +616,7 @@ namespace models {
                     current_grad = layers_[l]->backward(current_grad);
                 }
 
-                // 5. Aggiorna i pesi usando l'ottimizzatore impostato
-                for (auto& layer : layers_) {
-                    if (layer->has_weights()) {
-                        // --- 5a. Aggiornamento Pesi (W) ---
-                        Eigen::MatrixXd dW = layer->get_weights_gradient();
-                        clip_gradient(dW, 1.0);
-                        
-                        Eigen::MatrixXd W = layer->get_weights();
-                        optimizer_->update_weights(W, dW);
-                        layer->set_weights(W);
-
-                        // --- 5b. Aggiornamento Bias (b) ---
-                        // Controlla se il layer usa effettivamente il bias ed espone i metodi
-                        if (layer->get_use_bias()) { 
-                            Eigen::VectorXd db = layer->get_bias_gradient();
-                            // Applica il clipping anche al gradiente del bias se necessario
-                            // clip_gradient(db, 1.0); 
-                            
-                            Eigen::VectorXd b = layer->get_biases();
-                            optimizer_->update_bias(b, db);
-                            layer->set_biases(b); // Usa il metodo set_biases che abbiamo visto nel file
-                        }
-                    }
-                }
+                update_parameters();
             }
 
             epoch_loss /= n_samples;
@@ -492,6 +641,7 @@ namespace models {
         // 2. Validazione dimensioni
         ML_CHECK_PARAM(n_features > 0, "n_features", "must be > 0", "NeuralNetwork");
         ML_CHECK_PARAM(n_classes > 0, "n_classes", "must be > 0", "NeuralNetwork");
+        layer_optimizers_.clear();
         
         // 3. Imposta le dimensioni della rete
         n_features_ = n_features;
@@ -541,6 +691,51 @@ namespace models {
     //===========================================================================
     // FORWARD / BACKWARD
     //===========================================================================
+
+    void NeuralNetwork::initialize_optimizer_states() {
+        if (!layer_optimizers_.empty()) {
+            return;
+        }
+        if (!optimizer_) {
+            ML_THROW_FITTING_ERROR("NeuralNetwork", "optimizer not set");
+        }
+        std::vector<std::unique_ptr<Optimizer>> optimizers;
+        optimizers.reserve(layers_.size());
+        for (const auto& layer : layers_) {
+            if (layer->has_weights()) {
+                auto optimizer = optimizer_->clone();
+                optimizer->reset();
+                optimizers.push_back(std::move(optimizer));
+            } else {
+                optimizers.push_back(nullptr);
+            }
+        }
+        layer_optimizers_ = std::move(optimizers);
+    }
+
+    void NeuralNetwork::update_parameters() {
+        for (size_t i = 0; i < layers_.size(); ++i) {
+            auto& layer = layers_[i];
+            if (!layer->has_weights()) {
+                continue;
+            }
+            auto& optimizer = layer_optimizers_[i];
+            if (!optimizer) {
+                ML_THROW_FITTING_ERROR("NeuralNetwork", "optimizer state missing for trainable layer");
+            }
+            Eigen::MatrixXd gradient = layer->get_weights_gradient();
+            clip_gradient(gradient, 1.0);
+            Eigen::MatrixXd weights = layer->get_weights();
+            optimizer->update_weights(weights, gradient);
+            layer->set_weights(weights);
+
+            if (layer->get_use_bias()) {
+                Eigen::VectorXd bias = layer->get_biases();
+                optimizer->update_bias(bias, layer->get_bias_gradient());
+                layer->set_biases(bias);
+            }
+        }
+    }
 
     void NeuralNetwork::clip_gradient(Eigen::MatrixXd& gradient, double max_norm) {
         double norm = gradient.norm();
@@ -709,6 +904,8 @@ namespace models {
         std::ofstream file(filename, std::ios::binary);
         if (!file.is_open()) ML_THROW_IO_ERROR(filename, "save", "NeuralNetwork");
         serialize_binary(file);
+        file.flush();
+        if (!file) ML_THROW_IO_ERROR(filename, "save", "NeuralNetwork");
     }
 
     void NeuralNetwork::load(const std::string& filename) {
@@ -736,6 +933,9 @@ namespace models {
             throw std::runtime_error("NeuralNetwork::serialize_binary: Network not initialized.");
         }
 
+        utils::write_scalar(out, NETWORK_FORMAT_MARKER);
+        utils::write_scalar(out, NETWORK_FORMAT_VERSION);
+
         // 1. Salva i metadati scalari fondamentali della rete
         out.write(reinterpret_cast<const char*>(&n_features_), sizeof(n_features_));
         out.write(reinterpret_cast<const char*>(&n_classes_), sizeof(n_classes_));
@@ -758,30 +958,65 @@ namespace models {
             // Questa funzione scrive autonomamente: LayerType -> Versione -> Dati interni del Layer
             layers::serialize_layer(out, *layer);
         }
+
+        if (!optimizer_) {
+            ML_THROW_SERIALIZATION_ERROR("Optimizer not set", "NeuralNetwork");
+        }
+        write_optimizer(out, *optimizer_);
+        const std::uint64_t optimizer_count = layer_optimizers_.size();
+        if (optimizer_count != 0 && optimizer_count != layers_.size()) {
+            ML_THROW_SERIALIZATION_ERROR("Invalid optimizer state count", "NeuralNetwork");
+        }
+        utils::write_scalar(out, optimizer_count);
+        for (size_t i = 0; i < layer_optimizers_.size(); ++i) {
+            const std::uint8_t present = layer_optimizers_[i] ? 1 : 0;
+            if (static_cast<bool>(present) != layers_[i]->has_weights()) {
+                ML_THROW_SERIALIZATION_ERROR("Optimizer state does not match layer", "NeuralNetwork");
+            }
+            utils::write_scalar(out, present);
+            if (present) {
+                write_optimizer(out, *layer_optimizers_[i]);
+            }
+        }
+        if (!out) {
+            ML_THROW_SERIALIZATION_ERROR("Failed to write network", "NeuralNetwork");
+        }
     }
 
     void NeuralNetwork::deserialize_binary(std::istream& in) {
+        layer_optimizers_.clear();
+        read_checked(in, n_features_);
+        const bool versioned = n_features_ == NETWORK_FORMAT_MARKER;
+        if (versioned) {
+            std::uint32_t version = 0;
+            read_checked(in, version);
+            if (version != NETWORK_FORMAT_VERSION) {
+                ML_THROW_DESERIALIZATION_ERROR("Unsupported network version", "NeuralNetwork");
+            }
+            read_checked(in, n_features_);
+        }
         // 1. Leggi i metadati scalari
-        in.read(reinterpret_cast<char*>(&n_features_), sizeof(n_features_));
-        in.read(reinterpret_cast<char*>(&n_classes_), sizeof(n_classes_));
-        in.read(reinterpret_cast<char*>(&learning_rate_), sizeof(learning_rate_));
-        in.read(reinterpret_cast<char*>(&fitted_), sizeof(fitted_));
-        in.read(reinterpret_cast<char*>(&epochs_), sizeof(epochs_));
-        in.read(reinterpret_cast<char*>(&batch_size_), sizeof(batch_size_));
+        read_checked(in, n_classes_);
+        read_checked(in, learning_rate_);
+        read_checked(in, fitted_);
+        read_checked(in, epochs_);
+        read_checked(in, batch_size_);
 
         // 2. Leggi il nome della Loss e ricostruiscila tramite la LossFactory
         size_t loss_len = 0;
-        in.read(reinterpret_cast<char*>(&loss_len), sizeof(loss_len));
+        read_checked(in, loss_len);
+        if (loss_len > 1024) {
+            ML_THROW_DESERIALIZATION_ERROR("Invalid loss name length", "NeuralNetwork");
+        }
         loss_function_name_.resize(loss_len);
-        in.read(&loss_function_name_[0], loss_len);
+        if (!in.read(loss_function_name_.data(), loss_len)) {
+            ML_THROW_DESERIALIZATION_ERROR("Truncated loss name", "NeuralNetwork");
+        }
         loss_function_ = loss::LossFactory::create(loss_function_name_);
-
-        // 3. Ripristina l'ottimizzatore coerente con il learning rate ricaricato
-        optimizer_ = OptimizerFactory::create(OptimizerType::SGD, learning_rate_);
 
         // 4. Leggi il numero di layer, svuota la rete attuale e prepara la cache
         size_t num_layers = 0;
-        in.read(reinterpret_cast<char*>(&num_layers), sizeof(num_layers));
+        read_checked(in, num_layers);
         layers_.clear();
         forward_cache_.resize(num_layers);
 
@@ -792,6 +1027,45 @@ namespace models {
             std::unique_ptr<layers::Layer> layer = layers::deserialize_layer(in);
             layers_.push_back(std::move(layer));
         }
+
+        if (!versioned) {
+            optimizer_ = OptimizerFactory::create(OptimizerType::SGD, learning_rate_);
+            return;
+        }
+
+        auto optimizer = read_optimizer(in, learning_rate_, 0, 0, 0);
+        if (optimizer->get_learning_rate() != learning_rate_) {
+            ML_THROW_DESERIALIZATION_ERROR("Inconsistent optimizer learning rate", "NeuralNetwork");
+        }
+        std::uint64_t optimizer_count = 0;
+        read_checked(in, optimizer_count);
+        if (optimizer_count != 0 && optimizer_count != layers_.size()) {
+            ML_THROW_DESERIALIZATION_ERROR("Invalid optimizer state count", "NeuralNetwork");
+        }
+        std::vector<std::unique_ptr<Optimizer>> layer_optimizers;
+        layer_optimizers.reserve(static_cast<size_t>(optimizer_count));
+        for (size_t i = 0; i < optimizer_count; ++i) {
+            std::uint8_t present = 0;
+            read_checked(in, present);
+            if (present > 1 || static_cast<bool>(present) != layers_[i]->has_weights()) {
+                ML_THROW_DESERIALIZATION_ERROR("Optimizer state does not match layer", "NeuralNetwork");
+            }
+            if (!present) {
+                layer_optimizers.push_back(nullptr);
+                continue;
+            }
+            const Eigen::MatrixXd weights = layers_[i]->get_weights();
+            const Eigen::Index bias_size = layers_[i]->get_use_bias()
+                ? layers_[i]->get_biases().size() : 0;
+            auto layer_optimizer = read_optimizer(in, learning_rate_, weights.rows(), weights.cols(), bias_size);
+            if (layer_optimizer->get_type() != optimizer->get_type() ||
+                layer_optimizer->get_learning_rate() != optimizer->get_learning_rate()) {
+                ML_THROW_DESERIALIZATION_ERROR("Inconsistent optimizer settings", "NeuralNetwork");
+            }
+            layer_optimizers.push_back(std::move(layer_optimizer));
+        }
+        optimizer_ = std::move(optimizer);
+        layer_optimizers_ = std::move(layer_optimizers);
     }
 
 
@@ -810,9 +1084,20 @@ namespace models {
     }
 
     void NeuralNetwork::set_optimizer(OptimizerType type, double learning_rate) {
+        auto optimizer = OptimizerFactory::create(type, learning_rate);
+        optimizer_ = std::move(optimizer);
         learning_rate_ = learning_rate;
-        // Usa optimizer_ del padre (Estimator)
-        optimizer_ = OptimizerFactory::create(type, learning_rate);
+        layer_optimizers_.clear();
+    }
+
+    void NeuralNetwork::set_learning_rate(double learning_rate) {
+        Estimator::set_learning_rate(learning_rate);
+        learning_rate_ = learning_rate;
+        for (auto& optimizer : layer_optimizers_) {
+            if (optimizer) {
+                optimizer->set_learning_rate(learning_rate);
+            }
+        }
     }
 
     void NeuralNetwork::initialize_layers(int input_size) {
@@ -823,6 +1108,7 @@ namespace models {
 
     void NeuralNetwork::reset() {
         layers_.clear();
+        layer_optimizers_.clear();
         forward_cache_.clear();
         fitted_ = false;
     }

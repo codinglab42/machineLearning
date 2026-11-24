@@ -13,6 +13,11 @@ namespace models {
         return learning_rate_ / (1.0 + decay_ * iterations_);
     }
 
+    double Optimizer::get_bias_learning_rate() const {
+        const int step = iterations_ > 0 ? iterations_ - 1 : 0;
+        return learning_rate_ / (1.0 + decay_ * step);
+    }
+
     void Optimizer::serialize(std::ostream& out) const {
         using namespace utils;
         
