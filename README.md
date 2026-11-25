@@ -105,8 +105,16 @@ sudo apt-get install build-essential cmake python3-dev libeigen3-dev
 
    # Or build a wheel, then install it
    python -m pip wheel . --no-deps --wheel-dir dist
-   python -m pip install dist/ml_core-3.0.0-*.whl
+   python -m pip install dist/ml_core-4.0.0-*.whl
 ```
+
+### Upgrading from 3.0.0
+
+Version 4.0.0 changes the C++ ABI and parts of the source API. Rebuild C++
+clients and adapt code where needed. Some Python error types have changed,
+for example invalid parameters now raise `ValueError` rather than `RuntimeError`.
+Version 4 can read older neural-network saves, subject to the limitations
+described below, but saves in the new format require the updated library.
 
 ---
 
@@ -292,6 +300,61 @@ ctest --output-on-failure
 ```bash
 pytest tests/python/
 ```
+
+### Performance benchmarks
+
+The benchmarks are opt-in and do not require Google Test or Python bindings.
+Build and run them sequentially:
+
+```bash
+cmake -S . -B build/benchmarks -DCMAKE_BUILD_TYPE=Release \
+  -DBUILD_BENCHMARKS=ON -DBUILD_TESTS=OFF -DBUILD_PYTHON_BINDINGS=OFF \
+  -DBUILD_EXAMPLES=OFF -DUSE_OPENMP=OFF
+cmake --build build/benchmarks --target benchmark_linear benchmark_logistic benchmark_neural benchmark_sequences
+python scripts/generate_all_benchmark.py --build-dir build/benchmarks \
+  --output-dir docs/performance_results/my-run --repetitions 3
+```
+
+The reporting script requires `matplotlib` and `seaborn`; it refuses to overwrite
+an existing output directory. It saves each raw run, CSV/JSON measurements,
+median/min/max timings, environment metadata and PNG charts. Repetitions use
+the same deterministic datasets and seeds, and measure wall-clock time; compare
+runs only on a comparable, otherwise idle environment. Timings include only
+training (`fit`), except for the explicitly labelled in-memory checkpoint
+serialization/deserialization. For the linear, logistic and Dense benchmarks,
+dataset sizes are total sizes; 80% is used for training and 20% for testing.
+The sequence benchmark uses 256 training and 64 separate test sequences.
+Neural loss is the final training loss. Neural
+classification reports the test-set majority-class baseline; sequence regression
+reports test MSE and the zero-prediction baseline.
+
+The suite covers linear/logistic regression, Dense optimizers and regularizers,
+SimpleRNN/LSTM/GRU sequence training, and an in-memory GRU checkpoint with
+continuation validation. It does not measure Python bindings or disk I/O.
+For optional regression checking, provide a previous `results.json` from an
+identical workload and comparable machine with `--baseline path/to/results.json`.
+The default maximum median slowdown is 20%, configurable with
+`--max-regression-pct`; an exceeded threshold gives a nonzero exit status.
+Without a baseline no timing threshold is applied. On shared hardware the
+results are indicative, not a statistically controlled certification.
+
+To run the executables once through CTest instead of producing a report:
+`ctest --test-dir build/benchmarks -L performance --output-on-failure`.
+
+The separate `benchmark_inference` target trains fresh synthetic models once
+and then reports five repeated batched C++ inference measurements as CSV:
+
+```bash
+cmake --build build/benchmarks --target benchmark_inference
+build/benchmarks/bin/benchmark_inference > inference.csv
+```
+
+Its per-item time is the total batched prediction time divided by the number
+of items, not the latency of a one-item request. Matrix models use batches of
+1,024; recurrent models use batches of 64 eight-step windows. Results include
+the public prediction call and consumption of one output value, but not data
+generation or fitting. These synthetic training datasets are separate from
+the fit benchmark datasets and the NASA IMS application benchmark.
 ---
 
 ## 🤝 Contributing

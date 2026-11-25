@@ -1,0 +1,15 @@
+
+SEQUENCE - Recurrent training
+--------------------------------------------------------------------------------
+Type Time_ms Test_MSE Zero_baseline_MSE
+SimpleRNN 24.943188 0.035290 0.152086
+LSTM 139.598734 0.012483 0.152086
+GRU 54.130289 0.009999 0.152086
+
+SEQUENCE - Checkpoint in memory
+--------------------------------------------------------------------------------
+Operation Time_ms Bytes
+Save 0.035083 15763
+Load 7.709500 15763
+
+Benchmark completato!

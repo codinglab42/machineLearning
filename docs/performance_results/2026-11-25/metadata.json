@@ -1,0 +1,17 @@
+{
+  "benchmark_date": "2026-11-25",
+  "repository_commit": "493b43a",
+  "system": "Linux-6.12.0-264.20.1.el10_3.x86_64-x86_64-with-glibc2.39",
+  "cpu": "Intel(R) Core(TM) 5 120U",
+  "logical_cpus_available": "1",
+  "compiler": "c++ (GCC) 14.4.1 20260724 (Red Hat 14.4.1-5)",
+  "build_flags": "-std=c++17 -O3 -march=native -DEIGEN_MPL2_ONLY",
+  "library_build_flags": "-std=gnu++17 -fPIC -O3 -DNDEBUG -DEIGEN_MPL2_ONLY",
+  "openmp": false,
+  "benchmark_runs": 1,
+  "timing_note": "Benchmark source records fit duration in integer milliseconds; data generation/splitting and evaluation are excluded.",
+  "reliability_note": "Single run; timings are environment-dependent and are not statistical averages.",
+  "neural_data_warning": "For the 5000-sample split, training and test labels are all positive for 10, 20, 50 and 100 features; 100% accuracy is not evidence of useful classification.",
+  "registered_in_ctest": false,
+  "parsed_measurements": 51
+}

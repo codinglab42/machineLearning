@@ -1,8 +1,12 @@
 // tests/performance/benchmark_neural.cpp
+#include <algorithm>
+#include <cmath>
 #include <iostream>
 #include <chrono>
+#include <random>
 #include <vector>
 #include <iomanip>
+#include <stdexcept>
 #include "models/neural_network.h"
 #include "utils/math_utils.h"
 
@@ -16,7 +20,6 @@ void generate_binary_dataset(int n_samples, int n_features,
     X.resize(n_samples, n_features);
     y.resize(n_samples);
     
-    std::random_device rd;
     std::mt19937 gen(42);
     std::normal_distribution<> dist(0.0, 1.0);
     
@@ -25,13 +28,19 @@ void generate_binary_dataset(int n_samples, int n_features,
         for (int j = 0; j < n_features; ++j) {
             X(i, j) = dist(gen);
         }
-        // Funzione non lineare: sin(x0) + cos(x1) + ...
-        double z = 0.0;
-        for (int j = 0; j < n_features; ++j) {
-            z += std::sin(X(i, j)) + std::cos(X(i, j) * 0.5);
-        }
-        z += std::normal_distribution<>(0, 0.5)(gen);
+        // The odd and interaction terms keep both classes represented as feature count changes.
+        double z = std::sin(X(i, 0)) + 0.5 * X(i, 1) * X(i, 2)
+                 + 0.3 * X(i, 3) + std::normal_distribution<>(0, 0.3)(gen);
         y(i) = (z > 0) ? 1.0 : 0.0;
+    }
+}
+
+void validate_classes(const std::vector<std::pair<Eigen::MatrixXd, Eigen::VectorXd>>& splits) {
+    for (const auto& split : splits) {
+        double fraction = split.second.mean();
+        if (fraction < 0.2 || fraction > 0.8) {
+            throw std::runtime_error("Neural benchmark split has insufficient class balance");
+        }
     }
 }
 
@@ -56,7 +65,8 @@ void benchmark_neural_sample_scaling() {
     std::cout << std::left << std::setw(15) << "Campioni" 
               << std::setw(15) << "Tempo(ms)" 
               << std::setw(15) << "Accuracy" 
-              << std::setw(15) << "Loss" << std::endl;
+              << std::setw(15) << "Loss"
+              << std::setw(15) << "Baseline" << std::endl;
     std::cout << std::string(70, '-') << std::endl;
     
     std::vector<int> sample_sizes = {100, 500, 1000, 5000, 10000};
@@ -69,6 +79,7 @@ void benchmark_neural_sample_scaling() {
         generate_binary_dataset(n_samples, n_features, X, y);
         
         auto splits = MathUtils::train_test_split(X, y, 0.2, 42);
+        validate_classes(splits);
         
         NeuralNetwork network({n_features, 32, 16, 1}, "relu", "sigmoid",
                               OptimizerType::ADAM, 0.01);
@@ -77,19 +88,21 @@ void benchmark_neural_sample_scaling() {
         network.set_batch_size(32);
         network.set_verbose(false);
         
-        auto start = high_resolution_clock::now();
+        auto start = steady_clock::now();
         network.fit(splits[0].first, splits[0].second);
-        auto end = high_resolution_clock::now();
-        auto duration = duration_cast<milliseconds>(end - start);
+        auto end = steady_clock::now();
+        auto duration = std::chrono::duration<double, std::milli>(end - start);
         
         double accuracy = compute_accuracy(network, splits[1].first, splits[1].second);
         auto [loss, val_loss, acc] = network.get_training_history();
-        double final_loss = loss.empty() ? 0.0 : loss.back();
+        if (loss.empty()) throw std::runtime_error("Neural training history is empty");
+        double final_loss = loss.back();
         
         std::cout << std::left << std::setw(15) << n_samples 
                   << std::setw(15) << duration.count() 
                   << std::setw(15) << std::fixed << std::setprecision(4) << accuracy
-                  << std::setw(15) << std::fixed << std::setprecision(4) << final_loss << std::endl;
+                  << std::setw(15) << std::fixed << std::setprecision(4) << final_loss
+                  << std::setw(15) << std::max(splits[1].second.mean(), 1.0 - splits[1].second.mean()) << std::endl;
     }
 }
 
@@ -101,7 +114,8 @@ void benchmark_neural_feature_scaling() {
     std::cout << std::left << std::setw(15) << "Features" 
               << std::setw(15) << "Tempo(ms)" 
               << std::setw(15) << "Accuracy" 
-              << std::setw(15) << "Loss" << std::endl;
+              << std::setw(15) << "Loss"
+              << std::setw(15) << "Baseline" << std::endl;
     std::cout << std::string(70, '-') << std::endl;
     
     std::vector<int> feature_sizes = {5, 10, 20, 50, 100};
@@ -114,6 +128,7 @@ void benchmark_neural_feature_scaling() {
         generate_binary_dataset(n_samples, n_features, X, y);
         
         auto splits = MathUtils::train_test_split(X, y, 0.2, 42);
+        validate_classes(splits);
         
         NeuralNetwork network({n_features, 64, 32, 1}, "relu", "sigmoid",
                               OptimizerType::ADAM, 0.01);
@@ -122,19 +137,21 @@ void benchmark_neural_feature_scaling() {
         network.set_batch_size(32);
         network.set_verbose(false);
         
-        auto start = high_resolution_clock::now();
+        auto start = steady_clock::now();
         network.fit(splits[0].first, splits[0].second);
-        auto end = high_resolution_clock::now();
-        auto duration = duration_cast<milliseconds>(end - start);
+        auto end = steady_clock::now();
+        auto duration = std::chrono::duration<double, std::milli>(end - start);
         
         double accuracy = compute_accuracy(network, splits[1].first, splits[1].second);
         auto [loss, val_loss, acc] = network.get_training_history();
-        double final_loss = loss.empty() ? 0.0 : loss.back();
+        if (loss.empty()) throw std::runtime_error("Neural training history is empty");
+        double final_loss = loss.back();
         
         std::cout << std::left << std::setw(15) << n_features 
                   << std::setw(15) << duration.count() 
                   << std::setw(15) << std::fixed << std::setprecision(4) << accuracy
-                  << std::setw(15) << std::fixed << std::setprecision(4) << final_loss << std::endl;
+                  << std::setw(15) << std::fixed << std::setprecision(4) << final_loss
+                  << std::setw(15) << std::max(splits[1].second.mean(), 1.0 - splits[1].second.mean()) << std::endl;
     }
 }
 
@@ -146,7 +163,8 @@ void benchmark_neuron_scaling() {
     std::cout << std::left << std::setw(20) << "Architettura" 
               << std::setw(15) << "Tempo(ms)" 
               << std::setw(15) << "Accuracy" 
-              << std::setw(15) << "Parametri" << std::endl;
+              << std::setw(15) << "Parametri"
+              << std::setw(15) << "Baseline" << std::endl;
     std::cout << std::string(70, '-') << std::endl;
     
     std::vector<std::vector<int>> architectures = {
@@ -165,6 +183,7 @@ void benchmark_neuron_scaling() {
     generate_binary_dataset(n_samples, 10, X, y);
     
     auto splits = MathUtils::train_test_split(X, y, 0.2, 42);
+    validate_classes(splits);
     
     for (const auto& arch : architectures) {
         NeuralNetwork network(arch, "relu", "sigmoid", OptimizerType::ADAM, 0.01);
@@ -173,10 +192,10 @@ void benchmark_neuron_scaling() {
         network.set_batch_size(32);
         network.set_verbose(false);
         
-        auto start = high_resolution_clock::now();
+        auto start = steady_clock::now();
         network.fit(splits[0].first, splits[0].second);
-        auto end = high_resolution_clock::now();
-        auto duration = duration_cast<milliseconds>(end - start);
+        auto end = steady_clock::now();
+        auto duration = std::chrono::duration<double, std::milli>(end - start);
         
         double accuracy = compute_accuracy(network, splits[1].first, splits[1].second);
         int params = network.get_num_parameters();
@@ -188,7 +207,8 @@ void benchmark_neuron_scaling() {
         std::cout << std::left << std::setw(20) << arch_str
                   << std::setw(15) << duration.count() 
                   << std::setw(15) << std::fixed << std::setprecision(4) << accuracy
-                  << std::setw(15) << params << std::endl;
+                  << std::setw(15) << params
+                  << std::setw(15) << std::max(splits[1].second.mean(), 1.0 - splits[1].second.mean()) << std::endl;
     }
 }
 
@@ -200,7 +220,8 @@ void benchmark_optimizers() {
     std::cout << std::left << std::setw(15) << "Ottimizzatore" 
               << std::setw(15) << "Tempo(ms)" 
               << std::setw(15) << "Accuracy" 
-              << std::setw(15) << "Loss" << std::endl;
+              << std::setw(15) << "Loss"
+              << std::setw(15) << "Baseline" << std::endl;
     std::cout << std::string(70, '-') << std::endl;
     
     int n_samples = 5000;
@@ -212,78 +233,73 @@ void benchmark_optimizers() {
     generate_binary_dataset(n_samples, n_features, X, y);
     
     auto splits = MathUtils::train_test_split(X, y, 0.2, 42);
-    
-    // SGD
-    {
-        NeuralNetwork network({n_features, 32, 1}, "relu", "sigmoid", OptimizerType::SGD, 0.01);
+    validate_classes(splits);
+    const std::vector<std::pair<std::string, OptimizerType>> optimizers = {
+        {"SGD", OptimizerType::SGD}, {"Momentum", OptimizerType::MOMENTUM},
+        {"Adam", OptimizerType::ADAM}, {"RMSprop", OptimizerType::RMSPROP},
+        {"Adagrad", OptimizerType::ADAGRAD}
+    };
+    for (const auto& optimizer : optimizers) {
+        NeuralNetwork network({n_features, 32, 1}, "relu", "sigmoid", optimizer.second, 0.01);
         network.set_loss_function("binary_crossentropy");
         network.set_epochs(epochs);
         network.set_batch_size(32);
         network.set_verbose(false);
         
-        auto start = high_resolution_clock::now();
+        auto start = steady_clock::now();
         network.fit(splits[0].first, splits[0].second);
-        auto end = high_resolution_clock::now();
-        auto duration = duration_cast<milliseconds>(end - start);
+        auto end = steady_clock::now();
+        auto duration = std::chrono::duration<double, std::milli>(end - start);
         
         double accuracy = compute_accuracy(network, splits[1].first, splits[1].second);
         auto [loss, val_loss, acc] = network.get_training_history();
-        double final_loss = loss.empty() ? 0.0 : loss.back();
+        if (loss.empty()) throw std::runtime_error("Neural training history is empty");
+        double final_loss = loss.back();
         
-        std::cout << std::left << std::setw(15) << "SGD"
+        std::cout << std::left << std::setw(15) << optimizer.first
                   << std::setw(15) << duration.count() 
                   << std::setw(15) << std::fixed << std::setprecision(4) << accuracy
-                  << std::setw(15) << std::fixed << std::setprecision(4) << final_loss << std::endl;
+                  << std::setw(15) << std::fixed << std::setprecision(4) << final_loss
+                  << std::setw(15) << std::max(splits[1].second.mean(), 1.0 - splits[1].second.mean()) << std::endl;
     }
-    
-    // Momentum
-    {
-        NeuralNetwork network({n_features, 32, 1}, "relu", "sigmoid", OptimizerType::MOMENTUM, 0.01);
+}
+
+void benchmark_regularizers() {
+    std::cout << "\n" << std::string(70, '=') << "\n"
+              << "NEURAL NETWORK - Confronto regolarizzatori\n"
+              << std::string(70, '=') << "\n"
+              << std::left << std::setw(15) << "Regularizer" << std::setw(15) << "Tempo(ms)"
+              << std::setw(15) << "Accuracy" << std::setw(15) << "Loss"
+              << std::setw(15) << "Baseline" << "\n" << std::string(70, '-') << std::endl;
+    Eigen::MatrixXd X;
+    Eigen::VectorXd y;
+    generate_binary_dataset(5000, 10, X, y);
+    auto splits = MathUtils::train_test_split(X, y, 0.2, 42);
+    validate_classes(splits);
+    const std::vector<std::pair<std::string, RegularizerType>> regularizers = {
+        {"None", RegularizerType::NONE}, {"L1", RegularizerType::L1},
+        {"L2", RegularizerType::L2}, {"ElasticNet", RegularizerType::ELASTIC_NET}
+    };
+    for (const auto& regularizer : regularizers) {
+        NeuralNetwork network({10, 32, 1}, "relu", "sigmoid", OptimizerType::ADAM, 0.01,
+                              regularizer.second, 0.001);
         network.set_loss_function("binary_crossentropy");
-        network.set_epochs(epochs);
+        network.set_epochs(100);
         network.set_batch_size(32);
-        network.set_verbose(false);
-        
-        auto start = high_resolution_clock::now();
+        auto start = steady_clock::now();
         network.fit(splits[0].first, splits[0].second);
-        auto end = high_resolution_clock::now();
-        auto duration = duration_cast<milliseconds>(end - start);
-        
-        double accuracy = compute_accuracy(network, splits[1].first, splits[1].second);
-        auto [loss, val_loss, acc] = network.get_training_history();
-        double final_loss = loss.empty() ? 0.0 : loss.back();
-        
-        std::cout << std::left << std::setw(15) << "Momentum"
-                  << std::setw(15) << duration.count() 
-                  << std::setw(15) << std::fixed << std::setprecision(4) << accuracy
-                  << std::setw(15) << std::fixed << std::setprecision(4) << final_loss << std::endl;
-    }
-    
-    // Adam
-    {
-        NeuralNetwork network({n_features, 32, 1}, "relu", "sigmoid", OptimizerType::ADAM, 0.01);
-        network.set_loss_function("binary_crossentropy");
-        network.set_epochs(epochs);
-        network.set_batch_size(32);
-        network.set_verbose(false);
-        
-        auto start = high_resolution_clock::now();
-        network.fit(splits[0].first, splits[0].second);
-        auto end = high_resolution_clock::now();
-        auto duration = duration_cast<milliseconds>(end - start);
-        
-        double accuracy = compute_accuracy(network, splits[1].first, splits[1].second);
-        auto [loss, val_loss, acc] = network.get_training_history();
-        double final_loss = loss.empty() ? 0.0 : loss.back();
-        
-        std::cout << std::left << std::setw(15) << "Adam"
-                  << std::setw(15) << duration.count() 
-                  << std::setw(15) << std::fixed << std::setprecision(4) << accuracy
-                  << std::setw(15) << std::fixed << std::setprecision(4) << final_loss << std::endl;
+        double time_ms = duration<double, std::milli>(steady_clock::now() - start).count();
+        const auto& loss = network.get_loss_history();
+        if (loss.empty()) throw std::runtime_error("Neural training history is empty");
+        std::cout << std::left << std::setw(15) << regularizer.first << std::setw(15) << time_ms
+                  << std::setw(15) << compute_accuracy(network, splits[1].first, splits[1].second)
+                  << std::setw(15) << loss.back()
+                  << std::setw(15) << std::max(splits[1].second.mean(), 1.0 - splits[1].second.mean()) << std::endl;
     }
 }
 
 int main() {
+    std::cout << std::fixed << std::setprecision(4);
     std::cout << "\n";
     std::cout << "================================================" << std::endl;
     std::cout << "       BENCHMARK NEURAL NETWORK - v1.0          " << std::endl;
@@ -294,6 +310,7 @@ int main() {
     benchmark_neural_feature_scaling();
     benchmark_neuron_scaling();
     benchmark_optimizers();
+    benchmark_regularizers();
     
     std::cout << "\n" << std::string(70, '=') << std::endl;
     std::cout << "Benchmark completato!" << std::endl;

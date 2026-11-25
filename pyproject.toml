@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ml_core"
-version = "3.0.0"
+version = "4.0.0"
 description = "C++ Machine Learning Library with Python Bindings"
 readme = "README.md"
 license = "AGPL-3.0-or-later"

@@ -1,0 +1,37 @@
+{
+  "timestamp_utc": "2026-11-25T18:46:28.779670+00:00",
+  "git_revision": "493b43a70dbb0d9a9023a08c286ac68ed7eaa7aa",
+  "git_status": [
+    " M CMakeLists.txt",
+    " M README.md",
+    " M scripts/generate_all_benchmark.py",
+    " M tests/performance/CMakeLists.txt",
+    " M tests/performance/benchmark_linear.cpp",
+    " M tests/performance/benchmark_logistic.cpp",
+    " M tests/performance/benchmark_neural.cpp",
+    "?? docs/performance_results/",
+    "?? tests/performance/benchmark_sequences.cpp",
+    "?? tests/performance/test_benchmark_report.py"
+  ],
+  "platform": "Linux-6.12.0-264.20.1.el10_3.x86_64-x86_64-with-glibc2.39",
+  "processor": "Intel(R) Core(TM) 5 120U",
+  "available_cpus": 1,
+  "repetitions": 3,
+  "build_dir": "/home/devel/ai-lab/projects/ai-devel/machineLearning/build/benchmarks",
+  "cmake": {
+    "CMAKE_BUILD_TYPE": "Release",
+    "CMAKE_CXX_COMPILER": "/usr/bin/c++",
+    "CMAKE_CXX_FLAGS": "",
+    "CMAKE_CXX_FLAGS_RELEASE": "-O3 -DNDEBUG",
+    "USE_OPENMP": "OFF"
+  },
+  "compiler_version": "c++ (GCC) 14.4.1 20260724 (Red Hat 14.4.1-5)",
+  "executables_sha256": {
+    "linear": "16d6677554948c9e455cec3edca129027a1c2927294bb0657df38eb0b2d35bc7",
+    "logistic": "b006f048b1cbbd2c7d9d895332ee7622b47c3f91a9e2ee15a0901bae0a124f9e",
+    "neural": "8666aa218e7e5057dd6a1bbf4dbaa00faff95017cd3e57a600657cd2000c5f44",
+    "sequences": "c5971176c988e6f9c6c2721865c1c49cf701d838cea14b8c0d5123c7ca3ea4e3"
+  },
+  "timing": "Median/min/max of fit wall-clock durations, except in-memory checkpoint save/load.",
+  "note": "Model quality uses held-out synthetic data; neural loss is final training loss."
+}

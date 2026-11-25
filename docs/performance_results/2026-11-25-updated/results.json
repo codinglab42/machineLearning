@@ -1,0 +1,1856 @@
+{
+  "runs": [
+    {
+      "linear": {
+        "sample_scaling": [
+          {
+            "samples": 100,
+            "time_ms": 0.1381,
+            "r2": 0.9968,
+            "iterations": 550
+          },
+          {
+            "samples": 1000,
+            "time_ms": 0.9383,
+            "r2": 0.9985,
+            "iterations": 477
+          },
+          {
+            "samples": 10000,
+            "time_ms": 77.9776,
+            "r2": 0.9988,
+            "iterations": 469
+          },
+          {
+            "samples": 100000,
+            "time_ms": 1251.7489,
+            "r2": 0.9988,
+            "iterations": 459
+          },
+          {
+            "samples": 500000,
+            "time_ms": 7134.1618,
+            "r2": 0.9988,
+            "iterations": 458
+          }
+        ],
+        "feature_scaling": [
+          {
+            "features": 5,
+            "time_ms": 5.8109,
+            "r2": 0.9967,
+            "iterations": 416
+          },
+          {
+            "features": 10,
+            "time_ms": 25.8971,
+            "r2": 0.9988,
+            "iterations": 469
+          },
+          {
+            "features": 50,
+            "time_ms": 255.6613,
+            "r2": 0.9997,
+            "iterations": 547
+          },
+          {
+            "features": 100,
+            "time_ms": 761.0635,
+            "r2": 0.9999,
+            "iterations": 593
+          },
+          {
+            "features": 500,
+            "time_ms": 7752.9862,
+            "r2": 1.0,
+            "iterations": 836
+          }
+        ],
+        "solvers": [
+          {
+            "solver": "Gradient Descent",
+            "time_ms": 17.3095,
+            "r2": 0.9988,
+            "iterations": 469
+          },
+          {
+            "solver": "Normal Equation",
+            "time_ms": 1.5943,
+            "r2": 0.9989,
+            "iterations": 0
+          },
+          {
+            "solver": "SVD",
+            "time_ms": 2.3766,
+            "r2": 0.9989,
+            "iterations": 0
+          }
+        ],
+        "regularization": [
+          {
+            "lambda": 0.0,
+            "time_ms": 253.975,
+            "r2": 0.9997,
+            "iterations": 547
+          },
+          {
+            "lambda": 0.001,
+            "time_ms": 258.3309,
+            "r2": 0.9997,
+            "iterations": 547
+          },
+          {
+            "lambda": 0.01,
+            "time_ms": 249.6663,
+            "r2": 0.9997,
+            "iterations": 547
+          },
+          {
+            "lambda": 0.1,
+            "time_ms": 280.0986,
+            "r2": 0.9997,
+            "iterations": 547
+          },
+          {
+            "lambda": 1.0,
+            "time_ms": 262.0851,
+            "r2": 0.9997,
+            "iterations": 547
+          }
+        ]
+      },
+      "logistic": {
+        "sample_scaling": [
+          {
+            "samples": 100,
+            "time_ms": 1.2725,
+            "accuracy": 0.95,
+            "iters": 1000
+          },
+          {
+            "samples": 1000,
+            "time_ms": 36.9249,
+            "accuracy": 0.93,
+            "iters": 1000
+          },
+          {
+            "samples": 10000,
+            "time_ms": 828.13,
+            "accuracy": 0.955,
+            "iters": 1000
+          },
+          {
+            "samples": 50000,
+            "time_ms": 4228.2236,
+            "accuracy": 0.9503,
+            "iters": 1000
+          },
+          {
+            "samples": 100000,
+            "time_ms": 8588.4876,
+            "accuracy": 0.9472,
+            "iters": 1000
+          }
+        ],
+        "feature_scaling": [
+          {
+            "features": 5,
+            "time_ms": 494.3912,
+            "accuracy": 0.904,
+            "iters": 1000
+          },
+          {
+            "features": 10,
+            "time_ms": 527.1572,
+            "accuracy": 0.955,
+            "iters": 1000
+          },
+          {
+            "features": 50,
+            "time_ms": 1102.1811,
+            "accuracy": 0.9645,
+            "iters": 1000
+          },
+          {
+            "features": 100,
+            "time_ms": 2283.5966,
+            "accuracy": 0.9655,
+            "iters": 1000
+          },
+          {
+            "features": 500,
+            "time_ms": 13350.7578,
+            "accuracy": 0.9315,
+            "iters": 1000
+          }
+        ],
+        "regularization": [
+          {
+            "lambda": 0.0,
+            "time_ms": 1105.5586,
+            "accuracy": 0.9645,
+            "iters": 1000
+          },
+          {
+            "lambda": 0.001,
+            "time_ms": 1159.6883,
+            "accuracy": 0.9645,
+            "iters": 1000
+          },
+          {
+            "lambda": 0.01,
+            "time_ms": 1103.5936,
+            "accuracy": 0.9645,
+            "iters": 1000
+          },
+          {
+            "lambda": 0.1,
+            "time_ms": 1218.5259,
+            "accuracy": 0.9645,
+            "iters": 1000
+          },
+          {
+            "lambda": 1.0,
+            "time_ms": 1077.8135,
+            "accuracy": 0.9645,
+            "iters": 1000
+          }
+        ]
+      },
+      "neural": {
+        "sample_scaling": [
+          {
+            "samples": 100,
+            "time_ms": 3.795,
+            "accuracy": 0.9,
+            "loss": 0.0008,
+            "baseline": 0.5
+          },
+          {
+            "samples": 500,
+            "time_ms": 43.8828,
+            "accuracy": 0.82,
+            "loss": 0.0005,
+            "baseline": 0.5
+          },
+          {
+            "samples": 1000,
+            "time_ms": 134.4401,
+            "accuracy": 0.865,
+            "loss": 0.0005,
+            "baseline": 0.515
+          },
+          {
+            "samples": 5000,
+            "time_ms": 778.4535,
+            "accuracy": 0.886,
+            "loss": 0.0783,
+            "baseline": 0.504
+          },
+          {
+            "samples": 10000,
+            "time_ms": 1313.4976,
+            "accuracy": 0.875,
+            "loss": 0.1449,
+            "baseline": 0.513
+          }
+        ],
+        "feature_scaling": [
+          {
+            "features": 5,
+            "time_ms": 1123.2569,
+            "accuracy": 0.876,
+            "loss": 0.1588,
+            "baseline": 0.504
+          },
+          {
+            "features": 10,
+            "time_ms": 1021.2917,
+            "accuracy": 0.864,
+            "loss": 0.04,
+            "baseline": 0.504
+          },
+          {
+            "features": 20,
+            "time_ms": 1180.2015,
+            "accuracy": 0.829,
+            "loss": 0.0845,
+            "baseline": 0.509
+          },
+          {
+            "features": 50,
+            "time_ms": 1791.5429,
+            "accuracy": 0.845,
+            "loss": 0.0936,
+            "baseline": 0.503
+          },
+          {
+            "features": 100,
+            "time_ms": 2375.8572,
+            "accuracy": 0.828,
+            "loss": 0.0051,
+            "baseline": 0.524
+          }
+        ],
+        "neuron_scaling": [
+          {
+            "arch": "10->16->1",
+            "time_ms": 61.4484,
+            "accuracy": 0.901,
+            "params": 193,
+            "baseline": 0.504
+          },
+          {
+            "arch": "10->32->1",
+            "time_ms": 101.4697,
+            "accuracy": 0.899,
+            "params": 385,
+            "baseline": 0.504
+          },
+          {
+            "arch": "10->64->1",
+            "time_ms": 156.4295,
+            "accuracy": 0.904,
+            "params": 769,
+            "baseline": 0.504
+          },
+          {
+            "arch": "10->128->1",
+            "time_ms": 331.7048,
+            "accuracy": 0.899,
+            "params": 1537,
+            "baseline": 0.504
+          },
+          {
+            "arch": "10->256->1",
+            "time_ms": 745.8372,
+            "accuracy": 0.895,
+            "params": 3073,
+            "baseline": 0.504
+          }
+        ],
+        "optimizers": [
+          {
+            "optimizer": "SGD",
+            "time_ms": 240.6736,
+            "accuracy": 0.896,
+            "loss": 0.2543,
+            "baseline": 0.504
+          },
+          {
+            "optimizer": "Momentum",
+            "time_ms": 194.4172,
+            "accuracy": 0.893,
+            "loss": 0.1993,
+            "baseline": 0.504
+          },
+          {
+            "optimizer": "Adam",
+            "time_ms": 259.5472,
+            "accuracy": 0.902,
+            "loss": 0.1633,
+            "baseline": 0.504
+          },
+          {
+            "optimizer": "RMSprop",
+            "time_ms": 237.9651,
+            "accuracy": 0.893,
+            "loss": 0.1672,
+            "baseline": 0.504
+          },
+          {
+            "optimizer": "Adagrad",
+            "time_ms": 267.5005,
+            "accuracy": 0.906,
+            "loss": 0.2553,
+            "baseline": 0.504
+          }
+        ],
+        "regularizers": [
+          {
+            "regularizer": "None",
+            "time_ms": 227.5943,
+            "accuracy": 0.902,
+            "loss": 0.1633,
+            "baseline": 0.504
+          },
+          {
+            "regularizer": "L1",
+            "time_ms": 328.3048,
+            "accuracy": 0.905,
+            "loss": 0.2589,
+            "baseline": 0.504
+          },
+          {
+            "regularizer": "L2",
+            "time_ms": 333.6666,
+            "accuracy": 0.901,
+            "loss": 0.234,
+            "baseline": 0.504
+          },
+          {
+            "regularizer": "ElasticNet",
+            "time_ms": 288.4129,
+            "accuracy": 0.907,
+            "loss": 0.2521,
+            "baseline": 0.504
+          }
+        ]
+      },
+      "sequences": {
+        "recurrent": [
+          {
+            "type": "SimpleRNN",
+            "time_ms": 39.785563,
+            "test_mse": 0.03529,
+            "baseline_mse": 0.152086
+          },
+          {
+            "type": "LSTM",
+            "time_ms": 166.148927,
+            "test_mse": 0.012483,
+            "baseline_mse": 0.152086
+          },
+          {
+            "type": "GRU",
+            "time_ms": 63.586393,
+            "test_mse": 0.009999,
+            "baseline_mse": 0.152086
+          }
+        ],
+        "checkpoint": [
+          {
+            "operation": "Save",
+            "time_ms": 0.03826,
+            "bytes": 15763
+          },
+          {
+            "operation": "Load",
+            "time_ms": 22.308732,
+            "bytes": 15763
+          }
+        ]
+      }
+    },
+    {
+      "linear": {
+        "sample_scaling": [
+          {
+            "samples": 100,
+            "time_ms": 0.162,
+            "r2": 0.9968,
+            "iterations": 550
+          },
+          {
+            "samples": 1000,
+            "time_ms": 1.1219,
+            "r2": 0.9985,
+            "iterations": 477
+          },
+          {
+            "samples": 10000,
+            "time_ms": 53.415,
+            "r2": 0.9988,
+            "iterations": 469
+          },
+          {
+            "samples": 100000,
+            "time_ms": 1418.9591,
+            "r2": 0.9988,
+            "iterations": 459
+          },
+          {
+            "samples": 500000,
+            "time_ms": 7500.7658,
+            "r2": 0.9988,
+            "iterations": 458
+          }
+        ],
+        "feature_scaling": [
+          {
+            "features": 5,
+            "time_ms": 5.8662,
+            "r2": 0.9967,
+            "iterations": 416
+          },
+          {
+            "features": 10,
+            "time_ms": 12.975,
+            "r2": 0.9988,
+            "iterations": 469
+          },
+          {
+            "features": 50,
+            "time_ms": 332.9868,
+            "r2": 0.9997,
+            "iterations": 547
+          },
+          {
+            "features": 100,
+            "time_ms": 751.4573,
+            "r2": 0.9999,
+            "iterations": 593
+          },
+          {
+            "features": 500,
+            "time_ms": 8124.8017,
+            "r2": 1.0,
+            "iterations": 836
+          }
+        ],
+        "solvers": [
+          {
+            "solver": "Gradient Descent",
+            "time_ms": 24.8629,
+            "r2": 0.9988,
+            "iterations": 469
+          },
+          {
+            "solver": "Normal Equation",
+            "time_ms": 3.9505,
+            "r2": 0.9989,
+            "iterations": 0
+          },
+          {
+            "solver": "SVD",
+            "time_ms": 13.6698,
+            "r2": 0.9989,
+            "iterations": 0
+          }
+        ],
+        "regularization": [
+          {
+            "lambda": 0.0,
+            "time_ms": 276.5054,
+            "r2": 0.9997,
+            "iterations": 547
+          },
+          {
+            "lambda": 0.001,
+            "time_ms": 251.9472,
+            "r2": 0.9997,
+            "iterations": 547
+          },
+          {
+            "lambda": 0.01,
+            "time_ms": 253.1594,
+            "r2": 0.9997,
+            "iterations": 547
+          },
+          {
+            "lambda": 0.1,
+            "time_ms": 243.8251,
+            "r2": 0.9997,
+            "iterations": 547
+          },
+          {
+            "lambda": 1.0,
+            "time_ms": 221.0564,
+            "r2": 0.9997,
+            "iterations": 547
+          }
+        ]
+      },
+      "logistic": {
+        "sample_scaling": [
+          {
+            "samples": 100,
+            "time_ms": 1.2577,
+            "accuracy": 0.95,
+            "iters": 1000
+          },
+          {
+            "samples": 1000,
+            "time_ms": 22.2923,
+            "accuracy": 0.93,
+            "iters": 1000
+          },
+          {
+            "samples": 10000,
+            "time_ms": 825.1801,
+            "accuracy": 0.955,
+            "iters": 1000
+          },
+          {
+            "samples": 50000,
+            "time_ms": 4517.1187,
+            "accuracy": 0.9503,
+            "iters": 1000
+          },
+          {
+            "samples": 100000,
+            "time_ms": 8678.375,
+            "accuracy": 0.9472,
+            "iters": 1000
+          }
+        ],
+        "feature_scaling": [
+          {
+            "features": 5,
+            "time_ms": 469.3043,
+            "accuracy": 0.904,
+            "iters": 1000
+          },
+          {
+            "features": 10,
+            "time_ms": 711.3587,
+            "accuracy": 0.955,
+            "iters": 1000
+          },
+          {
+            "features": 50,
+            "time_ms": 2144.0389,
+            "accuracy": 0.9645,
+            "iters": 1000
+          },
+          {
+            "features": 100,
+            "time_ms": 2098.9677,
+            "accuracy": 0.9655,
+            "iters": 1000
+          },
+          {
+            "features": 500,
+            "time_ms": 14198.3958,
+            "accuracy": 0.9315,
+            "iters": 1000
+          }
+        ],
+        "regularization": [
+          {
+            "lambda": 0.0,
+            "time_ms": 1064.3529,
+            "accuracy": 0.9645,
+            "iters": 1000
+          },
+          {
+            "lambda": 0.001,
+            "time_ms": 1110.9815,
+            "accuracy": 0.9645,
+            "iters": 1000
+          },
+          {
+            "lambda": 0.01,
+            "time_ms": 1058.7162,
+            "accuracy": 0.9645,
+            "iters": 1000
+          },
+          {
+            "lambda": 0.1,
+            "time_ms": 1021.3493,
+            "accuracy": 0.9645,
+            "iters": 1000
+          },
+          {
+            "lambda": 1.0,
+            "time_ms": 1113.398,
+            "accuracy": 0.9645,
+            "iters": 1000
+          }
+        ]
+      },
+      "neural": {
+        "sample_scaling": [
+          {
+            "samples": 100,
+            "time_ms": 8.5675,
+            "accuracy": 0.9,
+            "loss": 0.0008,
+            "baseline": 0.5
+          },
+          {
+            "samples": 500,
+            "time_ms": 44.2494,
+            "accuracy": 0.82,
+            "loss": 0.0005,
+            "baseline": 0.5
+          },
+          {
+            "samples": 1000,
+            "time_ms": 84.2684,
+            "accuracy": 0.865,
+            "loss": 0.0005,
+            "baseline": 0.515
+          },
+          {
+            "samples": 5000,
+            "time_ms": 609.2345,
+            "accuracy": 0.886,
+            "loss": 0.0783,
+            "baseline": 0.504
+          },
+          {
+            "samples": 10000,
+            "time_ms": 1260.8826,
+            "accuracy": 0.875,
+            "loss": 0.1449,
+            "baseline": 0.513
+          }
+        ],
+        "feature_scaling": [
+          {
+            "features": 5,
+            "time_ms": 1162.2286,
+            "accuracy": 0.876,
+            "loss": 0.1588,
+            "baseline": 0.504
+          },
+          {
+            "features": 10,
+            "time_ms": 1103.7991,
+            "accuracy": 0.864,
+            "loss": 0.04,
+            "baseline": 0.504
+          },
+          {
+            "features": 20,
+            "time_ms": 1201.0385,
+            "accuracy": 0.829,
+            "loss": 0.0845,
+            "baseline": 0.509
+          },
+          {
+            "features": 50,
+            "time_ms": 1760.1303,
+            "accuracy": 0.845,
+            "loss": 0.0936,
+            "baseline": 0.503
+          },
+          {
+            "features": 100,
+            "time_ms": 2959.6241,
+            "accuracy": 0.828,
+            "loss": 0.0051,
+            "baseline": 0.524
+          }
+        ],
+        "neuron_scaling": [
+          {
+            "arch": "10->16->1",
+            "time_ms": 75.6141,
+            "accuracy": 0.901,
+            "params": 193,
+            "baseline": 0.504
+          },
+          {
+            "arch": "10->32->1",
+            "time_ms": 152.4018,
+            "accuracy": 0.899,
+            "params": 385,
+            "baseline": 0.504
+          },
+          {
+            "arch": "10->64->1",
+            "time_ms": 214.2856,
+            "accuracy": 0.904,
+            "params": 769,
+            "baseline": 0.504
+          },
+          {
+            "arch": "10->128->1",
+            "time_ms": 347.2308,
+            "accuracy": 0.899,
+            "params": 1537,
+            "baseline": 0.504
+          },
+          {
+            "arch": "10->256->1",
+            "time_ms": 873.3722,
+            "accuracy": 0.895,
+            "params": 3073,
+            "baseline": 0.504
+          }
+        ],
+        "optimizers": [
+          {
+            "optimizer": "SGD",
+            "time_ms": 174.1831,
+            "accuracy": 0.896,
+            "loss": 0.2543,
+            "baseline": 0.504
+          },
+          {
+            "optimizer": "Momentum",
+            "time_ms": 229.6926,
+            "accuracy": 0.893,
+            "loss": 0.1993,
+            "baseline": 0.504
+          },
+          {
+            "optimizer": "Adam",
+            "time_ms": 238.4163,
+            "accuracy": 0.902,
+            "loss": 0.1633,
+            "baseline": 0.504
+          },
+          {
+            "optimizer": "RMSprop",
+            "time_ms": 231.1881,
+            "accuracy": 0.893,
+            "loss": 0.1672,
+            "baseline": 0.504
+          },
+          {
+            "optimizer": "Adagrad",
+            "time_ms": 306.6251,
+            "accuracy": 0.906,
+            "loss": 0.2553,
+            "baseline": 0.504
+          }
+        ],
+        "regularizers": [
+          {
+            "regularizer": "None",
+            "time_ms": 283.8266,
+            "accuracy": 0.902,
+            "loss": 0.1633,
+            "baseline": 0.504
+          },
+          {
+            "regularizer": "L1",
+            "time_ms": 367.1407,
+            "accuracy": 0.905,
+            "loss": 0.2589,
+            "baseline": 0.504
+          },
+          {
+            "regularizer": "L2",
+            "time_ms": 254.7578,
+            "accuracy": 0.901,
+            "loss": 0.234,
+            "baseline": 0.504
+          },
+          {
+            "regularizer": "ElasticNet",
+            "time_ms": 301.1914,
+            "accuracy": 0.907,
+            "loss": 0.2521,
+            "baseline": 0.504
+          }
+        ]
+      },
+      "sequences": {
+        "recurrent": [
+          {
+            "type": "SimpleRNN",
+            "time_ms": 24.943188,
+            "test_mse": 0.03529,
+            "baseline_mse": 0.152086
+          },
+          {
+            "type": "LSTM",
+            "time_ms": 139.598734,
+            "test_mse": 0.012483,
+            "baseline_mse": 0.152086
+          },
+          {
+            "type": "GRU",
+            "time_ms": 54.130289,
+            "test_mse": 0.009999,
+            "baseline_mse": 0.152086
+          }
+        ],
+        "checkpoint": [
+          {
+            "operation": "Save",
+            "time_ms": 0.035083,
+            "bytes": 15763
+          },
+          {
+            "operation": "Load",
+            "time_ms": 7.7095,
+            "bytes": 15763
+          }
+        ]
+      }
+    },
+    {
+      "linear": {
+        "sample_scaling": [
+          {
+            "samples": 100,
+            "time_ms": 0.1494,
+            "r2": 0.9968,
+            "iterations": 550
+          },
+          {
+            "samples": 1000,
+            "time_ms": 1.0015,
+            "r2": 0.9985,
+            "iterations": 477
+          },
+          {
+            "samples": 10000,
+            "time_ms": 56.1567,
+            "r2": 0.9988,
+            "iterations": 469
+          },
+          {
+            "samples": 100000,
+            "time_ms": 1187.4353,
+            "r2": 0.9988,
+            "iterations": 459
+          },
+          {
+            "samples": 500000,
+            "time_ms": 7230.5726,
+            "r2": 0.9988,
+            "iterations": 458
+          }
+        ],
+        "feature_scaling": [
+          {
+            "features": 5,
+            "time_ms": 5.9305,
+            "r2": 0.9967,
+            "iterations": 416
+          },
+          {
+            "features": 10,
+            "time_ms": 26.3827,
+            "r2": 0.9988,
+            "iterations": 469
+          },
+          {
+            "features": 50,
+            "time_ms": 233.8975,
+            "r2": 0.9997,
+            "iterations": 547
+          },
+          {
+            "features": 100,
+            "time_ms": 644.2286,
+            "r2": 0.9999,
+            "iterations": 593
+          },
+          {
+            "features": 500,
+            "time_ms": 8116.651,
+            "r2": 1.0,
+            "iterations": 836
+          }
+        ],
+        "solvers": [
+          {
+            "solver": "Gradient Descent",
+            "time_ms": 22.6421,
+            "r2": 0.9988,
+            "iterations": 469
+          },
+          {
+            "solver": "Normal Equation",
+            "time_ms": 0.8188,
+            "r2": 0.9989,
+            "iterations": 0
+          },
+          {
+            "solver": "SVD",
+            "time_ms": 1.6984,
+            "r2": 0.9989,
+            "iterations": 0
+          }
+        ],
+        "regularization": [
+          {
+            "lambda": 0.0,
+            "time_ms": 294.0521,
+            "r2": 0.9997,
+            "iterations": 547
+          },
+          {
+            "lambda": 0.001,
+            "time_ms": 264.661,
+            "r2": 0.9997,
+            "iterations": 547
+          },
+          {
+            "lambda": 0.01,
+            "time_ms": 219.4669,
+            "r2": 0.9997,
+            "iterations": 547
+          },
+          {
+            "lambda": 0.1,
+            "time_ms": 276.0603,
+            "r2": 0.9997,
+            "iterations": 547
+          },
+          {
+            "lambda": 1.0,
+            "time_ms": 232.7608,
+            "r2": 0.9997,
+            "iterations": 547
+          }
+        ]
+      },
+      "logistic": {
+        "sample_scaling": [
+          {
+            "samples": 100,
+            "time_ms": 1.2536,
+            "accuracy": 0.95,
+            "iters": 1000
+          },
+          {
+            "samples": 1000,
+            "time_ms": 51.0925,
+            "accuracy": 0.93,
+            "iters": 1000
+          },
+          {
+            "samples": 10000,
+            "time_ms": 920.3141,
+            "accuracy": 0.955,
+            "iters": 1000
+          },
+          {
+            "samples": 50000,
+            "time_ms": 3709.2549,
+            "accuracy": 0.9503,
+            "iters": 1000
+          },
+          {
+            "samples": 100000,
+            "time_ms": 7160.7788,
+            "accuracy": 0.9472,
+            "iters": 1000
+          }
+        ],
+        "feature_scaling": [
+          {
+            "features": 5,
+            "time_ms": 367.293,
+            "accuracy": 0.904,
+            "iters": 1000
+          },
+          {
+            "features": 10,
+            "time_ms": 420.1212,
+            "accuracy": 0.955,
+            "iters": 1000
+          },
+          {
+            "features": 50,
+            "time_ms": 790.0068,
+            "accuracy": 0.9645,
+            "iters": 1000
+          },
+          {
+            "features": 100,
+            "time_ms": 2061.2396,
+            "accuracy": 0.9655,
+            "iters": 1000
+          },
+          {
+            "features": 500,
+            "time_ms": 13315.6518,
+            "accuracy": 0.9315,
+            "iters": 1000
+          }
+        ],
+        "regularization": [
+          {
+            "lambda": 0.0,
+            "time_ms": 1131.5542,
+            "accuracy": 0.9645,
+            "iters": 1000
+          },
+          {
+            "lambda": 0.001,
+            "time_ms": 1325.6388,
+            "accuracy": 0.9645,
+            "iters": 1000
+          },
+          {
+            "lambda": 0.01,
+            "time_ms": 1141.1386,
+            "accuracy": 0.9645,
+            "iters": 1000
+          },
+          {
+            "lambda": 0.1,
+            "time_ms": 1277.9837,
+            "accuracy": 0.9645,
+            "iters": 1000
+          },
+          {
+            "lambda": 1.0,
+            "time_ms": 1157.3893,
+            "accuracy": 0.9645,
+            "iters": 1000
+          }
+        ]
+      },
+      "neural": {
+        "sample_scaling": [
+          {
+            "samples": 100,
+            "time_ms": 4.8997,
+            "accuracy": 0.9,
+            "loss": 0.0008,
+            "baseline": 0.5
+          },
+          {
+            "samples": 500,
+            "time_ms": 56.2177,
+            "accuracy": 0.82,
+            "loss": 0.0005,
+            "baseline": 0.5
+          },
+          {
+            "samples": 1000,
+            "time_ms": 94.7869,
+            "accuracy": 0.865,
+            "loss": 0.0005,
+            "baseline": 0.515
+          },
+          {
+            "samples": 5000,
+            "time_ms": 540.4874,
+            "accuracy": 0.886,
+            "loss": 0.0783,
+            "baseline": 0.504
+          },
+          {
+            "samples": 10000,
+            "time_ms": 1305.4351,
+            "accuracy": 0.875,
+            "loss": 0.1449,
+            "baseline": 0.513
+          }
+        ],
+        "feature_scaling": [
+          {
+            "features": 5,
+            "time_ms": 1359.4424,
+            "accuracy": 0.876,
+            "loss": 0.1588,
+            "baseline": 0.504
+          },
+          {
+            "features": 10,
+            "time_ms": 1007.4637,
+            "accuracy": 0.864,
+            "loss": 0.04,
+            "baseline": 0.504
+          },
+          {
+            "features": 20,
+            "time_ms": 1204.0678,
+            "accuracy": 0.829,
+            "loss": 0.0845,
+            "baseline": 0.509
+          },
+          {
+            "features": 50,
+            "time_ms": 1816.2384,
+            "accuracy": 0.845,
+            "loss": 0.0936,
+            "baseline": 0.503
+          },
+          {
+            "features": 100,
+            "time_ms": 2872.4243,
+            "accuracy": 0.828,
+            "loss": 0.0051,
+            "baseline": 0.524
+          }
+        ],
+        "neuron_scaling": [
+          {
+            "arch": "10->16->1",
+            "time_ms": 68.272,
+            "accuracy": 0.901,
+            "params": 193,
+            "baseline": 0.504
+          },
+          {
+            "arch": "10->32->1",
+            "time_ms": 116.4502,
+            "accuracy": 0.899,
+            "params": 385,
+            "baseline": 0.504
+          },
+          {
+            "arch": "10->64->1",
+            "time_ms": 440.1993,
+            "accuracy": 0.904,
+            "params": 769,
+            "baseline": 0.504
+          },
+          {
+            "arch": "10->128->1",
+            "time_ms": 688.8984,
+            "accuracy": 0.899,
+            "params": 1537,
+            "baseline": 0.504
+          },
+          {
+            "arch": "10->256->1",
+            "time_ms": 1524.8333,
+            "accuracy": 0.895,
+            "params": 3073,
+            "baseline": 0.504
+          }
+        ],
+        "optimizers": [
+          {
+            "optimizer": "SGD",
+            "time_ms": 374.672,
+            "accuracy": 0.896,
+            "loss": 0.2543,
+            "baseline": 0.504
+          },
+          {
+            "optimizer": "Momentum",
+            "time_ms": 365.6558,
+            "accuracy": 0.893,
+            "loss": 0.1993,
+            "baseline": 0.504
+          },
+          {
+            "optimizer": "Adam",
+            "time_ms": 350.4919,
+            "accuracy": 0.902,
+            "loss": 0.1633,
+            "baseline": 0.504
+          },
+          {
+            "optimizer": "RMSprop",
+            "time_ms": 535.6618,
+            "accuracy": 0.893,
+            "loss": 0.1672,
+            "baseline": 0.504
+          },
+          {
+            "optimizer": "Adagrad",
+            "time_ms": 422.5965,
+            "accuracy": 0.906,
+            "loss": 0.2553,
+            "baseline": 0.504
+          }
+        ],
+        "regularizers": [
+          {
+            "regularizer": "None",
+            "time_ms": 400.612,
+            "accuracy": 0.902,
+            "loss": 0.1633,
+            "baseline": 0.504
+          },
+          {
+            "regularizer": "L1",
+            "time_ms": 479.2449,
+            "accuracy": 0.905,
+            "loss": 0.2589,
+            "baseline": 0.504
+          },
+          {
+            "regularizer": "L2",
+            "time_ms": 387.1946,
+            "accuracy": 0.901,
+            "loss": 0.234,
+            "baseline": 0.504
+          },
+          {
+            "regularizer": "ElasticNet",
+            "time_ms": 377.38,
+            "accuracy": 0.907,
+            "loss": 0.2521,
+            "baseline": 0.504
+          }
+        ]
+      },
+      "sequences": {
+        "recurrent": [
+          {
+            "type": "SimpleRNN",
+            "time_ms": 26.52682,
+            "test_mse": 0.03529,
+            "baseline_mse": 0.152086
+          },
+          {
+            "type": "LSTM",
+            "time_ms": 169.683888,
+            "test_mse": 0.012483,
+            "baseline_mse": 0.152086
+          },
+          {
+            "type": "GRU",
+            "time_ms": 113.38854,
+            "test_mse": 0.009999,
+            "baseline_mse": 0.152086
+          }
+        ],
+        "checkpoint": [
+          {
+            "operation": "Save",
+            "time_ms": 0.035256,
+            "bytes": 15763
+          },
+          {
+            "operation": "Load",
+            "time_ms": 16.610617,
+            "bytes": 15763
+          }
+        ]
+      }
+    }
+  ],
+  "summary": {
+    "linear": {
+      "sample_scaling": [
+        {
+          "samples": 100,
+          "time_ms": 0.1494,
+          "r2": 0.9968,
+          "iterations": 550,
+          "min_ms": 0.1381,
+          "max_ms": 0.162
+        },
+        {
+          "samples": 1000,
+          "time_ms": 1.0015,
+          "r2": 0.9985,
+          "iterations": 477,
+          "min_ms": 0.9383,
+          "max_ms": 1.1219
+        },
+        {
+          "samples": 10000,
+          "time_ms": 56.1567,
+          "r2": 0.9988,
+          "iterations": 469,
+          "min_ms": 53.415,
+          "max_ms": 77.9776
+        },
+        {
+          "samples": 100000,
+          "time_ms": 1251.7489,
+          "r2": 0.9988,
+          "iterations": 459,
+          "min_ms": 1187.4353,
+          "max_ms": 1418.9591
+        },
+        {
+          "samples": 500000,
+          "time_ms": 7230.5726,
+          "r2": 0.9988,
+          "iterations": 458,
+          "min_ms": 7134.1618,
+          "max_ms": 7500.7658
+        }
+      ],
+      "feature_scaling": [
+        {
+          "features": 5,
+          "time_ms": 5.8662,
+          "r2": 0.9967,
+          "iterations": 416,
+          "min_ms": 5.8109,
+          "max_ms": 5.9305
+        },
+        {
+          "features": 10,
+          "time_ms": 25.8971,
+          "r2": 0.9988,
+          "iterations": 469,
+          "min_ms": 12.975,
+          "max_ms": 26.3827
+        },
+        {
+          "features": 50,
+          "time_ms": 255.6613,
+          "r2": 0.9997,
+          "iterations": 547,
+          "min_ms": 233.8975,
+          "max_ms": 332.9868
+        },
+        {
+          "features": 100,
+          "time_ms": 751.4573,
+          "r2": 0.9999,
+          "iterations": 593,
+          "min_ms": 644.2286,
+          "max_ms": 761.0635
+        },
+        {
+          "features": 500,
+          "time_ms": 8116.651,
+          "r2": 1.0,
+          "iterations": 836,
+          "min_ms": 7752.9862,
+          "max_ms": 8124.8017
+        }
+      ],
+      "solvers": [
+        {
+          "solver": "Gradient Descent",
+          "time_ms": 22.6421,
+          "r2": 0.9988,
+          "iterations": 469,
+          "min_ms": 17.3095,
+          "max_ms": 24.8629
+        },
+        {
+          "solver": "Normal Equation",
+          "time_ms": 1.5943,
+          "r2": 0.9989,
+          "iterations": 0,
+          "min_ms": 0.8188,
+          "max_ms": 3.9505
+        },
+        {
+          "solver": "SVD",
+          "time_ms": 2.3766,
+          "r2": 0.9989,
+          "iterations": 0,
+          "min_ms": 1.6984,
+          "max_ms": 13.6698
+        }
+      ],
+      "regularization": [
+        {
+          "lambda": 0.0,
+          "time_ms": 276.5054,
+          "r2": 0.9997,
+          "iterations": 547,
+          "min_ms": 253.975,
+          "max_ms": 294.0521
+        },
+        {
+          "lambda": 0.001,
+          "time_ms": 258.3309,
+          "r2": 0.9997,
+          "iterations": 547,
+          "min_ms": 251.9472,
+          "max_ms": 264.661
+        },
+        {
+          "lambda": 0.01,
+          "time_ms": 249.6663,
+          "r2": 0.9997,
+          "iterations": 547,
+          "min_ms": 219.4669,
+          "max_ms": 253.1594
+        },
+        {
+          "lambda": 0.1,
+          "time_ms": 276.0603,
+          "r2": 0.9997,
+          "iterations": 547,
+          "min_ms": 243.8251,
+          "max_ms": 280.0986
+        },
+        {
+          "lambda": 1.0,
+          "time_ms": 232.7608,
+          "r2": 0.9997,
+          "iterations": 547,
+          "min_ms": 221.0564,
+          "max_ms": 262.0851
+        }
+      ]
+    },
+    "logistic": {
+      "sample_scaling": [
+        {
+          "samples": 100,
+          "time_ms": 1.2577,
+          "accuracy": 0.95,
+          "iters": 1000,
+          "min_ms": 1.2536,
+          "max_ms": 1.2725
+        },
+        {
+          "samples": 1000,
+          "time_ms": 36.9249,
+          "accuracy": 0.93,
+          "iters": 1000,
+          "min_ms": 22.2923,
+          "max_ms": 51.0925
+        },
+        {
+          "samples": 10000,
+          "time_ms": 828.13,
+          "accuracy": 0.955,
+          "iters": 1000,
+          "min_ms": 825.1801,
+          "max_ms": 920.3141
+        },
+        {
+          "samples": 50000,
+          "time_ms": 4228.2236,
+          "accuracy": 0.9503,
+          "iters": 1000,
+          "min_ms": 3709.2549,
+          "max_ms": 4517.1187
+        },
+        {
+          "samples": 100000,
+          "time_ms": 8588.4876,
+          "accuracy": 0.9472,
+          "iters": 1000,
+          "min_ms": 7160.7788,
+          "max_ms": 8678.375
+        }
+      ],
+      "feature_scaling": [
+        {
+          "features": 5,
+          "time_ms": 469.3043,
+          "accuracy": 0.904,
+          "iters": 1000,
+          "min_ms": 367.293,
+          "max_ms": 494.3912
+        },
+        {
+          "features": 10,
+          "time_ms": 527.1572,
+          "accuracy": 0.955,
+          "iters": 1000,
+          "min_ms": 420.1212,
+          "max_ms": 711.3587
+        },
+        {
+          "features": 50,
+          "time_ms": 1102.1811,
+          "accuracy": 0.9645,
+          "iters": 1000,
+          "min_ms": 790.0068,
+          "max_ms": 2144.0389
+        },
+        {
+          "features": 100,
+          "time_ms": 2098.9677,
+          "accuracy": 0.9655,
+          "iters": 1000,
+          "min_ms": 2061.2396,
+          "max_ms": 2283.5966
+        },
+        {
+          "features": 500,
+          "time_ms": 13350.7578,
+          "accuracy": 0.9315,
+          "iters": 1000,
+          "min_ms": 13315.6518,
+          "max_ms": 14198.3958
+        }
+      ],
+      "regularization": [
+        {
+          "lambda": 0.0,
+          "time_ms": 1105.5586,
+          "accuracy": 0.9645,
+          "iters": 1000,
+          "min_ms": 1064.3529,
+          "max_ms": 1131.5542
+        },
+        {
+          "lambda": 0.001,
+          "time_ms": 1159.6883,
+          "accuracy": 0.9645,
+          "iters": 1000,
+          "min_ms": 1110.9815,
+          "max_ms": 1325.6388
+        },
+        {
+          "lambda": 0.01,
+          "time_ms": 1103.5936,
+          "accuracy": 0.9645,
+          "iters": 1000,
+          "min_ms": 1058.7162,
+          "max_ms": 1141.1386
+        },
+        {
+          "lambda": 0.1,
+          "time_ms": 1218.5259,
+          "accuracy": 0.9645,
+          "iters": 1000,
+          "min_ms": 1021.3493,
+          "max_ms": 1277.9837
+        },
+        {
+          "lambda": 1.0,
+          "time_ms": 1113.398,
+          "accuracy": 0.9645,
+          "iters": 1000,
+          "min_ms": 1077.8135,
+          "max_ms": 1157.3893
+        }
+      ]
+    },
+    "neural": {
+      "sample_scaling": [
+        {
+          "samples": 100,
+          "time_ms": 4.8997,
+          "accuracy": 0.9,
+          "loss": 0.0008,
+          "baseline": 0.5,
+          "min_ms": 3.795,
+          "max_ms": 8.5675
+        },
+        {
+          "samples": 500,
+          "time_ms": 44.2494,
+          "accuracy": 0.82,
+          "loss": 0.0005,
+          "baseline": 0.5,
+          "min_ms": 43.8828,
+          "max_ms": 56.2177
+        },
+        {
+          "samples": 1000,
+          "time_ms": 94.7869,
+          "accuracy": 0.865,
+          "loss": 0.0005,
+          "baseline": 0.515,
+          "min_ms": 84.2684,
+          "max_ms": 134.4401
+        },
+        {
+          "samples": 5000,
+          "time_ms": 609.2345,
+          "accuracy": 0.886,
+          "loss": 0.0783,
+          "baseline": 0.504,
+          "min_ms": 540.4874,
+          "max_ms": 778.4535
+        },
+        {
+          "samples": 10000,
+          "time_ms": 1305.4351,
+          "accuracy": 0.875,
+          "loss": 0.1449,
+          "baseline": 0.513,
+          "min_ms": 1260.8826,
+          "max_ms": 1313.4976
+        }
+      ],
+      "feature_scaling": [
+        {
+          "features": 5,
+          "time_ms": 1162.2286,
+          "accuracy": 0.876,
+          "loss": 0.1588,
+          "baseline": 0.504,
+          "min_ms": 1123.2569,
+          "max_ms": 1359.4424
+        },
+        {
+          "features": 10,
+          "time_ms": 1021.2917,
+          "accuracy": 0.864,
+          "loss": 0.04,
+          "baseline": 0.504,
+          "min_ms": 1007.4637,
+          "max_ms": 1103.7991
+        },
+        {
+          "features": 20,
+          "time_ms": 1201.0385,
+          "accuracy": 0.829,
+          "loss": 0.0845,
+          "baseline": 0.509,
+          "min_ms": 1180.2015,
+          "max_ms": 1204.0678
+        },
+        {
+          "features": 50,
+          "time_ms": 1791.5429,
+          "accuracy": 0.845,
+          "loss": 0.0936,
+          "baseline": 0.503,
+          "min_ms": 1760.1303,
+          "max_ms": 1816.2384
+        },
+        {
+          "features": 100,
+          "time_ms": 2872.4243,
+          "accuracy": 0.828,
+          "loss": 0.0051,
+          "baseline": 0.524,
+          "min_ms": 2375.8572,
+          "max_ms": 2959.6241
+        }
+      ],
+      "neuron_scaling": [
+        {
+          "arch": "10->16->1",
+          "time_ms": 68.272,
+          "accuracy": 0.901,
+          "params": 193,
+          "baseline": 0.504,
+          "min_ms": 61.4484,
+          "max_ms": 75.6141
+        },
+        {
+          "arch": "10->32->1",
+          "time_ms": 116.4502,
+          "accuracy": 0.899,
+          "params": 385,
+          "baseline": 0.504,
+          "min_ms": 101.4697,
+          "max_ms": 152.4018
+        },
+        {
+          "arch": "10->64->1",
+          "time_ms": 214.2856,
+          "accuracy": 0.904,
+          "params": 769,
+          "baseline": 0.504,
+          "min_ms": 156.4295,
+          "max_ms": 440.1993
+        },
+        {
+          "arch": "10->128->1",
+          "time_ms": 347.2308,
+          "accuracy": 0.899,
+          "params": 1537,
+          "baseline": 0.504,
+          "min_ms": 331.7048,
+          "max_ms": 688.8984
+        },
+        {
+          "arch": "10->256->1",
+          "time_ms": 873.3722,
+          "accuracy": 0.895,
+          "params": 3073,
+          "baseline": 0.504,
+          "min_ms": 745.8372,
+          "max_ms": 1524.8333
+        }
+      ],
+      "optimizers": [
+        {
+          "optimizer": "SGD",
+          "time_ms": 240.6736,
+          "accuracy": 0.896,
+          "loss": 0.2543,
+          "baseline": 0.504,
+          "min_ms": 174.1831,
+          "max_ms": 374.672
+        },
+        {
+          "optimizer": "Momentum",
+          "time_ms": 229.6926,
+          "accuracy": 0.893,
+          "loss": 0.1993,
+          "baseline": 0.504,
+          "min_ms": 194.4172,
+          "max_ms": 365.6558
+        },
+        {
+          "optimizer": "Adam",
+          "time_ms": 259.5472,
+          "accuracy": 0.902,
+          "loss": 0.1633,
+          "baseline": 0.504,
+          "min_ms": 238.4163,
+          "max_ms": 350.4919
+        },
+        {
+          "optimizer": "RMSprop",
+          "time_ms": 237.9651,
+          "accuracy": 0.893,
+          "loss": 0.1672,
+          "baseline": 0.504,
+          "min_ms": 231.1881,
+          "max_ms": 535.6618
+        },
+        {
+          "optimizer": "Adagrad",
+          "time_ms": 306.6251,
+          "accuracy": 0.906,
+          "loss": 0.2553,
+          "baseline": 0.504,
+          "min_ms": 267.5005,
+          "max_ms": 422.5965
+        }
+      ],
+      "regularizers": [
+        {
+          "regularizer": "None",
+          "time_ms": 283.8266,
+          "accuracy": 0.902,
+          "loss": 0.1633,
+          "baseline": 0.504,
+          "min_ms": 227.5943,
+          "max_ms": 400.612
+        },
+        {
+          "regularizer": "L1",
+          "time_ms": 367.1407,
+          "accuracy": 0.905,
+          "loss": 0.2589,
+          "baseline": 0.504,
+          "min_ms": 328.3048,
+          "max_ms": 479.2449
+        },
+        {
+          "regularizer": "L2",
+          "time_ms": 333.6666,
+          "accuracy": 0.901,
+          "loss": 0.234,
+          "baseline": 0.504,
+          "min_ms": 254.7578,
+          "max_ms": 387.1946
+        },
+        {
+          "regularizer": "ElasticNet",
+          "time_ms": 301.1914,
+          "accuracy": 0.907,
+          "loss": 0.2521,
+          "baseline": 0.504,
+          "min_ms": 288.4129,
+          "max_ms": 377.38
+        }
+      ]
+    },
+    "sequences": {
+      "recurrent": [
+        {
+          "type": "SimpleRNN",
+          "time_ms": 26.52682,
+          "test_mse": 0.03529,
+          "baseline_mse": 0.152086,
+          "min_ms": 24.943188,
+          "max_ms": 39.785563
+        },
+        {
+          "type": "LSTM",
+          "time_ms": 166.148927,
+          "test_mse": 0.012483,
+          "baseline_mse": 0.152086,
+          "min_ms": 139.598734,
+          "max_ms": 169.683888
+        },
+        {
+          "type": "GRU",
+          "time_ms": 63.586393,
+          "test_mse": 0.009999,
+          "baseline_mse": 0.152086,
+          "min_ms": 54.130289,
+          "max_ms": 113.38854
+        }
+      ],
+      "checkpoint": [
+        {
+          "operation": "Save",
+          "time_ms": 0.035256,
+          "bytes": 15763,
+          "min_ms": 0.035083,
+          "max_ms": 0.03826
+        },
+        {
+          "operation": "Load",
+          "time_ms": 16.610617,
+          "bytes": 15763,
+          "min_ms": 7.7095,
+          "max_ms": 22.308732
+        }
+      ]
+    }
+  }
+}

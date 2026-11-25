@@ -1,7 +1,12 @@
 {
   "module": "ml_core",
-  "version": "3.0.0",
+  "version": "4.0.0",
   "exports": {
+    "ADAGRAD": {
+      "kind": "value",
+      "type": "OptimizerType",
+      "value": "<OptimizerType.ADAGRAD: 4>"
+    },
     "ADAM": {
       "kind": "value",
       "type": "OptimizerType",
@@ -16,6 +21,60 @@
       "kind": "value",
       "type": "PoolType",
       "value": "<PoolType.AVG: 1>"
+    },
+    "AdagradOptimizer": {
+      "kind": "class",
+      "doc": "",
+      "members": {
+        "clone": {
+          "kind": "callable",
+          "doc": "clone(self: ml_core.AdagradOptimizer) -> ml_core.Optimizer"
+        },
+        "get_current_learning_rate": {
+          "kind": "callable",
+          "doc": "get_current_learning_rate(self: ml_core.Optimizer) -> float"
+        },
+        "get_decay": {
+          "kind": "callable",
+          "doc": "get_decay(self: ml_core.Optimizer) -> float"
+        },
+        "get_iterations": {
+          "kind": "callable",
+          "doc": "get_iterations(self: ml_core.Optimizer) -> int"
+        },
+        "get_learning_rate": {
+          "kind": "callable",
+          "doc": "get_learning_rate(self: ml_core.Optimizer) -> float"
+        },
+        "get_type": {
+          "kind": "callable",
+          "doc": "get_type(self: ml_core.Optimizer) -> ml_core.OptimizerType"
+        },
+        "get_type_str": {
+          "kind": "callable",
+          "doc": "get_type_str(self: ml_core.Optimizer) -> str"
+        },
+        "reset": {
+          "kind": "callable",
+          "doc": "reset(self: ml_core.AdagradOptimizer) -> None"
+        },
+        "set_decay": {
+          "kind": "callable",
+          "doc": "set_decay(self: ml_core.Optimizer, decay: typing.SupportsFloat) -> None"
+        },
+        "set_learning_rate": {
+          "kind": "callable",
+          "doc": "set_learning_rate(self: ml_core.Optimizer, lr: typing.SupportsFloat) -> None"
+        },
+        "update_bias": {
+          "kind": "callable",
+          "doc": "update_bias(self: ml_core.AdagradOptimizer, bias: typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, 1]\", \"flags.writeable\"], gradient: typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, 1]\"]) -> None"
+        },
+        "update_weights": {
+          "kind": "callable",
+          "doc": "update_weights(self: ml_core.AdagradOptimizer, weights: typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, n]\", \"flags.writeable\", \"flags.f_contiguous\"], gradient: typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, n]\", \"flags.f_contiguous\"]) -> None"
+        }
+      }
     },
     "AdamOptimizer": {
       "kind": "class",
@@ -520,7 +579,7 @@
       "members": {
         "fit": {
           "kind": "callable",
-          "doc": "fit(self: ml_core.Estimator, X: Eigen::Matrix<double, -1, -1, 0, -1, -1>, y: Eigen::Matrix<double, -1, 1, 0, -1, 1>) -> None"
+          "doc": "fit(self: ml_core.Estimator, X: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, n]\"], y: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, 1]\"]) -> None"
         },
         "get_learning_rate": {
           "kind": "callable",
@@ -536,7 +595,7 @@
         },
         "predict": {
           "kind": "callable",
-          "doc": "predict(self: ml_core.Estimator, X: Eigen::Matrix<double, -1, -1, 0, -1, -1>) -> Eigen::Matrix<double, -1, 1, 0, -1, 1>"
+          "doc": "predict(self: ml_core.Estimator, X: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, n]\"]) -> typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, 1]\"]"
         },
         "save": {
           "kind": "callable",
@@ -544,7 +603,7 @@
         },
         "score": {
           "kind": "callable",
-          "doc": "score(self: ml_core.Estimator, X: Eigen::Matrix<double, -1, -1, 0, -1, -1>, y: Eigen::Matrix<double, -1, 1, 0, -1, 1>) -> float"
+          "doc": "score(self: ml_core.Estimator, X: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, n]\"], y: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, 1]\"]) -> float"
         },
         "set_learning_rate": {
           "kind": "callable",
@@ -659,7 +718,7 @@
       "members": {
         "backward": {
           "kind": "callable",
-          "doc": "backward(self: ml_core.GRULayer, gradient: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, n]\"]) -> typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, n]\"]"
+          "doc": "backward(self: ml_core.GRULayer, gradient: typing.Annotated[numpy.typing.ArrayLike, numpy.float64]) -> object"
         },
         "clear_cache": {
           "kind": "callable",
@@ -667,7 +726,7 @@
         },
         "forward": {
           "kind": "callable",
-          "doc": "forward(self: ml_core.GRULayer, input: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, n]\"], training: bool = False) -> typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, n]\"]"
+          "doc": "forward(self: ml_core.GRULayer, input: typing.Annotated[numpy.typing.ArrayLike, numpy.float64], training: bool = False) -> object"
         },
         "get_bias_gradient": {
           "kind": "callable",
@@ -701,6 +760,10 @@
           "kind": "callable",
           "doc": "get_parameter_count(self: ml_core.Layer) -> int"
         },
+        "get_return_sequences": {
+          "kind": "callable",
+          "doc": "get_return_sequences(self: ml_core.GRULayer) -> bool"
+        },
         "get_type": {
           "kind": "callable",
           "doc": "get_type(self: ml_core.GRULayer) -> str"
@@ -727,15 +790,19 @@
         },
         "set_biases": {
           "kind": "callable",
-          "doc": "set_biases(self: ml_core.GRULayer, biases: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, 1]\"]) -> None"
+          "doc": "set_biases(self: ml_core.GRULayer, biases: typing.Annotated[numpy.typing.ArrayLike, numpy.float64]) -> None"
         },
         "set_input_shape": {
           "kind": "callable",
           "doc": "set_input_shape(self: ml_core.GRULayer, input_size: typing.SupportsInt) -> None"
         },
+        "set_return_sequences": {
+          "kind": "callable",
+          "doc": "set_return_sequences(self: ml_core.GRULayer, arg0: bool) -> None"
+        },
         "set_weights": {
           "kind": "callable",
-          "doc": "set_weights(self: ml_core.GRULayer, weights: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, n]\"]) -> None"
+          "doc": "set_weights(self: ml_core.GRULayer, weights: typing.Annotated[numpy.typing.ArrayLike, numpy.float64]) -> None"
         }
       }
     },
@@ -874,7 +941,7 @@
       "members": {
         "backward": {
           "kind": "callable",
-          "doc": "backward(self: ml_core.LSTMLayer, gradient: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, n]\"]) -> typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, n]\"]"
+          "doc": "backward(self: ml_core.LSTMLayer, gradient: typing.Annotated[numpy.typing.ArrayLike, numpy.float64]) -> object"
         },
         "clear_cache": {
           "kind": "callable",
@@ -882,7 +949,7 @@
         },
         "forward": {
           "kind": "callable",
-          "doc": "forward(self: ml_core.LSTMLayer, input: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, n]\"], training: bool = False) -> typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, n]\"]"
+          "doc": "forward(self: ml_core.LSTMLayer, input: typing.Annotated[numpy.typing.ArrayLike, numpy.float64], training: bool = False) -> object"
         },
         "get_bias_gradient": {
           "kind": "callable",
@@ -920,6 +987,10 @@
           "kind": "callable",
           "doc": "get_parameter_count(self: ml_core.Layer) -> int"
         },
+        "get_return_sequences": {
+          "kind": "callable",
+          "doc": "get_return_sequences(self: ml_core.LSTMLayer) -> bool"
+        },
         "get_type": {
           "kind": "callable",
           "doc": "get_type(self: ml_core.LSTMLayer) -> str"
@@ -946,15 +1017,19 @@
         },
         "set_biases": {
           "kind": "callable",
-          "doc": "set_biases(self: ml_core.LSTMLayer, biases: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, 1]\"]) -> None"
+          "doc": "set_biases(self: ml_core.LSTMLayer, biases: typing.Annotated[numpy.typing.ArrayLike, numpy.float64]) -> None"
         },
         "set_input_shape": {
           "kind": "callable",
           "doc": "set_input_shape(self: ml_core.LSTMLayer, input_size: typing.SupportsInt) -> None"
         },
+        "set_return_sequences": {
+          "kind": "callable",
+          "doc": "set_return_sequences(self: ml_core.LSTMLayer, arg0: bool) -> None"
+        },
         "set_weights": {
           "kind": "callable",
-          "doc": "set_weights(self: ml_core.LSTMLayer, weights: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, n]\"]) -> None"
+          "doc": "set_weights(self: ml_core.LSTMLayer, weights: typing.Annotated[numpy.typing.ArrayLike, numpy.float64]) -> None"
         }
       }
     },
@@ -1899,22 +1974,32 @@
     },
     "OptimizerType": {
       "kind": "class",
-      "doc": "Members:\n\nSGD\n\nMOMENTUM\n\nADAM",
+      "doc": "Members:\n\nSGD\n\nMOMENTUM\n\nADAM\n\nRMSPROP\n\nADAGRAD",
       "members": {
+        "ADAGRAD": {
+          "kind": "attribute",
+          "type": "OptimizerType",
+          "doc": "Members:\n\nSGD\n\nMOMENTUM\n\nADAM\n\nRMSPROP\n\nADAGRAD"
+        },
         "ADAM": {
           "kind": "attribute",
           "type": "OptimizerType",
-          "doc": "Members:\n\nSGD\n\nMOMENTUM\n\nADAM"
+          "doc": "Members:\n\nSGD\n\nMOMENTUM\n\nADAM\n\nRMSPROP\n\nADAGRAD"
         },
         "MOMENTUM": {
           "kind": "attribute",
           "type": "OptimizerType",
-          "doc": "Members:\n\nSGD\n\nMOMENTUM\n\nADAM"
+          "doc": "Members:\n\nSGD\n\nMOMENTUM\n\nADAM\n\nRMSPROP\n\nADAGRAD"
+        },
+        "RMSPROP": {
+          "kind": "attribute",
+          "type": "OptimizerType",
+          "doc": "Members:\n\nSGD\n\nMOMENTUM\n\nADAM\n\nRMSPROP\n\nADAGRAD"
         },
         "SGD": {
           "kind": "attribute",
           "type": "OptimizerType",
-          "doc": "Members:\n\nSGD\n\nMOMENTUM\n\nADAM"
+          "doc": "Members:\n\nSGD\n\nMOMENTUM\n\nADAM\n\nRMSPROP\n\nADAGRAD"
         },
         "name": {
           "kind": "property",
@@ -1928,7 +2013,9 @@
       "enum_values": [
         "SGD",
         "MOMENTUM",
-        "ADAM"
+        "ADAM",
+        "RMSPROP",
+        "ADAGRAD"
       ]
     },
     "PoolType": {
@@ -2034,6 +2121,65 @@
         "set_weights": {
           "kind": "callable",
           "doc": "set_weights(self: ml_core.Layer, weights: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, n]\"]) -> None"
+        }
+      }
+    },
+    "RMSPROP": {
+      "kind": "value",
+      "type": "OptimizerType",
+      "value": "<OptimizerType.RMSPROP: 3>"
+    },
+    "RMSpropOptimizer": {
+      "kind": "class",
+      "doc": "",
+      "members": {
+        "clone": {
+          "kind": "callable",
+          "doc": "clone(self: ml_core.RMSpropOptimizer) -> ml_core.Optimizer"
+        },
+        "get_current_learning_rate": {
+          "kind": "callable",
+          "doc": "get_current_learning_rate(self: ml_core.Optimizer) -> float"
+        },
+        "get_decay": {
+          "kind": "callable",
+          "doc": "get_decay(self: ml_core.Optimizer) -> float"
+        },
+        "get_iterations": {
+          "kind": "callable",
+          "doc": "get_iterations(self: ml_core.Optimizer) -> int"
+        },
+        "get_learning_rate": {
+          "kind": "callable",
+          "doc": "get_learning_rate(self: ml_core.Optimizer) -> float"
+        },
+        "get_type": {
+          "kind": "callable",
+          "doc": "get_type(self: ml_core.Optimizer) -> ml_core.OptimizerType"
+        },
+        "get_type_str": {
+          "kind": "callable",
+          "doc": "get_type_str(self: ml_core.Optimizer) -> str"
+        },
+        "reset": {
+          "kind": "callable",
+          "doc": "reset(self: ml_core.RMSpropOptimizer) -> None"
+        },
+        "set_decay": {
+          "kind": "callable",
+          "doc": "set_decay(self: ml_core.Optimizer, decay: typing.SupportsFloat) -> None"
+        },
+        "set_learning_rate": {
+          "kind": "callable",
+          "doc": "set_learning_rate(self: ml_core.Optimizer, lr: typing.SupportsFloat) -> None"
+        },
+        "update_bias": {
+          "kind": "callable",
+          "doc": "update_bias(self: ml_core.RMSpropOptimizer, bias: typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, 1]\", \"flags.writeable\"], gradient: typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, 1]\"]) -> None"
+        },
+        "update_weights": {
+          "kind": "callable",
+          "doc": "update_weights(self: ml_core.RMSpropOptimizer, weights: typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, n]\", \"flags.writeable\", \"flags.f_contiguous\"], gradient: typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, n]\", \"flags.f_contiguous\"]) -> None"
         }
       }
     },
@@ -2280,7 +2426,7 @@
       "members": {
         "backward": {
           "kind": "callable",
-          "doc": "backward(self: ml_core.SimpleRNNLayer, gradient: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, n]\"]) -> typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, n]\"]"
+          "doc": "backward(self: ml_core.SimpleRNNLayer, gradient: typing.Annotated[numpy.typing.ArrayLike, numpy.float64]) -> object"
         },
         "clear_cache": {
           "kind": "callable",
@@ -2288,7 +2434,7 @@
         },
         "forward": {
           "kind": "callable",
-          "doc": "forward(self: ml_core.SimpleRNNLayer, input: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, n]\"], training: bool = False) -> typing.Annotated[numpy.typing.NDArray[numpy.float64], \"[m, n]\"]"
+          "doc": "forward(self: ml_core.SimpleRNNLayer, input: typing.Annotated[numpy.typing.ArrayLike, numpy.float64], training: bool = False) -> object"
         },
         "get_bias_gradient": {
           "kind": "callable",
@@ -2322,6 +2468,10 @@
           "kind": "callable",
           "doc": "get_parameter_count(self: ml_core.Layer) -> int"
         },
+        "get_return_sequences": {
+          "kind": "callable",
+          "doc": "get_return_sequences(self: ml_core.SimpleRNNLayer) -> bool"
+        },
         "get_type": {
           "kind": "callable",
           "doc": "get_type(self: ml_core.SimpleRNNLayer) -> str"
@@ -2348,15 +2498,19 @@
         },
         "set_biases": {
           "kind": "callable",
-          "doc": "set_biases(self: ml_core.SimpleRNNLayer, biases: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, 1]\"]) -> None"
+          "doc": "set_biases(self: ml_core.SimpleRNNLayer, biases: typing.Annotated[numpy.typing.ArrayLike, numpy.float64]) -> None"
         },
         "set_input_shape": {
           "kind": "callable",
           "doc": "set_input_shape(self: ml_core.SimpleRNNLayer, input_size: typing.SupportsInt) -> None"
         },
+        "set_return_sequences": {
+          "kind": "callable",
+          "doc": "set_return_sequences(self: ml_core.SimpleRNNLayer, arg0: bool) -> None"
+        },
         "set_weights": {
           "kind": "callable",
-          "doc": "set_weights(self: ml_core.SimpleRNNLayer, weights: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, \"[m, n]\"]) -> None"
+          "doc": "set_weights(self: ml_core.SimpleRNNLayer, weights: typing.Annotated[numpy.typing.ArrayLike, numpy.float64]) -> None"
         }
       }
     },

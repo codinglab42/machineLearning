@@ -42,7 +42,7 @@ void benchmark_sample_scaling() {
     std::cout << std::string(60, '=') << std::endl;
     std::cout << std::left << std::setw(15) << "Campioni" 
               << std::setw(15) << "Tempo(ms)" 
-              << std::setw(15) << "R²" << std::endl;
+              << std::setw(15) << "R²" << std::setw(15) << "Iterazioni" << std::endl;
     std::cout << std::string(60, '-') << std::endl;
     
     std::vector<int> sample_sizes = {100, 1000, 10000, 100000, 500000};
@@ -55,19 +55,20 @@ void benchmark_sample_scaling() {
         
         auto splits = MathUtils::train_test_split(X, y, 0.2, 42);
         
-        auto start = high_resolution_clock::now();
+        auto start = steady_clock::now();
         
         LinearRegression model(0.01, 1000, 0.0, LinearRegression::GRADIENT_DESCENT);
         model.fit(splits[0].first, splits[0].second);
         
-        auto end = high_resolution_clock::now();
-        auto duration = duration_cast<milliseconds>(end - start);
+        auto end = steady_clock::now();
+        auto duration = std::chrono::duration<double, std::milli>(end - start);
         
         double score = model.score(splits[1].first, splits[1].second);
         
         std::cout << std::left << std::setw(15) << n_samples 
                   << std::setw(15) << duration.count() 
-                  << std::setw(15) << std::fixed << std::setprecision(4) << score << std::endl;
+                  << std::setw(15) << std::fixed << std::setprecision(4) << score
+                  << std::setw(15) << model.cost_history().size() << std::endl;
     }
 }
 
@@ -78,7 +79,7 @@ void benchmark_feature_scaling() {
     std::cout << std::string(60, '=') << std::endl;
     std::cout << std::left << std::setw(15) << "Features" 
               << std::setw(15) << "Tempo(ms)" 
-              << std::setw(15) << "R²" << std::endl;
+              << std::setw(15) << "R²" << std::setw(15) << "Iterazioni" << std::endl;
     std::cout << std::string(60, '-') << std::endl;
     
     std::vector<int> feature_sizes = {5, 10, 50, 100, 500};
@@ -91,19 +92,20 @@ void benchmark_feature_scaling() {
         
         auto splits = MathUtils::train_test_split(X, y, 0.2, 42);
         
-        auto start = high_resolution_clock::now();
+        auto start = steady_clock::now();
         
         LinearRegression model(0.01, 1000, 0.0, LinearRegression::GRADIENT_DESCENT);
         model.fit(splits[0].first, splits[0].second);
         
-        auto end = high_resolution_clock::now();
-        auto duration = duration_cast<milliseconds>(end - start);
+        auto end = steady_clock::now();
+        auto duration = std::chrono::duration<double, std::milli>(end - start);
         
         double score = model.score(splits[1].first, splits[1].second);
         
         std::cout << std::left << std::setw(15) << n_features 
                   << std::setw(15) << duration.count() 
-                  << std::setw(15) << std::fixed << std::setprecision(4) << score << std::endl;
+                  << std::setw(15) << std::fixed << std::setprecision(4) << score
+                  << std::setw(15) << model.cost_history().size() << std::endl;
     }
 }
 
@@ -114,7 +116,7 @@ void benchmark_solver_comparison() {
     std::cout << std::string(60, '=') << std::endl;
     std::cout << std::left << std::setw(20) << "Solver" 
               << std::setw(15) << "Tempo(ms)" 
-              << std::setw(15) << "R²" << std::endl;
+              << std::setw(15) << "R²" << std::setw(15) << "Iterazioni" << std::endl;
     std::cout << std::string(60, '-') << std::endl;
     
     int n_samples = 10000;
@@ -128,41 +130,44 @@ void benchmark_solver_comparison() {
     
     // Gradient Descent
     {
-        auto start = high_resolution_clock::now();
+        auto start = steady_clock::now();
         LinearRegression model(0.01, 1000, 0.0, LinearRegression::GRADIENT_DESCENT);
         model.fit(splits[0].first, splits[0].second);
-        auto end = high_resolution_clock::now();
-        auto duration = duration_cast<milliseconds>(end - start);
+        auto end = steady_clock::now();
+        auto duration = std::chrono::duration<double, std::milli>(end - start);
         double score = model.score(splits[1].first, splits[1].second);
         std::cout << std::left << std::setw(20) << "Gradient Descent" 
                   << std::setw(15) << duration.count() 
-                  << std::setw(15) << std::fixed << std::setprecision(4) << score << std::endl;
+                  << std::setw(15) << std::fixed << std::setprecision(4) << score
+                  << std::setw(15) << model.cost_history().size() << std::endl;
     }
     
     // Normal Equation
     {
-        auto start = high_resolution_clock::now();
+        auto start = steady_clock::now();
         LinearRegression model(0.01, 1000, 0.0, LinearRegression::NORMAL_EQUATION);
         model.fit(splits[0].first, splits[0].second);
-        auto end = high_resolution_clock::now();
-        auto duration = duration_cast<milliseconds>(end - start);
+        auto end = steady_clock::now();
+        auto duration = std::chrono::duration<double, std::milli>(end - start);
         double score = model.score(splits[1].first, splits[1].second);
         std::cout << std::left << std::setw(20) << "Normal Equation" 
                   << std::setw(15) << duration.count() 
-                  << std::setw(15) << std::fixed << std::setprecision(4) << score << std::endl;
+                  << std::setw(15) << std::fixed << std::setprecision(4) << score
+                  << std::setw(15) << model.cost_history().size() << std::endl;
     }
     
     // SVD
     {
-        auto start = high_resolution_clock::now();
+        auto start = steady_clock::now();
         LinearRegression model(0.01, 1000, 0.0, LinearRegression::SVD);
         model.fit(splits[0].first, splits[0].second);
-        auto end = high_resolution_clock::now();
-        auto duration = duration_cast<milliseconds>(end - start);
+        auto end = steady_clock::now();
+        auto duration = std::chrono::duration<double, std::milli>(end - start);
         double score = model.score(splits[1].first, splits[1].second);
         std::cout << std::left << std::setw(20) << "SVD" 
                   << std::setw(15) << duration.count() 
-                  << std::setw(15) << std::fixed << std::setprecision(4) << score << std::endl;
+                  << std::setw(15) << std::fixed << std::setprecision(4) << score
+                  << std::setw(15) << model.cost_history().size() << std::endl;
     }
 }
 
@@ -173,7 +178,7 @@ void benchmark_regularization() {
     std::cout << std::string(60, '=') << std::endl;
     std::cout << std::left << std::setw(15) << "Lambda" 
               << std::setw(15) << "Tempo(ms)" 
-              << std::setw(15) << "R²" << std::endl;
+              << std::setw(15) << "R²" << std::setw(15) << "Iterazioni" << std::endl;
     std::cout << std::string(60, '-') << std::endl;
     
     int n_samples = 10000;
@@ -188,23 +193,25 @@ void benchmark_regularization() {
     std::vector<double> lambdas = {0.0, 0.001, 0.01, 0.1, 1.0};
     
     for (double lambda : lambdas) {
-        auto start = high_resolution_clock::now();
+        auto start = steady_clock::now();
         
         LinearRegression model(0.01, 1000, lambda, LinearRegression::GRADIENT_DESCENT);
         model.fit(splits[0].first, splits[0].second);
         
-        auto end = high_resolution_clock::now();
-        auto duration = duration_cast<milliseconds>(end - start);
+        auto end = steady_clock::now();
+        auto duration = std::chrono::duration<double, std::milli>(end - start);
         
         double score = model.score(splits[1].first, splits[1].second);
         
         std::cout << std::left << std::setw(15) << lambda 
                   << std::setw(15) << duration.count() 
-                  << std::setw(15) << std::fixed << std::setprecision(4) << score << std::endl;
+                  << std::setw(15) << std::fixed << std::setprecision(4) << score
+                  << std::setw(15) << model.cost_history().size() << std::endl;
     }
 }
 
 int main() {
+    std::cout << std::fixed << std::setprecision(4);
     std::cout << "\n";
     std::cout << "================================================" << std::endl;
     std::cout << "      BENCHMARK LINEAR REGRESSION - v1.0        " << std::endl;

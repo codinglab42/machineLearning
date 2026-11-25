@@ -59,13 +59,13 @@ void benchmark_logistic_sample_scaling() {
         
         auto splits = MathUtils::train_test_split(X, y, 0.2, 42);
         
-        auto start = high_resolution_clock::now();
+        auto start = steady_clock::now();
         
         LogisticRegression model(0.01, 1000, 0.001, 1e-4, false);
         model.fit(splits[0].first, splits[0].second);
         
-        auto end = high_resolution_clock::now();
-        auto duration = duration_cast<milliseconds>(end - start);
+        auto end = steady_clock::now();
+        auto duration = std::chrono::duration<double, std::milli>(end - start);
         
         double accuracy = model.score(splits[1].first, splits[1].second);
         int iterations = model.get_n_iter();  // <-- CAMBIATO QUI
@@ -97,13 +97,13 @@ void benchmark_logistic_feature_scaling() {
         
         auto splits = MathUtils::train_test_split(X, y, 0.2, 42);
         
-        auto start = high_resolution_clock::now();
+        auto start = steady_clock::now();
         
         LogisticRegression model(0.01, 1000, 0.001, 1e-4, false);
         model.fit(splits[0].first, splits[0].second);
         
-        auto end = high_resolution_clock::now();
-        auto duration = duration_cast<milliseconds>(end - start);
+        auto end = steady_clock::now();
+        auto duration = std::chrono::duration<double, std::milli>(end - start);
         
         double accuracy = model.score(splits[1].first, splits[1].second);
         int iterations = model.get_n_iter();  // <-- CAMBIATO QUI
@@ -137,13 +137,13 @@ void benchmark_logistic_regularization() {
     std::vector<double> lambdas = {0.0, 0.001, 0.01, 0.1, 1.0};
     
     for (double lambda : lambdas) {
-        auto start = high_resolution_clock::now();
+        auto start = steady_clock::now();
         
         LogisticRegression model(0.01, 1000, lambda, 1e-4, false);
         model.fit(splits[0].first, splits[0].second);
         
-        auto end = high_resolution_clock::now();
-        auto duration = duration_cast<milliseconds>(end - start);
+        auto end = steady_clock::now();
+        auto duration = std::chrono::duration<double, std::milli>(end - start);
         
         double accuracy = model.score(splits[1].first, splits[1].second);
         int iterations = model.get_n_iter();  // <-- CAMBIATO QUI
@@ -156,6 +156,7 @@ void benchmark_logistic_regularization() {
 }
 
 int main() {
+    std::cout << std::fixed << std::setprecision(4);
     std::cout << "\n";
     std::cout << "================================================" << std::endl;
     std::cout << "     BENCHMARK LOGISTIC REGRESSION - v1.0       " << std::endl;

@@ -1,11 +1,12 @@
 cmake_minimum_required(VERSION 3.15)
-project(ML_Library VERSION 3.0.0 LANGUAGES CXX)
+project(ML_Library VERSION 4.0.0 LANGUAGES CXX)
 
 # ============================================================================
 # OPZIONI DI CONFIGURAZIONE
 # ============================================================================
 option(BUILD_PYTHON_BINDINGS "Costruisci i binding Python" ON)
 option(BUILD_TESTS "Costruisci i test C++" ON)
+option(BUILD_BENCHMARKS "Costruisci i benchmark di performance" OFF)
 option(BUILD_EXAMPLES "Costruisci esempi" ON)
 option(USE_OPENMP "Usa OpenMP per parallelizzazione" OFF)
 option(VERBOSE_OUTPUT "Output verboso di configurazione" ON)
@@ -157,6 +158,11 @@ if(BUILD_TESTS)
     endif()
     enable_testing()
     add_subdirectory(tests)
+endif()
+
+if(BUILD_BENCHMARKS)
+    enable_testing()
+    add_subdirectory(tests/performance)
 endif()
 
 # Esempi
