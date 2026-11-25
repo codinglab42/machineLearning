@@ -1,6 +1,7 @@
 #include <random>
 #include <memory>
 #include <Eigen/Dense>
+#include <cstdint>
 #include "components/layers/dropout_layer.h"
 #include "exceptions/exception_macros.h"
 #include <sstream>
@@ -73,13 +74,46 @@ void DropoutLayer::serialize(std::ostream& out) const {
     out << get_config() << std::endl;
     out.write(reinterpret_cast<const char*>(&rate_), sizeof(double));
     out.write(reinterpret_cast<const char*>(&input_size_), sizeof(int));
+    std::ostringstream state;
+    state << rng_;
+    const std::string serialized_state = state.str();
+    const std::uint64_t state_size = serialized_state.size();
+    out.write(reinterpret_cast<const char*>(&state_size), sizeof(state_size));
+    out.write(serialized_state.data(), static_cast<std::streamsize>(serialized_state.size()));
 }
 
 void DropoutLayer::deserialize(std::istream& in) {
+    deserialize_versioned(in, 0);
+}
+
+void DropoutLayer::deserialize_versioned(std::istream& in, uint32_t version) {
+    if (version > get_version()) {
+        ML_THROW_DESERIALIZATION_ERROR("Unsupported DropoutLayer version", "DropoutLayer");
+    }
     std::string config;
     std::getline(in, config);
     in.read(reinterpret_cast<char*>(&rate_), sizeof(double));
     in.read(reinterpret_cast<char*>(&input_size_), sizeof(int));
+    if (!in || rate_ < 0.0 || rate_ >= 1.0 || input_size_ < 0) {
+        ML_THROW_DESERIALIZATION_ERROR("Invalid DropoutLayer data", "DropoutLayer");
+    }
+    if (version >= 2 || (version == 0 && in.peek() != std::char_traits<char>::eof())) {
+        std::uint64_t state_size = 0;
+        in.read(reinterpret_cast<char*>(&state_size), sizeof(state_size));
+        if (!in || state_size == 0 || state_size > 16384) {
+            ML_THROW_DESERIALIZATION_ERROR("Invalid DropoutLayer RNG state size", "DropoutLayer");
+        }
+        std::string serialized_state(static_cast<std::size_t>(state_size), '\0');
+        if (!in.read(serialized_state.data(), static_cast<std::streamsize>(state_size))) {
+            ML_THROW_DESERIALIZATION_ERROR("Truncated DropoutLayer RNG state", "DropoutLayer");
+        }
+        std::istringstream state(serialized_state);
+        if (!(state >> rng_)) {
+            ML_THROW_DESERIALIZATION_ERROR("Invalid DropoutLayer RNG state", "DropoutLayer");
+        }
+    } else {
+        rng_.seed(42);
+    }
     scale_ = 1.0 / (1.0 - rate_);
     cache_ = std::make_shared<DropoutCache>();
 }
@@ -95,8 +129,10 @@ void DropoutLayer::set_input_shape(int input_size) {
 }
 
 void DropoutLayer::initialize_weights() {
-    // Dropout non ha pesi da inizializzare
-    // Implementazione vuota
+}
+
+void DropoutLayer::initialize_weights(std::mt19937& rng) {
+    rng_.seed(rng());
 }
 
 } // namespace layers

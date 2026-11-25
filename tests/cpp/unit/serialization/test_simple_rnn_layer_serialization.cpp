@@ -30,11 +30,12 @@ protected:
 };
 
 TEST_F(SimpleRNNLayerSerializationTest, SaveAndLoad) {
-    MatrixXd original_output = layer->forward(input, true);
+    layer->forward(input, true);
     
     std::ofstream ofs(filename, std::ios::binary);
     layer->serialize(ofs);
     ofs.close();
+    MatrixXd expected_next_output = layer->forward(input, true);
     
     SimpleRNNLayer loaded_layer(16, 8, "tanh", true);
     std::ifstream ifs(filename, std::ios::binary);
@@ -46,20 +47,21 @@ TEST_F(SimpleRNNLayerSerializationTest, SaveAndLoad) {
     EXPECT_TRUE(original_weights.isApprox(loaded_weights));
     
     MatrixXd loaded_output = loaded_layer.forward(input, true);
-    EXPECT_TRUE(original_output.isApprox(loaded_output, 1e-6));
+    EXPECT_TRUE(expected_next_output.isApprox(loaded_output, 1e-6));
 }
 
 TEST_F(SimpleRNNLayerSerializationTest, WithoutBias) {
     auto no_bias_layer = std::make_unique<SimpleRNNLayer>(16, 8, "tanh", false);
     no_bias_layer->set_input_shape(8);
-    MatrixXd original_output = no_bias_layer->forward(input, true);
+    no_bias_layer->forward(input, true);
     
     std::stringstream ss;
     no_bias_layer->serialize(ss);
+    MatrixXd expected_next_output = no_bias_layer->forward(input, true);
     
     SimpleRNNLayer loaded_layer(16, 8, "tanh", false);
     loaded_layer.deserialize(ss);
     
     MatrixXd loaded_output = loaded_layer.forward(input, true);
-    EXPECT_TRUE(original_output.isApprox(loaded_output, 1e-6));
+    EXPECT_TRUE(expected_next_output.isApprox(loaded_output, 1e-6));
 }

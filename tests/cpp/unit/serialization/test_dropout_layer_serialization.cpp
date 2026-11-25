@@ -52,12 +52,12 @@ TEST_F(DropoutLayerSerializationTest, SaveAndLoadInferenceMode) {
 }
 
 TEST_F(DropoutLayerSerializationTest, SaveAndLoadTrainingMode) {
-    // Training mode con seed fisso per riproducibilità
-    // Nota: Dropout è stocastico, quindi l'output può differire
+    layer->forward(input, true);
     
     std::ofstream ofs(filename, std::ios::binary);
     layer->serialize(ofs);
     ofs.close();
+    MatrixXd expected_output = layer->forward(input, true);
     
     DropoutLayer loaded_layer(0.3);
     std::ifstream ifs(filename, std::ios::binary);
@@ -67,16 +67,8 @@ TEST_F(DropoutLayerSerializationTest, SaveAndLoadTrainingMode) {
     // Verifica che la configurazione sia la stessa
     EXPECT_EQ(layer->get_rate(), loaded_layer.get_rate());
     
-    // In training mode, non possiamo aspettarci output identico
-    // ma possiamo verificare che entrambi producano output validi
-    MatrixXd original_output = layer->forward(input, true);
     MatrixXd loaded_output = loaded_layer.forward(input, true);
-    
-    EXPECT_EQ(original_output.rows(), loaded_output.rows());
-    EXPECT_EQ(original_output.cols(), loaded_output.cols());
-    
-    // Verifica che non ci siano NaN
-    EXPECT_FALSE(original_output.hasNaN());
+    EXPECT_TRUE(expected_output.isApprox(loaded_output, 1e-12));
     EXPECT_FALSE(loaded_output.hasNaN());
 }
 

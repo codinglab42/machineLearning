@@ -11,6 +11,7 @@
 #include <stdexcept>
 #include <sstream>
 #include <cstring>
+#include <cstdint>
 #include <limits>
 #include <cmath>
 
@@ -18,12 +19,44 @@ namespace models {
 
 namespace {
     constexpr int NETWORK_FORMAT_MARKER = -1296977744;
-    constexpr std::uint32_t NETWORK_FORMAT_VERSION = 3;
+    constexpr std::uint32_t NETWORK_FORMAT_VERSION = 4;
 
     template<typename T>
     void read_checked(std::istream& in, T& value) {
         if (!in.read(reinterpret_cast<char*>(&value), sizeof(value))) {
             ML_THROW_DESERIALIZATION_ERROR("Truncated network data", "NeuralNetwork");
+        }
+    }
+
+    void write_rng_state(std::ostream& out, const std::mt19937& rng) {
+        std::ostringstream state;
+        state << rng;
+        const std::string serialized_state = state.str();
+        const std::uint64_t state_size = serialized_state.size();
+        utils::write_scalar(out, state_size);
+        out.write(serialized_state.data(), static_cast<std::streamsize>(serialized_state.size()));
+        if (!out) {
+            ML_THROW_SERIALIZATION_ERROR("Failed to write random generator state", "NeuralNetwork");
+        }
+    }
+
+    void read_rng_state(std::istream& in, std::mt19937& rng) {
+        std::uint64_t state_size = 0;
+        read_checked(in, state_size);
+        if (state_size == 0 || state_size > 16384) {
+            ML_THROW_DESERIALIZATION_ERROR("Invalid random generator state size", "NeuralNetwork");
+        }
+        std::string serialized_state(static_cast<std::size_t>(state_size), '\0');
+        if (!in.read(serialized_state.data(), static_cast<std::streamsize>(state_size))) {
+            ML_THROW_DESERIALIZATION_ERROR("Truncated random generator state", "NeuralNetwork");
+        }
+        std::istringstream state(serialized_state);
+        if (!(state >> rng)) {
+            ML_THROW_DESERIALIZATION_ERROR("Invalid random generator state", "NeuralNetwork");
+        }
+        state >> std::ws;
+        if (!state.eof()) {
+            ML_THROW_DESERIALIZATION_ERROR("Invalid random generator state", "NeuralNetwork");
         }
     }
 
@@ -294,6 +327,7 @@ namespace {
         layers_.push_back(std::move(layer));
         forward_cache_.resize(layers_.size());
         layer_optimizers_.clear();
+        fitted_ = false;
     }
 
     void NeuralNetwork::add_layer(LayerType type,
@@ -479,6 +513,9 @@ namespace {
         ML_CHECK_PARAM(batch_size > 0, "batch_size", "must be > 0", "NeuralNetwork");
 
         verbose_    = verbose;
+        if (fitted_ && X.cols() != n_features_) {
+            ML_THROW_PARAMETER_ERROR("X", "feature count differs from the fitted network", "NeuralNetwork");
+        }
         n_features_ = X.cols();
         determine_problem_type(y);
 
@@ -486,7 +523,9 @@ namespace {
             add_dense_layer(1, n_classes_ == 2 ? "sigmoid" : "linear");
         }
 
-        build(n_features_, n_classes_);
+        if (!fitted_) {
+            build(n_features_, n_classes_);
+        }
         initialize_optimizer_states();
 
         int n_samples = X.rows();
@@ -561,6 +600,9 @@ namespace {
         ML_CHECK_PARAM(batch_size > 0, "batch_size", "must be > 0", "NeuralNetwork");
 
         verbose_    = verbose;
+        if (fitted_ && X.cols() != n_features_) {
+            ML_THROW_PARAMETER_ERROR("X", "feature count differs from the fitted network", "NeuralNetwork");
+        }
         n_features_ = X.cols();
         n_classes_  = y.cols();  // ← FONDAMENTALE!
 
@@ -1140,6 +1182,7 @@ namespace {
         if (regularizer_) {
             regularizer_->serialize(out);
         }
+        write_rng_state(out, rng_);
         if (!out) {
             ML_THROW_SERIALIZATION_ERROR("Failed to write network", "NeuralNetwork");
         }
@@ -1147,6 +1190,7 @@ namespace {
 
     void NeuralNetwork::deserialize_binary(std::istream& in) {
         layer_optimizers_.clear();
+        rng_.seed(42);
         read_checked(in, n_features_);
         const bool versioned = n_features_ == NETWORK_FORMAT_MARKER;
         std::uint32_t version = 0;
@@ -1250,6 +1294,9 @@ namespace {
                     regularizer = RegularizerFactory::create(type, strength);
                 }
             }
+        }
+        if (version >= 4) {
+            read_rng_state(in, rng_);
         }
         optimizer_ = std::move(optimizer);
         layer_optimizers_ = std::move(layer_optimizers);

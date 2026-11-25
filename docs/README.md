@@ -204,8 +204,10 @@ network.set_loss_function("binary_crossentropy")
 network.set_epochs(500)
 network.fit(X, y)
 ```
-The optional `seed` parameter defaults to `42` and controls dense-layer weight
-initialization and the network's training shuffle.
+The optional `seed` parameter defaults to `42` and controls network layer
+initialization, Dropout masks, and the training shuffle. New network saves
+preserve the random-generator and recurrent states so training can continue
+reproducibly after loading in the same build environment.
 ## Examples
 ### Example 1: Iris Classification with Logistic Regression
 ```python

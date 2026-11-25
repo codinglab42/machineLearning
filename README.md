@@ -157,15 +157,15 @@ auto predictions = nn.predict(X_test);
 For neural networks, optimizer state is maintained separately for each trainable
 layer. `set_optimizer` resets that state; `set_learning_rate` updates the rate
 without resetting it. `build`, `reset`, and changing the layer list also reset
-optimizer state. A subsequent matrix-target `fit` continues training an already
-fitted network, while the vector-target overload rebuilds it. New network saves
-preserve the optimizer type and per-layer state in a versioned format; they
-require an updated library to load. New files use network format version 3 and
-preserve recurrent `return_sequences` settings. Older network files can still
-be loaded: unversioned files resume with fresh SGD, while version 1 retains
-optimizer state and version 2 also retains regularization settings.
-Random generator and recurrent hidden states are not restored, so resumed
-training is not necessarily identical to uninterrupted training.
+optimizer state. A subsequent `fit` continues training an already fitted
+network for both vector and matrix targets. New network saves preserve the
+optimizer type and per-layer state in a versioned format; they require an
+updated library to load. New files use network format version 4 and preserve
+recurrent `return_sequences` settings, network and Dropout random-generator
+states, and recurrent hidden/cell states. This allows training to continue
+reproducibly after loading in the same build environment. Older network files
+can still be loaded: unversioned files resume with fresh SGD, while versions 1
+through 3 retain the state supported by their respective formats.
 For an older standalone GRU payload written without a layer-version header,
 call `GRULayer::deserialize_versioned(stream, 1)`; network and versioned layer
 files select the correct GRU reader automatically.

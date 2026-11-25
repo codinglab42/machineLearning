@@ -30,11 +30,12 @@ protected:
 };
 
 TEST_F(GRULayerSerializationTest, SaveAndLoad) {
-    MatrixXd original_output = layer->forward(input, true);
+    layer->forward(input, true);
     
     std::ofstream ofs(filename, std::ios::binary);
     layer->serialize(ofs);
     ofs.close();
+    MatrixXd expected_next_output = layer->forward(input, true);
     
     GRULayer loaded_layer(16, 8, "tanh", "sigmoid", true);
     std::ifstream ifs(filename, std::ios::binary);
@@ -46,5 +47,5 @@ TEST_F(GRULayerSerializationTest, SaveAndLoad) {
     EXPECT_TRUE(original_weights.isApprox(loaded_weights));
     
     MatrixXd loaded_output = loaded_layer.forward(input, true);
-    EXPECT_TRUE(original_output.isApprox(loaded_output, 1e-6));
+    EXPECT_TRUE(expected_next_output.isApprox(loaded_output, 1e-6));
 }

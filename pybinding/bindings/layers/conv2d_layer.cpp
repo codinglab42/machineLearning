@@ -31,6 +31,8 @@ void bind_conv2d_layer(py::module_& m) {
         .def("get_parameter_count", &layers::Conv2DLayer::get_parameter_count)
         .def("has_weights", &layers::Conv2DLayer::has_weights)
         .def("get_use_bias", &layers::Conv2DLayer::get_use_bias)
-        .def("initialize_weights", &layers::Conv2DLayer::initialize_weights)
+        .def("initialize_weights", [](layers::Conv2DLayer& layer) {
+            layer.initialize_weights();
+        })
         .def("__repr__", &layers::Conv2DLayer::get_config);
 }

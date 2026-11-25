@@ -1,6 +1,10 @@
 // tests/cpp/unit/models/test_neural_network_model.cpp
 #include <gtest/gtest.h>
 #include <Eigen/Dense>
+#include <cstdint>
+#include <memory>
+#include <vector>
+#include "components/layers/dropout_layer.h"
 #include "models/neural_network.h"
 
 using namespace models;
@@ -94,6 +98,75 @@ TEST_F(NeuralNetworkModelTest, DenseInitializationUsesConfiguredSeed) {
     }
     EXPECT_GT((first.get_layers()[0]->get_weights() -
                different_seed.get_layers()[0]->get_weights()).norm(), 0.0);
+}
+
+TEST_F(NeuralNetworkModelTest, SeedControlsConvolutionalRecurrentAndDropoutLayers) {
+    auto make_convolutional_network = [](std::uint32_t seed) {
+        auto network = std::make_unique<NeuralNetwork>(
+            std::vector<int>{36, 1}, "linear", "linear", OptimizerType::SGD, 0.01,
+            RegularizerType::NONE, 0.01, seed);
+        network->reset();
+        network->add_conv2d_layer(1, 3, 1, "valid", "relu");
+        network->add_dropout_layer(0.5);
+        network->build(36, 1);
+        return network;
+    };
+    auto make_recurrent_network = [](std::uint32_t seed) {
+        auto network = std::make_unique<NeuralNetwork>(
+            std::vector<int>{16, 1}, "linear", "linear", OptimizerType::SGD, 0.01,
+            RegularizerType::NONE, 0.01, seed);
+        network->reset();
+        network->add_recurrent_layer(RecurrentType::SIMPLE_RNN, 2);
+        network->add_recurrent_layer(RecurrentType::LSTM, 2);
+        network->add_recurrent_layer(RecurrentType::GRU, 2);
+        network->add_dropout_layer(0.5);
+        network->add_dense_layer(1, "linear");
+        network->build(16, 1);
+        return network;
+    };
+
+    auto check_seed = [](auto make_network, int features, std::size_t dropout_index) {
+        auto first = make_network(42);
+        auto same_seed = make_network(42);
+        auto different_seed = make_network(43);
+        ASSERT_EQ(first->get_layers().size(), same_seed->get_layers().size());
+        ASSERT_EQ(first->get_layers().size(), different_seed->get_layers().size());
+        for (std::size_t i = 0; i < first->get_layers().size(); ++i) {
+            EXPECT_EQ((first->get_layers()[i]->get_weights() -
+                       same_seed->get_layers()[i]->get_weights()).norm(), 0.0)
+                << "layer " << i;
+        }
+        EXPECT_GT((first->get_layers()[0]->get_weights() -
+                   different_seed->get_layers()[0]->get_weights()).norm(), 0.0);
+
+        Eigen::MatrixXd input = Eigen::MatrixXd::Constant(1, features, 0.25);
+        auto forward_training = [&input](const NeuralNetwork& network) {
+            Eigen::MatrixXd activation = input;
+            for (const auto& layer : network.get_layers()) {
+                activation = layer->forward(activation, true);
+            }
+            return activation;
+        };
+        EXPECT_EQ((forward_training(*first) - forward_training(*same_seed)).norm(), 0.0);
+
+        auto* first_dropout = dynamic_cast<layers::DropoutLayer*>(
+            first->get_layers()[dropout_index].get());
+        auto* same_seed_dropout = dynamic_cast<layers::DropoutLayer*>(
+            same_seed->get_layers()[dropout_index].get());
+        auto* different_seed_dropout = dynamic_cast<layers::DropoutLayer*>(
+            different_seed->get_layers()[dropout_index].get());
+        ASSERT_NE(first_dropout, nullptr);
+        ASSERT_NE(same_seed_dropout, nullptr);
+        ASSERT_NE(different_seed_dropout, nullptr);
+        const Eigen::MatrixXd dropout_input = Eigen::MatrixXd::Ones(32, 32);
+        const Eigen::MatrixXd first_mask = first_dropout->forward(dropout_input, true);
+        const Eigen::MatrixXd same_seed_mask = same_seed_dropout->forward(dropout_input, true);
+        const Eigen::MatrixXd different_seed_mask = different_seed_dropout->forward(dropout_input, true);
+        EXPECT_EQ((first_mask - same_seed_mask).norm(), 0.0);
+        EXPECT_GT((first_mask - different_seed_mask).norm(), 0.0);
+    };
+    check_seed(make_convolutional_network, 36, 1);
+    check_seed(make_recurrent_network, 16, 3);
 }
 
 TEST_F(NeuralNetworkModelTest, OptimizerStateIsIndependentForEachLayer) {

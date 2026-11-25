@@ -1,4 +1,5 @@
 #include <gtest/gtest.h>
+#include <cstdint>
 #include "components/layers/simple_rnn_layer.h"
 #include "components/layers/lstm_layer.h"
 #include "components/layers/gru_layer.h"
@@ -431,7 +432,10 @@ TEST(RecurrentIntegrationTest, LegacyGruLayerWithoutSequenceFlagCanBeLoaded) {
     std::ostringstream payload(std::ios::binary);
     layer.serialize(payload);
     std::string legacy = payload.str();
-    legacy.pop_back();
+    const auto hidden_state = layer.get_hidden_state();
+    legacy.resize(legacy.size() - 2 * sizeof(std::int32_t) -
+                  static_cast<std::size_t>(hidden_state.size()) * sizeof(double) -
+                  sizeof(std::int8_t));
     std::istringstream raw_legacy(legacy, std::ios::binary);
     layers::GRULayer raw_restored;
     raw_restored.deserialize_versioned(raw_legacy, 1);

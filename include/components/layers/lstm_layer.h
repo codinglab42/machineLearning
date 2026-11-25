@@ -27,6 +27,7 @@ public:
     // Gestione pesi
     bool has_weights() const override { return true; }
     void initialize_weights() override;
+    void initialize_weights(std::mt19937& rng) override;
     Eigen::MatrixXd get_weights() const override;
     void set_weights(const Eigen::MatrixXd& weights) override;
     const Eigen::MatrixXd& get_weights_gradient() const override { return weights_gradient_; }
@@ -53,7 +54,7 @@ public:
     std::string get_type() const override { return "LSTMLayer"; }
     LayerType get_layer_type() const override { return LayerType::LSTM; }
     std::string get_config() const override;
-    uint32_t get_version() const override { return 2; }
+    uint32_t get_version() const override { return 3; }
     
     // Dimensioni
     int get_input_size() const override { return input_size_; }
@@ -68,6 +69,7 @@ public:
     // Serializzazione
     void serialize(std::ostream& out) const override;
     void deserialize(std::istream& in) override;
+    void deserialize_versioned(std::istream& in, uint32_t version) override;
 
 private:
     Eigen::MatrixXd backward_step(const Eigen::MatrixXd& gradient,

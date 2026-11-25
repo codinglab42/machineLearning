@@ -109,12 +109,16 @@ void GRULayer::set_input_shape(int input_size) {
 // ============================================================================
 
 void GRULayer::initialize_weights() {
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    initialize_weights(gen);
+}
+
+void GRULayer::initialize_weights(std::mt19937& gen) {
     ML_CHECK_PARAM(input_size_ > 0, "input_size", "must be > 0", "GRULayer");
     ML_CHECK_PARAM(units_ > 0, "units", "must be > 0", "GRULayer");
     
     double scale = std::sqrt(2.0 / input_size_);
-    std::random_device rd;
-    std::mt19937 gen(rd());
     std::normal_distribution<double> dist(0.0, scale);
     
     auto init = [&](Eigen::MatrixXd& mat) {
@@ -478,6 +482,15 @@ void GRULayer::serialize(std::ostream& out) const {
 
     const int8_t return_sequences_flag = return_sequences_ ? 1 : 0;
     out.write(reinterpret_cast<const char*>(&return_sequences_flag), sizeof(return_sequences_flag));
+
+    const int32_t state_rows = static_cast<int32_t>(hidden_state_.rows());
+    const int32_t state_cols = static_cast<int32_t>(hidden_state_.cols());
+    out.write(reinterpret_cast<const char*>(&state_rows), sizeof(state_rows));
+    out.write(reinterpret_cast<const char*>(&state_cols), sizeof(state_cols));
+    if (state_rows > 0 && state_cols > 0) {
+        out.write(reinterpret_cast<const char*>(hidden_state_.data()),
+                  state_rows * state_cols * sizeof(double));
+    }
     
     if (!out.good()) {
         throw ml_exception::SerializationException("Failed to write GRULayer", "GRULayer");
@@ -485,11 +498,11 @@ void GRULayer::serialize(std::ostream& out) const {
 }
 
 void GRULayer::deserialize(std::istream& in) {
-    deserialize_versioned(in, get_version());
+    deserialize_versioned(in, 0);
 }
 
 void GRULayer::deserialize_versioned(std::istream& in, uint32_t version) {
-    if (version != 1 && version != 2) {
+    if (version > get_version()) {
         throw ml_exception::DeserializationException("Unsupported GRULayer version", "GRULayer");
     }
     int32_t in_size, u;
@@ -548,7 +561,7 @@ void GRULayer::deserialize_versioned(std::istream& in, uint32_t version) {
     }
 
     return_sequences_ = false;
-    if (version >= 2) {
+    if (version >= 2 || (version == 0 && in.peek() != std::char_traits<char>::eof())) {
         int8_t return_sequences_flag = 0;
         if (!in.read(reinterpret_cast<char*>(&return_sequences_flag), sizeof(return_sequences_flag)) ||
             (return_sequences_flag != 0 && return_sequences_flag != 1)) {
@@ -570,6 +583,21 @@ void GRULayer::deserialize_versioned(std::istream& in, uint32_t version) {
     // Inizializza stato
     hidden_state_.resize(1, units_);
     hidden_state_.setZero();
+    if (version >= 3 || (version == 0 && in.peek() != std::char_traits<char>::eof())) {
+        int32_t rows = 0;
+        int32_t cols = 0;
+        in.read(reinterpret_cast<char*>(&rows), sizeof(rows));
+        in.read(reinterpret_cast<char*>(&cols), sizeof(cols));
+        if (rows < 0 || cols < 0 || (rows == 0 ? cols != 0 : cols != units_)) {
+            throw ml_exception::DeserializationException("Invalid hidden state dimensions", "GRULayer");
+        }
+        hidden_state_.resize(rows, cols);
+        if (rows > 0 &&
+            !in.read(reinterpret_cast<char*>(hidden_state_.data()),
+                     static_cast<std::streamsize>(rows) * cols * sizeof(double))) {
+            throw ml_exception::DeserializationException("Truncated hidden state", "GRULayer");
+        }
+    }
     
     // Ricrea cache
     cache_ = std::make_shared<GRUCache>();

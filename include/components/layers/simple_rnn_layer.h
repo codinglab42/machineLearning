@@ -30,6 +30,7 @@ public:
     // ========================================================================
     bool has_weights() const override { return true; }
     void initialize_weights() override;
+    void initialize_weights(std::mt19937& rng) override;
     // Getter pesi
     Eigen::MatrixXd get_weights() const override;
     const Eigen::MatrixXd& get_weights_gradient() const override { return weights_gradient_; }
@@ -71,7 +72,7 @@ public:
     std::string get_type() const override { return "SimpleRNNLayer"; }
     LayerType get_layer_type() const override { return LayerType::SIMPLE_RNN; }
     std::string get_config() const override;
-    uint32_t get_version() const override { return 2; }
+    uint32_t get_version() const override { return 3; }
     
     // ========================================================================
     // DIMENSIONI
@@ -91,6 +92,7 @@ public:
     // ========================================================================
     void serialize(std::ostream& out) const override;
     void deserialize(std::istream& in) override;
+    void deserialize_versioned(std::istream& in, uint32_t version) override;
 
 private:
     Eigen::MatrixXd backward_step(const Eigen::MatrixXd& gradient,

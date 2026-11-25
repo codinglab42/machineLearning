@@ -110,7 +110,7 @@ TEST_F(NeuralNetworkFullArchitectureTest, VerifyAllLayerTypesSerialization) {
     in_check.read(reinterpret_cast<char*>(&marker), sizeof(marker));
     in_check.read(reinterpret_cast<char*>(&version), sizeof(version));
     ASSERT_LT(marker, 0);
-    ASSERT_EQ(version, 3u);
+    ASSERT_EQ(version, 4u);
     in_check.read(reinterpret_cast<char*>(&n_features), sizeof(int));
     in_check.read(reinterpret_cast<char*>(&n_classes), sizeof(int));
     in_check.read(reinterpret_cast<char*>(&lr), sizeof(double));

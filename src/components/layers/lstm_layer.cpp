@@ -123,12 +123,16 @@ void LSTMLayer::set_input_shape(int input_size) {
 // ============================================================================
 
 void LSTMLayer::initialize_weights() {
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    initialize_weights(gen);
+}
+
+void LSTMLayer::initialize_weights(std::mt19937& gen) {
     ML_CHECK_PARAM(input_size_ > 0, "input_size", "must be > 0", "LSTMLayer");
     ML_CHECK_PARAM(units_ > 0, "units", "must be > 0", "LSTMLayer");
     
     double scale = std::sqrt(2.0 / input_size_);
-    std::random_device rd;
-    std::mt19937 gen(rd());
     std::normal_distribution<double> dist(0.0, scale);
     
     auto init = [&](Eigen::MatrixXd& mat) {
@@ -593,6 +597,9 @@ void LSTMLayer::serialize(std::ostream& out) const {
         write_matrix(bias_c_);
         write_matrix(bias_o_);
     }
+
+    write_matrix(hidden_state_);
+    write_matrix(cell_state_);
     
     if (!out.good()) {
         throw ml_exception::SerializationException("Failed to write LSTMLayer", "LSTMLayer");
@@ -600,6 +607,13 @@ void LSTMLayer::serialize(std::ostream& out) const {
 }
 
 void LSTMLayer::deserialize(std::istream& in) {
+    deserialize_versioned(in, 0);
+}
+
+void LSTMLayer::deserialize_versioned(std::istream& in, uint32_t version) {
+    if (version > get_version()) {
+        throw ml_exception::DeserializationException("Unsupported LSTMLayer version", "LSTMLayer");
+    }
     // Leggi dimensioni
     int32_t in_size, u;
     in.read(reinterpret_cast<char*>(&in_size), sizeof(int32_t));
@@ -679,11 +693,30 @@ void LSTMLayer::deserialize(std::istream& in) {
         bias_gradient_.resize(0);
     }
     
-    // Inizializza stati
     hidden_state_.resize(1, units_);
     hidden_state_.setZero();
     cell_state_.resize(1, units_);
     cell_state_.setZero();
+    if (version >= 3 || (version == 0 && in.peek() != std::char_traits<char>::eof())) {
+        auto read_state = [&](Eigen::MatrixXd& state) {
+            int32_t rows = 0;
+            int32_t cols = 0;
+            in.read(reinterpret_cast<char*>(&rows), sizeof(rows));
+            in.read(reinterpret_cast<char*>(&cols), sizeof(cols));
+            if (rows < 0 || cols < 0 ||
+                (rows == 0 ? cols != 0 : cols != units_)) {
+                throw ml_exception::DeserializationException("Invalid recurrent state dimensions", "LSTMLayer");
+            }
+            state.resize(rows, cols);
+            if (rows > 0 &&
+                !in.read(reinterpret_cast<char*>(state.data()),
+                         static_cast<std::streamsize>(rows) * cols * sizeof(double))) {
+                throw ml_exception::DeserializationException("Truncated recurrent state", "LSTMLayer");
+            }
+        };
+        read_state(hidden_state_);
+        read_state(cell_state_);
+    }
     
     // Ricrea cache
     cache_ = std::make_shared<LSTMCache>();

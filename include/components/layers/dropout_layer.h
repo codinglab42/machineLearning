@@ -19,15 +19,17 @@ namespace layers {
         
         void serialize(std::ostream& out) const override;
         void deserialize(std::istream& in) override;
+        void deserialize_versioned(std::istream& in, uint32_t version) override;
         
         std::string get_type() const override { return "DropoutLayer"; }
         LayerType get_layer_type() const override { return LayerType::DROPOUT; }
         std::string get_config() const override;
-        uint32_t get_version() const override { return 1; }
+        uint32_t get_version() const override { return 2; }
         double get_rate() const { return rate_; }
         
         bool has_weights() const override { return false; }
         void initialize_weights() override;
+        void initialize_weights(std::mt19937& rng) override;
         Eigen::MatrixXd get_weights() const override { return Eigen::MatrixXd(); }
         void set_weights(const Eigen::MatrixXd& weights) override {}
         int get_parameter_count() const override { return 0; }

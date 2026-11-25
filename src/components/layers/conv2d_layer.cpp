@@ -105,12 +105,16 @@ void Conv2DLayer::set_input_shape(int input_size) {
 // ============================================================================
 
 void Conv2DLayer::initialize_weights() {
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    initialize_weights(gen);
+}
+
+void Conv2DLayer::initialize_weights(std::mt19937& gen) {
     ML_CHECK_PARAM(kernels_.rows() > 0 && kernels_.cols() > 0, 
                    "kernels", "not allocated. Call set_input_shape() first", "Conv2DLayer");
     
     double scale = std::sqrt(2.0 / kernel_elements_);
-    std::random_device rd;
-    std::mt19937 gen(rd());
     std::normal_distribution<double> dist(0.0, scale);
     
     for (int i = 0; i < kernels_.rows(); ++i) {

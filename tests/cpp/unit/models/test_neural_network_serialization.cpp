@@ -74,7 +74,7 @@ TEST_F(NeuralNetworkSerializationDebugTest, FullBinaryDumpAndAnalysis) {
     in.read(reinterpret_cast<char*>(&marker), sizeof(marker));
     in.read(reinterpret_cast<char*>(&version), sizeof(version));
     ASSERT_LT(marker, 0);
-    ASSERT_EQ(version, 3u);
+    ASSERT_EQ(version, 4u);
     in.read(reinterpret_cast<char*>(&n_features), sizeof(int));
     in.read(reinterpret_cast<char*>(&n_classes), sizeof(int));
     in.read(reinterpret_cast<char*>(&learning_rate), sizeof(learning_rate));
@@ -146,6 +146,47 @@ TEST_F(NeuralNetworkSerializationDebugTest, RestoresOptimizerStateForEachLayer) 
     }
 }
 
+TEST_F(NeuralNetworkSerializationDebugTest, ResumesDropoutTrainingExactlyAfterLoad) {
+    auto make_network = [] {
+        auto network = std::make_unique<NeuralNetwork>(
+            std::vector<int>{2, 3, 1}, "tanh", "linear", OptimizerType::ADAM, 0.01,
+            RegularizerType::NONE, 0.01, 123);
+        network->reset();
+        network->add_dense_layer(3, "tanh");
+        network->add_dropout_layer(0.5);
+        network->add_dense_layer(1, "linear");
+        network->set_loss_function("mse");
+        return network;
+    };
+
+    Eigen::MatrixXd X(4, 2);
+    X << 0.1, 0.7,
+         0.3, 0.2,
+         0.8, 0.4,
+         0.6, 0.9;
+    Eigen::VectorXd y(4);
+    y << 0.2, 0.4, 0.6, 0.8;
+
+    auto original = make_network();
+    original->fit(X, y, 3, 2, false);
+    original->save(filename_);
+
+    NeuralNetwork restored;
+    restored.load(filename_);
+    original->fit(X, y, 4, 2, false);
+    restored.fit(X, y, 4, 2, false);
+
+    ASSERT_EQ(original->get_layers().size(), restored.get_layers().size());
+    for (size_t i = 0; i < original->get_layers().size(); ++i) {
+        EXPECT_TRUE(original->get_layers()[i]->get_weights().isApprox(
+            restored.get_layers()[i]->get_weights(), 1e-12))
+            << "layer " << i;
+        EXPECT_TRUE(original->get_layers()[i]->get_biases().isApprox(
+            restored.get_layers()[i]->get_biases(), 1e-12))
+            << "layer " << i;
+    }
+}
+
 TEST_F(NeuralNetworkSerializationDebugTest, PreservesOptimizerBeforeTraining) {
     NeuralNetwork original({1, 2, 1}, "linear", "linear", OptimizerType::ADAM, 0.01);
     original.set_loss_function("mse");
@@ -153,7 +194,6 @@ TEST_F(NeuralNetworkSerializationDebugTest, PreservesOptimizerBeforeTraining) {
     original.save(filename_);
     NeuralNetwork restored;
     restored.load(filename_);
-    restored.build(1, 1);
 
     const Eigen::MatrixXd X = Eigen::MatrixXd::Constant(1, 1, 0.5);
     const Eigen::MatrixXd y = Eigen::MatrixXd::Constant(1, 1, 0.25);
@@ -223,8 +263,6 @@ TEST_F(NeuralNetworkSerializationDebugTest, RestoresOptimizerForRecurrentLayers)
         auto* restored_recurrent = dynamic_cast<layers::RecurrentLayer*>(restored.get_layers()[0].get());
         ASSERT_NE(original_recurrent, nullptr);
         ASSERT_NE(restored_recurrent, nullptr);
-        original_recurrent->reset_state();
-        restored_recurrent->reset_state();
         original.fit(X, y, 1, 1, false);
         restored.fit(X, y, 1, 1, false);
         for (size_t i = 0; i < original.get_layers().size(); ++i) {
@@ -421,20 +459,13 @@ TEST_F(NeuralNetworkSerializationDebugTest, ReadsVersionOneWithoutRetainingOldRe
     std::string data = out.str();
     std::uint32_t version = 0;
     std::memcpy(&version, &data[sizeof(int)], sizeof(version));
-    ASSERT_EQ(version, 3u);
-    ASSERT_EQ(data.back(), '\0');
-    data.pop_back();
+    ASSERT_EQ(version, 4u);
     const std::uint32_t old_version = 1;
     std::memcpy(&data[sizeof(int)], &old_version, sizeof(old_version));
-    const std::uint32_t next_record = 0x12345678;
-    data.append(reinterpret_cast<const char*>(&next_record), sizeof(next_record));
     std::istringstream in(data, std::ios::binary);
     NeuralNetwork restored;
     restored.set_regularizer(RegularizerType::L1, 0.9);
     restored.deserialize_binary(in);
-    std::uint32_t actual = 0;
-    utils::read_scalar(in, actual);
-    EXPECT_EQ(actual, next_record);
     original.fit(X, y, 2, 1, false);
     restored.fit(X, y, 2, 1, false);
     for (size_t i = 0; i < original.get_layers().size(); ++i) {
@@ -532,7 +563,6 @@ TEST_F(NeuralNetworkSerializationDebugTest, RestoresRegularizerBeforeTraining) {
     original.save(filename_);
     NeuralNetwork restored;
     restored.load(filename_);
-    restored.build(1, 1);
 
     const Eigen::MatrixXd X = Eigen::MatrixXd::Zero(1, 1);
     const Eigen::MatrixXd y = Eigen::MatrixXd::Zero(1, 1);

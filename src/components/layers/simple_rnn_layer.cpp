@@ -99,12 +99,16 @@ void SimpleRNNLayer::set_input_shape(int input_size) {
 // ============================================================================
 
 void SimpleRNNLayer::initialize_weights() {
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    initialize_weights(gen);
+}
+
+void SimpleRNNLayer::initialize_weights(std::mt19937& gen) {
     ML_CHECK_PARAM(input_size_ > 0, "input_size", "must be > 0", "SimpleRNNLayer");
     ML_CHECK_PARAM(units_ > 0, "units", "must be > 0", "SimpleRNNLayer");
     
     double scale = std::sqrt(2.0 / input_size_);
-    std::random_device rd;
-    std::mt19937 gen(rd());
     std::normal_distribution<double> dist(0.0, scale);
     
     for (int i = 0; i < kernel_.rows(); ++i) {
@@ -376,6 +380,14 @@ void SimpleRNNLayer::serialize(std::ostream& out) const {
         out.write(reinterpret_cast<const char*>(&cols), sizeof(int32_t));
         out.write(reinterpret_cast<const char*>(bias_.data()), rows * cols * sizeof(double));
     }
+
+    rows = static_cast<int32_t>(hidden_state_.rows());
+    cols = static_cast<int32_t>(hidden_state_.cols());
+    out.write(reinterpret_cast<const char*>(&rows), sizeof(int32_t));
+    out.write(reinterpret_cast<const char*>(&cols), sizeof(int32_t));
+    if (rows > 0 && cols > 0) {
+        out.write(reinterpret_cast<const char*>(hidden_state_.data()), rows * cols * sizeof(double));
+    }
     
     if (!out.good()) {
         throw ml_exception::SerializationException("Failed to write SimpleRNNLayer", "SimpleRNNLayer");
@@ -383,6 +395,13 @@ void SimpleRNNLayer::serialize(std::ostream& out) const {
 }
 
 void SimpleRNNLayer::deserialize(std::istream& in) {
+    deserialize_versioned(in, 0);
+}
+
+void SimpleRNNLayer::deserialize_versioned(std::istream& in, uint32_t version) {
+    if (version > get_version()) {
+        throw ml_exception::DeserializationException("Unsupported SimpleRNNLayer version", "SimpleRNNLayer");
+    }
     int32_t input_size, units;
     in.read(reinterpret_cast<char*>(&input_size), sizeof(int32_t));
     in.read(reinterpret_cast<char*>(&units), sizeof(int32_t));
@@ -461,6 +480,23 @@ void SimpleRNNLayer::deserialize(std::istream& in) {
             bias_ = loaded_bias.row(0);
         } else {
             throw ml_exception::DeserializationException("Bias dimensions mismatch", "SimpleRNNLayer");
+        }
+    }
+
+    if (version >= 3 || (version == 0 && in.peek() != std::char_traits<char>::eof())) {
+        int32_t state_rows = 0;
+        int32_t state_cols = 0;
+        in.read(reinterpret_cast<char*>(&state_rows), sizeof(state_rows));
+        in.read(reinterpret_cast<char*>(&state_cols), sizeof(state_cols));
+        if (state_rows < 0 || state_cols < 0 ||
+            (state_rows == 0 ? state_cols != 0 : state_cols != units_)) {
+            throw ml_exception::DeserializationException("Invalid hidden state dimensions", "SimpleRNNLayer");
+        }
+        hidden_state_.resize(state_rows, state_cols);
+        if (state_rows > 0 &&
+            !in.read(reinterpret_cast<char*>(hidden_state_.data()),
+                     static_cast<std::streamsize>(state_rows) * state_cols * sizeof(double))) {
+            throw ml_exception::DeserializationException("Truncated hidden state", "SimpleRNNLayer");
         }
     }
     
