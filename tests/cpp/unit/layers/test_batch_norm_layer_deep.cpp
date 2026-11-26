@@ -74,6 +74,18 @@ TEST_F(BatchNormLayerTest, BackwardShape) {
     EXPECT_EQ(dX.cols(), features);
 }
 
+TEST_F(BatchNormLayerTest, SingleSampleTrainingHasFiniteOutputAndGradient) {
+    layer->initialize_weights();
+    MatrixXd single = input.topRows(1);
+    MatrixXd output = layer->forward(single, true);
+    MatrixXd gradient = layer->backward(MatrixXd::Ones(1, features));
+    EXPECT_TRUE(output.allFinite());
+    EXPECT_TRUE(gradient.allFinite());
+    EXPECT_TRUE(layer->get_weights_gradient().allFinite());
+    EXPECT_TRUE(output.isZero(1e-12));
+    EXPECT_TRUE(gradient.isZero(1e-12));
+}
+
 TEST_F(BatchNormLayerTest, SetAndGetWeights) {
     MatrixXd initial = layer->get_weights();
     MatrixXd new_weights = MatrixXd::Ones(features, 2);

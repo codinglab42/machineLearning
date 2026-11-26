@@ -45,6 +45,65 @@ TEST_F(GradientCheckingTest, DenseLayerWithReLUGradient) {
     EXPECT_FALSE(analytical_grad.hasNaN());
 }
 
+TEST_F(GradientCheckingTest, SoftmaxBackwardMatchesFiniteDifferences) {
+    DenseLayer layer(3, "softmax", true);
+    layer.set_input_shape(2);
+    MatrixXd weights(2, 3);
+    weights << 0.1, -0.3, 0.2, 0.4, 0.2, -0.1;
+    VectorXd bias(3);
+    bias << 0.1, -0.2, 0.05;
+    layer.set_weights(weights);
+    layer.set_biases(bias);
+    MatrixXd input(2, 2);
+    input << 0.2, -0.1, 0.3, 0.4;
+    MatrixXd upstream(2, 3);
+    upstream << 0.2, -0.1, 0.4, -0.3, 0.1, 0.2;
+
+    layer.forward(input, true);
+    MatrixXd input_gradient = layer.backward(upstream);
+    MatrixXd weight_gradient = layer.get_weights_gradient();
+    VectorXd bias_gradient = layer.get_bias_gradient();
+    const double epsilon = 1e-6;
+    auto objective = [&]() {
+        return (layer.forward(input, true).array() * upstream.array()).sum();
+    };
+
+    for (int i = 0; i < weights.rows(); ++i) {
+        for (int j = 0; j < weights.cols(); ++j) {
+            MatrixXd perturbed = weights;
+            perturbed(i, j) += epsilon;
+            layer.set_weights(perturbed);
+            double plus = objective();
+            perturbed(i, j) -= 2 * epsilon;
+            layer.set_weights(perturbed);
+            double minus = objective();
+            EXPECT_NEAR(weight_gradient(i, j), (plus - minus) / (2 * epsilon), 1e-8);
+        }
+    }
+    layer.set_weights(weights);
+    for (int j = 0; j < bias.size(); ++j) {
+        VectorXd perturbed = bias;
+        perturbed(j) += epsilon;
+        layer.set_biases(perturbed);
+        double plus = objective();
+        perturbed(j) -= 2 * epsilon;
+        layer.set_biases(perturbed);
+        double minus = objective();
+        EXPECT_NEAR(bias_gradient(j), (plus - minus) / (2 * epsilon), 1e-8);
+    }
+    layer.set_biases(bias);
+    for (int i = 0; i < input.rows(); ++i) {
+        for (int j = 0; j < input.cols(); ++j) {
+            input(i, j) += epsilon;
+            double plus = objective();
+            input(i, j) -= 2 * epsilon;
+            double minus = objective();
+            input(i, j) += epsilon;
+            EXPECT_NEAR(input_gradient(i, j), (plus - minus) / (2 * epsilon), 1e-8);
+        }
+    }
+}
+
 TEST_F(GradientCheckingTest, DenseLayerWithoutBiasGradient) {
     std::cout << "=== Testing DenseLayer without Bias Gradient ===" << std::endl;
     

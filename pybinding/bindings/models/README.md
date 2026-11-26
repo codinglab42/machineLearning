@@ -32,6 +32,7 @@ get_model_type() -> str
 set_learning_rate(lr: float) -> None
 get_learning_rate() -> float
 set_optimizer(type: OptimizerType, learning_rate: float = 0.01) -> None
+```
 
 2. LinearRegression
 
@@ -127,9 +128,11 @@ Constructors:
 
 NeuralNetwork()
 NeuralNetwork(layer_sizes: List[int], activation: str = "relu",
-              output_activation: str = "sigmoid",
-              optimizer_type: OptimizerType = OptimizerType.ADAM,
-              learning_rate: float = 0.001)
+              output_activation: str = "softmax",
+              optimizer_type: OptimizerType = OptimizerType.SGD,
+              learning_rate: float = 0.01,
+              regularizer_type: RegularizerType = RegularizerType.NONE,
+              regularizer_strength: float = 0.01, seed: int = 42)
 
 Layer Building Methods:
 
@@ -149,7 +152,7 @@ build(n_features: int, n_classes: int) -> None
 fit(X: MatrixXd, y: VectorXd) -> None
 fit(X: MatrixXd, y: MatrixXd) -> None
 fit_advanced(X: MatrixXd, y: VectorXd, epochs: int, batch_size: int, verbose: bool = False)
-fit_advanced_matrix(X: MatrixXd, y: MatrixXd, epochs: int, batch_size: int, verbose: bool = False)
+fit_advanced(X: MatrixXd, y: MatrixXd, epochs: int, batch_size: int, verbose: bool = False)
 
 Prediction Methods:
 
@@ -162,11 +165,7 @@ Network Information:
 summary() -> None
 get_summary() -> str
 get_training_history() -> Tuple[List[float], List[float], List[float]]
-get_num_layers() -> int
-get_num_parameters() -> int
-get_input_size() -> int
-get_output_size() -> int
-is_fitted() -> bool
+num_layers, num_parameters, input_size, output_size, is_fitted  # read-only properties
 
 Configuration Methods:
 
@@ -206,9 +205,10 @@ Properties:
 @output_size       # Output dimension
 @is_fitted         # Whether the model is trained
 
-Usage Examples
-Example 1: Linear Regression
+## Usage Examples
+### Example 1: Linear Regression
 
+```python
 import ml_core as ml
 import numpy as np
 
@@ -236,8 +236,10 @@ model.save("linear_model.bin")
 loaded_model = ml.LinearRegression()
 loaded_model.load("linear_model.bin")
 
-Example 2: Logistic Regression
+```
+### Example 2: Logistic Regression
 
+```python
 import ml_core as ml
 import numpy as np
 
@@ -266,8 +268,10 @@ print(f"Precision: {precision:.3f}, Recall: {recall:.3f}, F1: {f1:.3f}")
 conf_matrix = model.confusion_matrix(X, y)
 print(f"Confusion Matrix:\n{conf_matrix}")
 
-Example 3: Neural Network for Classification
+```
+### Example 3: Neural Network for Classification
 
+```python
 import ml_core as ml
 import numpy as np
 
@@ -276,8 +280,7 @@ X = np.random.randn(500, 10)
 y = (np.sum(X[:, :3], axis=1) > 0).astype(float)
 
 # Create neural network
-nn = ml.NeuralNetwork()
-nn.add_dense_layer(64, activation="relu")
+nn = ml.NeuralNetwork([10, 64], "relu", "relu")
 nn.add_dropout_layer(0.2)
 nn.add_dense_layer(32, activation="relu")
 nn.add_dense_layer(1, activation="sigmoid")
@@ -306,8 +309,10 @@ nn.save("model.bin")
 loaded_nn = ml.NeuralNetwork()
 loaded_nn.load("model.bin")
 
-Example 4: Neural Network for Regression
+```
+### Example 4: Neural Network for Regression
 
+```python
 import ml_core as ml
 import numpy as np
 
@@ -316,8 +321,7 @@ X = np.random.randn(500, 5)
 y = np.sin(X[:, 0]) + np.cos(X[:, 1]) + np.random.randn(500) * 0.1
 
 # Create neural network for regression
-nn = ml.NeuralNetwork()
-nn.add_dense_layer(128, activation="relu")
+nn = ml.NeuralNetwork([5, 128], "relu", "relu")
 nn.add_batch_norm_layer()
 nn.add_dense_layer(64, activation="relu")
 nn.add_dense_layer(1, activation="linear")  # linear for regression
@@ -340,8 +344,10 @@ print(f"R² score: {r2_score:.3f}")
 # Save
 nn.save("regression_model.bin")
 
-Example 5: Neural Network with Layer Access
+```
+### Example 5: Neural Network with Layer Access
 
+```python
 import ml_core as ml
 import numpy as np
 
@@ -360,7 +366,7 @@ for i in range(num_layers):
     print(f"Layer {i}: {layer_type}, config: {config}, weights shape: {weights.shape}")
 
 # Modify weights of first layer
-new_weights = np.random.randn(32, 11) * 0.1  # input_size=10, units=32, +1 for bias
+new_weights = np.random.randn(10, 32) * 0.1  # input_size=10, units=32; bias is separate
 nn.set_weights_for_layer(0, new_weights)
 
 # Get a specific layer
@@ -368,40 +374,36 @@ first_layer = nn.get_layer(0)
 print(f"First layer type: {first_layer.get_type()}")
 print(f"First layer config: {first_layer.get_config()}")
 
-Example 6: Using NeuralNetwork with Matrix y (Multi-class)
+```
+### Example 6: Using NeuralNetwork with Matrix y (Multi-class)
 
+```python
 import ml_core as ml
 import numpy as np
 
-# Multi-class classification (3 classes)
 X = np.random.randn(300, 8)
 y = np.zeros((300, 3))
 for i in range(300):
     cls = int(np.sum(X[i, :3]) % 3)
     y[i, cls] = 1.0
 
-# Create and train
-nn = ml.NeuralNetwork()
-nn.add_dense_layer(64, activation="relu")
+nn = ml.NeuralNetwork([8, 64], "relu", "relu")
 nn.add_dense_layer(32, activation="relu")
-nn.add_dense_layer(3, activation="softmax")  # 3 classes
-
+nn.add_dense_layer(3, activation="softmax")
 nn.set_loss_function("categorical_crossentropy")
 nn.set_optimizer(ml.OptimizerType.ADAM, learning_rate=0.001)
 nn.set_epochs(100)
 nn.set_batch_size(32)
+nn.fit(X, y)
 
-nn.build(n_features=8, n_classes=3)
-nn.fit_matrix(X, y)  # Matrix version for multi-class
-
-# Make predictions
 probabilities = nn.predict_proba(X)
 predictions = np.argmax(probabilities, axis=1)
 print(f"Predictions shape: {predictions.shape}")
+```
 
-Important Notes
+## Important Notes
 
-    Build Before Training: Always call build(n_features, n_classes) before training a NeuralNetwork.
+    Build Before Training: fit can build an unbuilt network from the input and target shapes. When adding a Dense layer first, initialize the network with layer_sizes so its input size is known.
 
     Input Normalization: For best results, normalize your input features before training.
 
@@ -480,14 +482,9 @@ Slow training	Increase batch size, reduce network size
 Overfitting	Add dropout, L2 regularization, reduce epochs
 References
 
-    C++ Models Documentation https://../cpp/models/
-
-    Layer Binding https://../layers/README.md
-
-    Loss Functions Binding https://../loss/README.md
-
-    Optimizers Binding https://../optimizers/README.md
-
-    Regularizers Binding https://../regularizers/README.md
+    [Layer bindings](../layers/README.md)
+    [Loss bindings](../loss/README.md)
+    [Optimizer bindings](../optimizers/README.md)
+    [Regularizer bindings](../regularizers/README.md)
 
 

@@ -927,7 +927,8 @@ namespace {
             optimizer->update_weights(weights, gradient);
             layer->set_weights(weights);
 
-            if (layer->get_use_bias()) {
+            // BatchNorm packs beta into its weights matrix and updates it above.
+            if (layer->get_use_bias() && layer->get_layer_type() != layers::LayerType::BATCH_NORM) {
                 Eigen::VectorXd bias = layer->get_biases();
                 optimizer->update_bias(bias, layer->get_bias_gradient());
                 layer->set_biases(bias);
@@ -1024,6 +1025,12 @@ namespace {
         for (int i = 0; i < y_true.size(); ++i) y_true_mat(i, 0) = y_true(i);
 
         return loss_function_->gradient(y_true_mat, y_pred);
+    }
+
+    Eigen::MatrixXd NeuralNetwork::compute_loss_gradient(const Eigen::MatrixXd& y_true,
+                                                          const Eigen::MatrixXd& y_pred) const {
+        if (!loss_function_) ML_THROW_FITTING_ERROR("NeuralNetwork", "loss function not set");
+        return loss_function_->gradient(y_true, y_pred);
     }
 
     //===========================================================================

@@ -26,6 +26,7 @@ Stochastic Gradient Descent - Basic optimizer.
 **Constructor:**
 ```python
 SGDOptimizer(learning_rate: float = 0.01, decay: float = 0.0)
+```
 
 Parameters:
 
@@ -124,8 +125,9 @@ Available Optimizer Names:
     "adagrad" - Adagrad Optimizer
 
 Usage Examples
-Example 1: Creating and Using SGD
+### Example 1: Creating and Using SGD
 
+```python
 import ml_core as ml
 import numpy as np
 
@@ -133,7 +135,7 @@ import numpy as np
 optimizer = ml.SGDOptimizer(learning_rate=0.01, decay=0.001)
 
 # Simulate training
-weights = np.random.randn(10, 10)
+weights = np.asfortranarray(np.random.randn(10, 10))
 gradient = np.random.randn(10, 10)
 
 # Update weights
@@ -144,8 +146,10 @@ print(f"Weights after update: shape {weights.shape}")
 current_lr = optimizer.get_current_learning_rate()
 print(f"Current learning rate: {current_lr:.4f}")
 
-Example 2: Using Momentum Optimizer
+```
+### Example 2: Using Momentum Optimizer
 
+```python
 import ml_core as ml
 import numpy as np
 
@@ -157,7 +161,7 @@ optimizer = ml.MomentumOptimizer(
 )
 
 # Update weights and bias
-weights = np.random.randn(10, 10)
+weights = np.asfortranarray(np.random.randn(10, 10))
 bias = np.random.randn(10)
 grad_w = np.random.randn(10, 10)
 grad_b = np.random.randn(10)
@@ -165,8 +169,10 @@ grad_b = np.random.randn(10)
 optimizer.update_weights(weights, grad_w)
 optimizer.update_bias(bias, grad_b)
 
-Example 3: Using Adam Optimizer
+```
+### Example 3: Using Adam Optimizer
 
+```python
 import ml_core as ml
 import numpy as np
 
@@ -179,7 +185,7 @@ optimizer = ml.AdamOptimizer(
 )
 
 # Update multiple times
-weights = np.random.randn(20, 20)
+weights = np.asfortranarray(np.random.randn(20, 20))
 for step in range(100):
     grad = np.random.randn(20, 20)
     optimizer.update_weights(weights, grad)
@@ -190,8 +196,10 @@ for step in range(100):
 
 print(f"Final weights norm: {np.linalg.norm(weights):.4f}")
 
-Example 4: Using OptimizerFactory
+```
+### Example 4: Using OptimizerFactory
 
+```python
 import ml_core as ml
 
 # Create via type enum
@@ -215,8 +223,10 @@ momentum = ml.OptimizerFactory.create_by_name(
 
 print(f"Created: {sgd.get_type_str()}, {adam.get_type_str()}")
 
-Example 5: Optimizer in Neural Network
+```
+### Example 5: Optimizer in Neural Network
 
+```python
 import ml_core as ml
 import numpy as np
 
@@ -235,8 +245,10 @@ X = np.random.randn(100, 10)
 y = (np.random.randn(100) > 0).astype(float)
 nn.fit(X, y)
 
-Example 6: Custom Learning Rate Schedule
+```
+### Example 6: Custom Learning Rate Schedule
 
+```python
 import ml_core as ml
 import numpy as np
 
@@ -254,7 +266,7 @@ class LearningRateScheduler:
 optimizer = ml.AdamOptimizer(learning_rate=0.01)
 scheduler = LearningRateScheduler(optimizer, 0.01, 0.001)
 
-weights = np.random.randn(10, 10)
+weights = np.asfortranarray(np.random.randn(10, 10))
 for epoch in range(100):
     scheduler.step(epoch)
     grad = np.random.randn(10, 10)
@@ -264,14 +276,16 @@ for epoch in range(100):
         current_lr = optimizer.get_learning_rate()
         print(f"Epoch {epoch}, LR: {current_lr:.6f}")
 
-Example 7: Comparing Optimizers
+```
+### Example 7: Comparing Optimizers
 
+```python
 import ml_core as ml
 import numpy as np
 
 def train_with_optimizer(optimizer, steps=100):
     """Simple training loop for comparison"""
-    weights = np.random.randn(5, 5) * 0.1
+    weights = np.asfortranarray(np.random.randn(5, 5) * 0.1)
     loss_history = []
     
     for step in range(steps):
@@ -297,7 +311,8 @@ for name, opt in zip(names, optimizers):
     print(f"{name}: final loss = {history[-1]:.4f}, "
           f"improvement = {history[0] - history[-1]:.4f}")
 
-Important Notes
+```
+## Important Notes
 
     Iterations: Each update() call increments the iteration counter, used for learning rate decay.
 
@@ -307,7 +322,9 @@ Important Notes
 
     Reset: Use reset() to clear optimizer state (useful for new training runs).
 
-    Serialization: Optimizers support serialize() and deserialize() for saving/loading training state.
+    Serialization: Network save/load preserves per-layer optimizer state; optimizer serialization is not exposed directly in Python.
+
+    NumPy layout: Concrete optimizer update_weights methods require writable float64 Fortran-contiguous matrices. Use np.asfortranarray for weights.
 
     Batch vs Individual: The same optimizer can be used for both weights (Matrix) and bias (Vector).
 
@@ -340,7 +357,7 @@ import numpy as np
 
 # Test SGD
 sgd = ml.SGDOptimizer(0.01)
-w = np.random.randn(5, 5)
+w = np.asfortranarray(np.random.randn(5, 5))
 g = np.random.randn(5, 5)
 sgd.update_weights(w, g)
 print('SGD OK!')
@@ -360,11 +377,8 @@ MomentumOptimizer	1	With Nesterov option
 AdamOptimizer	1	-
 References
 
-    C++ Optimizer Documentation https://../cpp/components/optimizers/
-
-    Neural Network Binding https://../models/neural_network.md
-
-    Loss Functions Binding https://../loss/README.md
+    [Model bindings](../models/README.md)
+    [Loss bindings](../loss/README.md)
 
 
 ## Riepilogo dei file del binding optimizers
@@ -375,4 +389,6 @@ bindings/optimizers/
 ├── sgd_optimizer.h/cpp # ✅ SGD
 ├── momentum_optimizer.h/cpp # ✅ Momentum
 ├── adam_optimizer.h/cpp # ✅ Adam
+├── rmsprop_optimizer.h/cpp # ✅ RMSprop
+├── adagrad_optimizer.h/cpp # ✅ Adagrad
 └── optimizer_factory.h/cpp # ✅ Factory

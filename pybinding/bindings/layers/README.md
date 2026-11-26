@@ -30,6 +30,7 @@ A fully connected layer with various activation functions.
 ```python
 DenseLayer(units: int, activation: str = "relu", use_bias: bool = True)
 DenseLayer()  # Default constructor
+```
 
 Parameters:
 
@@ -185,8 +186,9 @@ Available Layer Types:
     LayerType.GRU
 
 Usage Examples
-Example 1: Creating and Using a DenseLayer
+### Example 1: Creating and Using a DenseLayer
 
+```python
 import ml_core as ml
 import numpy as np
 
@@ -205,8 +207,10 @@ gradient = np.random.randn(32, 64)
 dX = layer.backward(gradient)
 print(f"Gradient shape: {dX.shape}")  # (32, 128)
 
-Example 2: Building a Network with Separate Layers
+```
+### Example 2: Building a Network with Separate Layers
 
+```python
 import ml_core as ml
 import numpy as np
 
@@ -232,8 +236,10 @@ h2 = layer2.forward(h1, training=True)
 output = layer3.forward(h2, training=True)
 print(f"Output shape: {output.shape}")  # (16, 10)
 
-Example 3: Using LayerFactory
+```
+### Example 3: Using LayerFactory
 
+```python
 import ml_core as ml
 
 # Create layer using factory
@@ -244,15 +250,16 @@ layer = ml.LayerFactory.create_by_name("DenseLayer")
 print(f"Layer type: {layer.get_type()}")
 print(f"Layer config: {layer.get_config()}")
 
-Example 4: Recurrent Layers
+```
+### Example 4: Recurrent Layers
 
+```python
 import ml_core as ml
 import numpy as np
 
 # LSTM Layer
 lstm = ml.LSTMLayer(units=64, input_size=128)
 lstm.set_input_shape(128)
-lstm.initialize_weights()
 
 # Forward pass for sequences
 X_seq = np.random.randn(10, 32, 128)  # 10 timesteps, batch 32, features 128
@@ -267,8 +274,10 @@ for t in range(10):
     # Get cell state as well
     cell_state = lstm.get_cell_state()
 
-Example 5: Weight Management
+```
+### Example 5: Weight Management
 
+```python
 import ml_core as ml
 import numpy as np
 
@@ -278,7 +287,7 @@ layer.initialize_weights()
 
 # Get and modify weights
 weights = layer.get_weights()
-print(f"Weights shape: {weights.shape}")  # (128, 65) with bias
+print(f"Weights shape: {weights.shape}")  # (128, 64); bias is separate
 
 # Modify weights (e.g., multiply by 0.5)
 weights *= 0.5
@@ -291,13 +300,14 @@ print(f"Biases shape: {biases.shape}")  # (64,)
 # Set biases to zero
 layer.set_biases(np.zeros(64))
 
-Important Notes
+```
+## Important Notes
 
     Input Shape: Before using a layer, set_input_shape() must be called to initialize dimensions.
 
     Training Mode: The training=True parameter is important for layers like Dropout and BatchNorm that behave differently during training and inference.
 
-    Serialization: Each layer supports serialize() and deserialize() for disk storage.
+    Serialization: Network save/load is exposed in Python; layer serialization methods are not exposed by these bindings.
 
     Cache: Layers maintain a cache of forward pass values for backward pass. Use clear_cache() to free memory.
 
@@ -332,18 +342,14 @@ DenseLayer	2	Unified bias support
 Conv2DLayer	1	-
 PoolingLayer	2	Supports max and avg
 FlattenLayer	1	-
-DropoutLayer	1	-
+DropoutLayer	2	-
 BatchNormLayer	1	-
-SimpleRNNLayer	2	-
-LSTMLayer	2	-
-GRULayer	1	-
+SimpleRNNLayer	3	-
+LSTMLayer	3	-
+GRULayer	3	-
 
 References
 
-    C++ Layer Documentation https://../cpp/components/layers/
-
-    Neural Network Binding https://../models/neural_network.md
-
-    Loss Functions Binding https://../loss/README.md
-
-    Optimizers Binding https://../optimizers/README.md
+    [Model bindings](../models/README.md)
+    [Loss bindings](../loss/README.md)
+    [Optimizer bindings](../optimizers/README.md)

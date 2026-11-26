@@ -42,6 +42,30 @@ class TestFullPipeline(unittest.TestCase):
         nn.fit(X_scaled, self.y_classification)
         score = nn.score(X_scaled, self.y_classification)
         self.assertGreater(score, 0.70)
+
+    def test_batch_norm_training_with_single_sample_remainder(self):
+        X = np.arange(15, dtype=float).reshape(5, 3) / 10
+        y = X[:, 0] + 0.25
+        nn = ml.NeuralNetwork([3, 4], "linear", "linear", ml.OptimizerType.ADAM, 0.01)
+        nn.add_batch_norm_layer()
+        nn.add_dense_layer(1, "linear")
+        nn.set_loss_function("mse")
+        nn.fit_advanced(X, y, epochs=3, batch_size=2)
+        self.assertTrue(np.isfinite(nn.predict(X)).all())
+        self.assertTrue(np.isfinite(nn.loss_history).all())
+
+    def test_multiclass_matrix_targets(self):
+        X = np.tile(np.eye(3), (10, 1))
+        y = X.copy()
+        nn = ml.NeuralNetwork([3, 3], "linear", "softmax", ml.OptimizerType.ADAM, 0.03)
+        nn.set_loss_function("categorical_crossentropy")
+        nn.fit_advanced(X, y, epochs=100, batch_size=10)
+        probabilities = nn.predict_proba(X)
+        self.assertEqual(probabilities.shape, (30, 3))
+        self.assertTrue(np.isfinite(probabilities).all())
+        np.testing.assert_allclose(probabilities.sum(axis=1), 1.0)
+        self.assertLess(nn.loss_history[-1], 0.1)
+        np.testing.assert_array_equal(probabilities.argmax(axis=1), y.argmax(axis=1))
     
     def test_neural_network_with_regularization(self):
         """Test NeuralNetwork with L2 regularization"""

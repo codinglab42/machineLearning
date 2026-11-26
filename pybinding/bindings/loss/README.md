@@ -26,6 +26,7 @@ Mean Squared Error - Standard regression loss.
 **Constructor:**
 ```python
 MeanSquaredErrorLoss()
+```
 
 Formula: L = (1/n) * Σ(y_pred - y_true)²
 
@@ -135,8 +136,9 @@ Available Loss Names:
     "huber" - Huber Loss
 
 Usage Examples
-Example 1: Computing Loss Values
+### Example 1: Computing Loss Values
 
+```python
 import ml_core as ml
 import numpy as np
 
@@ -158,8 +160,10 @@ print(f"MSE: {mse_loss:.4f}")
 print(f"MAE: {mae_loss:.4f}")
 print(f"Huber: {huber_loss:.4f}")
 
-Example 2: Using Loss in Neural Network
+```
+### Example 2: Using Loss in Neural Network
 
+```python
 import ml_core as ml
 import numpy as np
 
@@ -179,8 +183,10 @@ X = np.random.randn(100, 10)
 y = (np.random.randn(100) > 0).astype(float)
 nn.fit(X, y)
 
-Example 3: Gradient Computation
+```
+### Example 3: Gradient Computation
 
+```python
 import ml_core as ml
 import numpy as np
 
@@ -197,10 +203,12 @@ print(f"Gradient shape: {grad.shape}")
 print(f"Gradient:\n{grad}")
 
 # Gradient indicates direction to update predictions
-# grad = (p - y) / n
+# For unclipped probabilities: grad = (p - y) / (n * p * (1 - p))
 
-Example 4: Huber Loss with Different Delta Values
+```
+### Example 4: Huber Loss with Different Delta Values
 
+```python
 import ml_core as ml
 import numpy as np
 
@@ -213,8 +221,10 @@ for delta in [0.1, 0.5, 1.0, 2.0]:
     loss_value = huber.compute_vector(y_true, y_pred)
     print(f"Delta={delta}: Huber loss = {loss_value:.4f}")
 
-Example 5: Using LossFactory
+```
+### Example 5: Using LossFactory
 
+```python
 import ml_core as ml
 
 # List available losses
@@ -229,12 +239,14 @@ huber = ml.LossFactory.create("huber")
 
 print(f"Created: {mse.name()}, {bce.name()}, {cce.name()}, {huber.name()}")
 
-Example 6: Custom Loss in Neural Network
+```
+### Example 6: Wrapping a Loss for External Use
 
+```python
 import ml_core as ml
 import numpy as np
 
-# Create custom loss by wrapping
+# Wrap a loss for use outside the network
 class CustomLoss:
     def __init__(self):
         self.mse = ml.MeanSquaredErrorLoss()
@@ -243,7 +255,7 @@ class CustomLoss:
         # Add custom weighting or transformation
         return self.mse.compute_matrix(y_true, y_pred)
 
-# Use in neural network (via loss name only)
+# The network accepts a built-in loss name, not this Python wrapper.
 nn = ml.NeuralNetwork([10, 32, 1], "relu", "linear")
 nn.build(10, 1)
 
@@ -255,7 +267,8 @@ X = np.random.randn(100, 10)
 y = np.random.randn(100)
 nn.fit(X, y)
 
-Important Notes
+```
+## Important Notes
 
     Vector vs Matrix: Loss functions support both VectorXd (1D) and MatrixXd (2D) inputs.
 
@@ -280,6 +293,9 @@ Binary Classification	BCE	sigmoid
 Multi-class Classification	CCE	softmax
 Robust Regression	Huber or MAE	linear
 Sparse Data	MAE	linear
+
+For a multiclass matrix-target example, see the
+[model binding examples](../models/README.md#usage-examples).
 Dependencies
 
     bindings/core/exceptions.h - for exception translator
@@ -323,11 +339,8 @@ CategoricalCrossEntropyLoss	1	Numerically stable
 HuberLoss	1	Configurable delta
 References
 
-    C++ Loss Documentation https://../cpp/components/loss/
-
-    Neural Network Binding https://../models/neural_network.md
-
-    Optimizers Binding https://../optimizers/README.md
+    [Model bindings](../models/README.md)
+    [Optimizer bindings](../optimizers/README.md)
 
 
 ## Riepilogo dei file del binding loss

@@ -71,10 +71,11 @@ Eigen::MatrixXd BatchNormLayer::forward(const Eigen::MatrixXd& input, bool train
     int batch_size = input.rows();
     
     if (training) {
+        const int variance_denominator = batch_size > 1 ? batch_size - 1 : 1;
         // Calcola media e varianza del batch
         cache_->batch_mean = input.colwise().mean();
         cache_->x_centered = input.rowwise() - cache_->batch_mean.transpose();
-        cache_->batch_var = (cache_->x_centered.array().square()).colwise().sum() / (batch_size - 1);
+        cache_->batch_var = (cache_->x_centered.array().square()).colwise().sum() / variance_denominator;
         cache_->inv_std = (cache_->batch_var.array() + epsilon_).sqrt().inverse();
         cache_->x_norm = cache_->x_centered.array().rowwise() * cache_->inv_std.transpose().array();
         
@@ -123,6 +124,7 @@ Eigen::MatrixXd BatchNormLayer::backward(const Eigen::MatrixXd& gradient) {
     Eigen::MatrixXd dx_norm = gradient.array().rowwise() * gamma_.transpose().array();
     
     if (bn_cache->training) {
+        const int variance_denominator = batch_size > 1 ? batch_size - 1 : 1;
         // Prepariamo i termini intermedi
         Eigen::ArrayXd inv_std = bn_cache->inv_std.array();
         
@@ -136,11 +138,11 @@ Eigen::MatrixXd BatchNormLayer::backward(const Eigen::MatrixXd& gradient) {
         // dmean = sum(-dx_centered1) + dvar * sum(-2 * (x - mean)) / (N-1)
         Eigen::VectorXd dmean = -dx_centered1.colwise().sum();
         Eigen::VectorXd sum_centered = bn_cache->x_centered.colwise().sum();
-        dmean.array() += dvar.array() * (sum_centered.array() * -2.0 / (batch_size - 1));
+        dmean.array() += dvar.array() * (sum_centered.array() * -2.0 / variance_denominator);
         
         // 3. Gradiente finale rispetto all'input (dx)
         Eigen::MatrixXd dx = dx_centered1;
-        dx.array() += bn_cache->x_centered.array().rowwise() * (dvar.array() * 2.0 / (batch_size - 1)).transpose();
+        dx.array() += bn_cache->x_centered.array().rowwise() * (dvar.array() * 2.0 / variance_denominator).transpose();
         dx.array() += dmean.transpose().replicate(batch_size, 1).array() / batch_size;
         
         return dx;

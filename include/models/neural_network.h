@@ -174,6 +174,8 @@ namespace models {
         double compute_loss(const Eigen::MatrixXd& y_true, const Eigen::MatrixXd& y_pred) const;
         Eigen::MatrixXd compute_loss_gradient(const Eigen::VectorXd& y_true, 
                                              const Eigen::MatrixXd& y_pred) const;
+        Eigen::MatrixXd compute_loss_gradient(const Eigen::MatrixXd& y_true,
+                                             const Eigen::MatrixXd& y_pred) const;
         
         // Initialization
         void initialize_layers(int input_size);

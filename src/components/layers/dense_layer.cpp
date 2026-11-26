@@ -147,6 +147,11 @@ Eigen::MatrixXd DenseLayer::backward(const Eigen::MatrixXd& gradient) {
     Eigen::MatrixXd dZ;
     if (activation_ == "linear") {
         dZ = gradient;
+    } else if (activation_ == "softmax") {
+        const Eigen::VectorXd projection =
+            (gradient.array() * cache_->output_cache.array()).rowwise().sum();
+        dZ = cache_->output_cache.array() *
+            (gradient.colwise() - projection).array();
     } else {
         dZ = gradient.array() * apply_activation_derivative(cache_->z_cache).array();
     }
@@ -236,8 +241,6 @@ Eigen::MatrixXd DenseLayer::apply_activation_derivative(const Eigen::MatrixXd& z
         Eigen::MatrixXd tanh_z = z_clipped.array().tanh().matrix();
         return (1.0 - tanh_z.array().square()).matrix();
     } else if (activation_ == "linear") {
-        return Eigen::MatrixXd::Ones(z.rows(), z.cols());
-    } else if (activation_ == "softmax") {
         return Eigen::MatrixXd::Ones(z.rows(), z.cols());
     }
     return (z.array() > 0.0).cast<double>().matrix();

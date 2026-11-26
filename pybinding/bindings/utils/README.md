@@ -6,14 +6,6 @@ This module exposes utility functions and classes for machine learning operation
 
 ## File Structure
 
-# Utils Binding
-
-## Overview
-
-This module exposes utility functions and classes for machine learning operations including scaling, mathematical functions, and data preprocessing.
-
-## File Structure
-
 
 bindings/utils/
 ├── README.md # This file
@@ -35,6 +27,7 @@ Standardizes features by removing mean and scaling to unit variance.
 ```python
 StandardScaler()
 StandardScaler(epsilon: float = 1e-8)
+```
 
 Methods:
 
@@ -109,8 +102,9 @@ compute_gradient_logistic(X, y, theta, lambda)	Logistic regression gradient
 
 Usage Examples
 
-Example 1: StandardScaler
+### Example 1: StandardScaler
 
+```python
 import ml_core as ml
 
 # Create scaler
@@ -134,8 +128,10 @@ print("Scaled data:", X_scaled)
 # Inverse transform
 X_original = scaler.inverse_transform(X_scaled)
 
-Example 2: MinMaxScaler
+```
+### Example 2: MinMaxScaler
 
+```python
 import ml_core as ml
 
 # Create scaler with custom range
@@ -156,8 +152,10 @@ print("Min:", scaler.get_min())
 print("Max:", scaler.get_max())
 print("Scaled data:", X_scaled)
 
-Example 3: MathUtils - Sigmoid
+```
+### Example 3: MathUtils - Sigmoid
 
+```python
 import ml_core as ml
 import numpy as np
 
@@ -175,8 +173,10 @@ print("Sigmoid:", sigmoid_z)
 derivative = ml.MathUtils.sigmoid_derivative(0.0)
 print("Sigmoid derivative at 0:", derivative)
 
-Example 4: MathUtils - Weight Initialization
+```
+### Example 4: MathUtils - Weight Initialization
 
+```python
 import ml_core as ml
 
 # He initialization (for ReLU)
@@ -191,8 +191,10 @@ print(f"Xavier weights shape: {weights_xavier.shape}")
 print(f"Mean: {weights_xavier.mean():.4f}")
 print(f"Std: {weights_xavier.std():.4f}")
 
-Example 5: MathUtils - One-Hot Encoding
+```
+### Example 5: MathUtils - One-Hot Encoding
 
+```python
 import ml_core as ml
 import numpy as np
 
@@ -205,8 +207,10 @@ print("Labels:", labels)
 print("One-hot encoded:")
 print(encoded)
 
-Example 6: MathUtils - Train/Test Split
+```
+### Example 6: MathUtils - Train/Test Split
 
+```python
 import ml_core as ml
 import numpy as np
 
@@ -224,8 +228,10 @@ print(f"X_test shape: {X_test.shape}")
 print(f"y_train shape: {y_train.shape}")
 print(f"y_test shape: {y_test.shape}")
 
-Example 7: MathUtils - Gradient Computation
+```
+### Example 7: MathUtils - Gradient Computation
 
+```python
 import ml_core as ml
 import numpy as np
 
@@ -240,7 +246,7 @@ X_with_intercept = ml.MathUtils.add_intercept(X)
 theta = np.zeros(4)
 
 # Compute gradient
-grad = ml.MathUtils.compute_gradient_linear(X_with_intercept, y, theta, lambda=0.01)
+grad = ml.MathUtils.compute_gradient_linear(X_with_intercept, y, theta, 0.01)
 print("Gradient:", grad)
 
 # Update theta
@@ -248,8 +254,10 @@ learning_rate = 0.01
 theta = theta - learning_rate * grad
 print("Updated theta:", theta)
 
-Example 8: Using Scaler with Neural Network
+```
+### Example 8: Using Scaler with Neural Network
 
+```python
 import ml_core as ml
 import numpy as np
 
@@ -272,7 +280,8 @@ nn.fit(X_scaled, y)
 
 print("Training complete!")
 
-Important Notes
+```
+## Important Notes
 
     Scaler Format: Scalers work with lists of lists, not numpy arrays directly. Convert as needed.
 
@@ -328,11 +337,8 @@ MinMaxScaler	1	-
 MathUtils	1	-
 References
 
-    C++ Utils Documentation https://../cpp/utils/
-
-    Neural Network Binding https://../models/neural_network.md
-
-    Preprocessing Best Practices https://scikit-learn.org/stable/modules/preprocessing.html
+    [Model bindings](../models/README.md)
+    [Preprocessing best practices](https://scikit-learn.org/stable/modules/preprocessing.html)
 
 
 ## Riepilogo dei file del binding utils
@@ -345,58 +351,6 @@ bindings/utils/
 └── math_utils.h/cpp # ✅ MathUtils
 
 
-## Aggiornamento del CMakeLists.txt
+## Build configuration
 
-```cmake
-# pybinding/CMakeLists.txt
-pybind11_add_module(ml_core
-    ml_core.cpp
-    # Core
-    bindings/core/enums.cpp
-    bindings/core/exceptions.cpp
-    bindings/core/module.cpp
-    # Models
-    bindings/models/estimator.cpp
-    bindings/models/linear_regression.cpp
-    bindings/models/logistic_regression.cpp
-    bindings/models/neural_network.cpp
-    # Layers
-    bindings/layers/layer_base.cpp
-    bindings/layers/dense_layer.cpp
-    bindings/layers/conv2d_layer.cpp
-    bindings/layers/pooling_layer.cpp
-    bindings/layers/flatten_layer.cpp
-    bindings/layers/dropout_layer.cpp
-    bindings/layers/batch_norm_layer.cpp
-    bindings/layers/simple_rnn_layer.cpp
-    bindings/layers/lstm_layer.cpp
-    bindings/layers/gru_layer.cpp
-    bindings/layers/layer_factory.cpp
-    # Loss
-    bindings/loss/loss_base.cpp
-    bindings/loss/mean_squared_error_loss.cpp
-    bindings/loss/mean_absolute_error_loss.cpp
-    bindings/loss/binary_cross_entropy_loss.cpp
-    bindings/loss/categorical_cross_entropy_loss.cpp
-    bindings/loss/huber_loss.cpp
-    bindings/loss/loss_factory.cpp
-    # Optimizers
-    bindings/optimizers/optimizer_base.cpp
-    bindings/optimizers/sgd_optimizer.cpp
-    bindings/optimizers/momentum_optimizer.cpp
-    bindings/optimizers/adam_optimizer.cpp
-    bindings/optimizers/optimizer_factory.cpp
-    # Regularizers
-    bindings/regularizers/regularizer_base.cpp
-    bindings/regularizers/l1_regularizer.cpp
-    bindings/regularizers/l2_regularizer.cpp
-    bindings/regularizers/elastic_net_regularizer.cpp
-    bindings/regularizers/regularizer_factory.cpp
-    # Utils
-    bindings/utils/scaler_base.cpp
-    bindings/utils/standard_scaler.cpp
-    bindings/utils/minmax_scaler.cpp
-    bindings/utils/math_utils.cpp
-)
-
-target_link_libraries(ml_core PRIVATE ml_library)
+See the current [Python binding build configuration](../../CMakeLists.txt).

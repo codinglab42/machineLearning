@@ -24,6 +24,7 @@ L1 regularization promotes sparsity in weights.
 **Constructor:**
 ```python
 L1Regularizer(strength: float = 0.01)
+```
 
 Formula: R(w) = λ * Σ|w|
 Gradient: ∂R/∂w = λ * sign(w)
@@ -101,8 +102,9 @@ Available Regularizer Names:
     "elastic_net" - Elastic Net Regularizer
 
 Usage Examples
-Example 1: Creating and Using Regularizers
+### Example 1: Creating and Using Regularizers
 
+```python
 import ml_core as ml
 import numpy as np
 
@@ -132,8 +134,10 @@ print(f"L1 grad norm: {np.linalg.norm(l1_grad):.4f}")
 print(f"L2 grad norm: {np.linalg.norm(l2_grad):.4f}")
 print(f"Elastic grad norm: {np.linalg.norm(elastic_grad):.4f}")
 
-Example 2: L1 Effect on Sparsity
+```
+### Example 2: L1 Effect on Sparsity
 
+```python
 import ml_core as ml
 import numpy as np
 import matplotlib.pyplot as plt
@@ -151,8 +155,10 @@ print(f"Weight=0.5: loss={l1.compute_loss_matrix(np.array([[0.5]])):.4f}, grad={
 print(f"Weight=0.0: loss={l1.compute_loss_matrix(np.array([[0.0]])):.4f}, grad={l1.compute_gradient_matrix(np.array([[0.0]]))[0, 0]:.4f}")
 print(f"Weight=-0.5: loss={l1.compute_loss_matrix(np.array([[-0.5]])):.4f}, grad={l1.compute_gradient_matrix(np.array([[-0.5]]))[0, 0]:.4f}")
 
-Example 3: L2 Effect on Weight Decay
+```
+### Example 3: L2 Effect on Weight Decay
 
+```python
 import ml_core as ml
 import numpy as np
 
@@ -169,8 +175,10 @@ learning_rate = 0.1
 new_weights = weights - learning_rate * gradient
 print(f"After update: {new_weights[0, 0]:.4f}")
 
-Example 4: Using Regularizer in Neural Network
+```
+### Example 4: Using Regularizer in Neural Network
 
+```python
 import ml_core as ml
 import numpy as np
 
@@ -181,9 +189,6 @@ nn.build(10, 1)
 # Set regularizer via type and strength
 nn.set_regularizer(ml.RegularizerType.L2, strength=0.001)
 
-# Or via name string
-# nn.set_regularizer("l1", strength=0.01)
-
 # Or create regularizer directly
 # l2_reg = ml.L2Regularizer(strength=0.001)
 # nn.set_regularizer(l2_reg.get_type(), l2_reg.get_strength())
@@ -193,8 +198,10 @@ X = np.random.randn(100, 10)
 y = (np.random.randn(100) > 0).astype(float)
 nn.fit(X, y)
 
-Example 5: Using RegularizerFactory
+```
+### Example 5: Using RegularizerFactory
 
+```python
 import ml_core as ml
 
 # List available regularizers
@@ -222,8 +229,10 @@ elastic = ml.RegularizerFactory.create_by_name(
 
 print(f"Created: {l1.get_type_str()}, {l2.get_type_str()}, {elastic.get_type_str()}")
 
-Example 6: Comparing Different Regularization Strengths
+```
+### Example 6: Comparing Different Regularization Strengths
 
+```python
 import ml_core as ml
 import numpy as np
 
@@ -261,8 +270,10 @@ for strength in strengths:
     history = simulate_training(reg)
     print(f"Strength={strength}: final loss={history[-1]:.4f}")
 
-Example 7: L1 vs L2 on Sparse Weights
+```
+### Example 7: L1 vs L2 on Sparse Weights
 
+```python
 import ml_core as ml
 import numpy as np
 
@@ -291,7 +302,8 @@ print(f"\nEffect on dense weights:")
 print(f"L1 loss: {l1_loss_dense:.4f}")
 print(f"L2 loss: {l2_loss_dense:.4f}")
 
-Important Notes
+```
+## Important Notes
 
     Strength Parameter: Higher strength = stronger regularization.
 
@@ -303,7 +315,7 @@ Important Notes
 
         Elastic Net: Combines both
 
-    Bias Regularization: Bias terms are typically not regularized (or regularized with lower strength).
+    Bias Regularization: NeuralNetwork regularizes trainable weight matrices, including packed parameters, but excludes separate bias vectors.
 
     Gradient Sign: L1 gradient is discontinuous at 0 (subgradient).
 
@@ -367,13 +379,9 @@ L2Regularizer	1	-
 ElasticNetRegularizer	1	With configurable l1_ratio
 References
 
-    C++ Regularizer Documentation https://../cpp/components/regularizers/
-
-    Neural Network Binding https://../models/neural_network.md
-
-    Loss Functions Binding https://../loss/README.md
-
-    Optimizers Binding https://../optimizers/README.md
+    [Model bindings](../models/README.md)
+    [Loss bindings](../loss/README.md)
+    [Optimizer bindings](../optimizers/README.md)
 
 
 ## Riepilogo dei file del binding regularizers

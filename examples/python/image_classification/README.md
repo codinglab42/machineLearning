@@ -3,8 +3,8 @@
 This example classifies small synthetic grayscale images as containing a
 vertical or horizontal bar. It uses an `ml_core.NeuralNetwork` multilayer
 perceptron with binary cross-entropy. Each 10x10 image is flattened to a
-100-element vector because the current Python model API accepts batches as
-2D matrices (`samples x features`), not batches of 2D image tensors.
+100-element vector for the 2D matrix API (`samples x features`). The 3D
+network interface is for sequences, not batches of 2D image tensors.
 
 Images contain random bar positions, widths, and pixel noise. The generator is
 seeded, and the data are split by class into training and test sets. No external

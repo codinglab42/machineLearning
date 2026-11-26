@@ -1,7 +1,7 @@
 # ML Library - Machine Learning in C++
 
 [![Build Status](https://github.com/codinglab42/machineLearning/actions/workflows/build.yml/badge.svg)](https://github.com/codinglab42/machineLearning/actions/workflows/build.yml)
-[![License: AGPL-3.0-only](https://img.shields.io/badge/License-AGPL--3.0--only-blue.svg)](https://www.gnu.org/licenses/agpl-3.0.html)
+[![License: AGPL-3.0-or-later](https://img.shields.io/badge/License-AGPL--3.0--or--later-blue.svg)](https://www.gnu.org/licenses/agpl-3.0.html)
 [![C++17](https://img.shields.io/badge/C++-17-blue.svg)](https://en.cppreference.com/w/cpp/17)
 [![Python 3.11 only](https://img.shields.io/badge/Python-3.11%20only-blue.svg)](https://www.python.org/)
 
@@ -62,9 +62,13 @@ A modern, high-performance machine learning library written in C++ with Python b
 
 | Model | Dataset | Time | Accuracy/R² |
 | :--- | :--- | :--- | :--- |
-| **Linear Regression** | 100k samples, 10 features | ~335 ms | 0.9988 |
-| **Logistic Regression** | 10k samples, 10 features | ~289 ms | 0.955 |
-| **Neural Network (Dense)** | 10k samples, 10 features | ~1.06 s | 0.98 |
+| **Linear Regression** | 100k samples, 10 features | 1,252 ms | R² 0.9988 |
+| **Logistic Regression** | 100k samples, 10 features | 8,588 ms | Accuracy 94.72% |
+| **Neural Network (Dense)** | 10k samples, 10 features, 100 epochs | 1,305 ms | Accuracy 87.5% |
+
+These are median training times from three runs on synthetic data, not
+real-world performance claims. See the [benchmark summary](docs/performance_results/2026-11-25-updated/summary.md)
+for the environment, test split, baselines, and limitations.
 
 ---
 
@@ -79,12 +83,12 @@ sudo apt-get install build-essential cmake python3-dev libeigen3-dev
 
 **pyenv for Python (optional)**
 ```bash
-   curl [https://pyenv.run](https://pyenv.run) | bash
+   curl https://pyenv.run | bash
 ```
    
 ### Build
 ```
-   git clone [https://github.com/codinglab42/machineLearning.git](https://github.com/codinglab42/machineLearning.git)
+   git clone https://github.com/codinglab42/machineLearning.git
    cd machineLearning
    ./build.sh
 ```
@@ -139,18 +143,17 @@ double r2 = model.score(X_test, y_test);
 
 #include "models/neural_network.h"
 
-models::NeuralNetwork nn;
+models::NeuralNetwork nn({input_size, 128}, "relu", "relu");
 
 // Add layers
-nn.add_dense_layer(128, "relu");
 nn.add_batch_norm_layer();
 nn.add_dropout_layer(0.3);
 nn.add_dense_layer(64, "relu");
-nn.add_dense_layer(10, "softmax");
+nn.add_dense_layer(1, "linear");
 
 // Configure training
 nn.set_optimizer(models::OptimizerType::ADAM, 0.001);
-nn.set_loss_function("categorical_crossentropy");
+nn.set_loss_function("mse");
 nn.set_verbose(true);
 nn.set_epochs(50);
 nn.set_batch_size(32);
@@ -183,6 +186,8 @@ including any parameters packed into it; separate bias vectors are excluded.
 Its gradient is added before weight-gradient clipping. New network saves preserve
 the regularizer configuration. Older files contain no such configuration and
 load without regularization.
+BatchNorm stores both its scale and shift in its weight matrix; both are updated
+once per training step. For a single-sample batch, its batch variance is zero.
 
 ### Recurrent sequences
 
@@ -372,7 +377,7 @@ Exceptions for error handling (see exceptions/)
 Document public APIs with Doxygen comments
 
 ## 📝 License
-The community version is intended to be distributed under the GNU Affero General Public License v3.0 only (AGPL-3.0-only). The official license text is available at https://www.gnu.org/licenses/agpl-3.0.html.
+The community version is distributed under the GNU Affero General Public License version 3 or, at your option, any later version (AGPL-3.0-or-later). The official version 3 license text is available at https://www.gnu.org/licenses/agpl-3.0.html.
 
 For a separate commercial licensing agreement, contact the copyright holder. Third-party components remain subject to their respective licenses.
 

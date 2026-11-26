@@ -75,6 +75,64 @@ TEST_F(NeuralNetworkModelTest, ConstructorWithLayerSizes) {
     EXPECT_EQ(nn.get_num_layers(), 3);
 }
 
+TEST_F(NeuralNetworkModelTest, MatrixTargetsUseAllOutputGradients) {
+    NeuralNetwork nn({2, 2}, "linear", "linear", OptimizerType::SGD, 0.05);
+    nn.set_loss_function("mse");
+    MatrixXd X(3, 2);
+    X << 0.1, 0.2, 0.2, -0.1, -0.1, 0.1;
+    MatrixXd y(3, 2);
+    y << 0.1, -0.1, 0.2, 0.1, -0.1, 0.2;
+    nn.fit(X, y, 1, 3, false);
+
+    auto& layer = nn.get_layers()[0];
+    MatrixXd weights(2, 2);
+    weights << 0.1, -0.2, 0.2, 0.1;
+    VectorXd bias = VectorXd::Zero(2);
+    layer->set_weights(weights);
+    layer->set_biases(bias);
+    nn.set_optimizer(OptimizerType::SGD, 0.05);
+
+    const MatrixXd gradient = 2.0 * (X * weights - y) / y.size();
+    const MatrixXd expected_weights = weights - 0.05 * X.transpose() * gradient;
+    const VectorXd expected_bias = bias - 0.05 * gradient.colwise().sum().transpose();
+
+    nn.fit(X, y, 1, 3, false);
+    EXPECT_TRUE(layer->get_weights().isApprox(expected_weights, 1e-12));
+    EXPECT_TRUE(layer->get_biases().isApprox(expected_bias, 1e-12));
+}
+
+TEST_F(NeuralNetworkModelTest, BatchNormPackedBiasIsUpdatedOnce) {
+    NeuralNetwork nn({1, 2}, "linear", "linear", OptimizerType::SGD, 0.05);
+    nn.add_batch_norm_layer();
+    nn.add_dense_layer(1, "linear");
+    nn.set_loss_function("mse");
+    MatrixXd X(4, 1);
+    X << -0.4, -0.1, 0.2, 0.5;
+    VectorXd y(4);
+    y << -0.2, 0.1, 0.2, 0.4;
+    nn.fit(X, y, 1, 4, false);
+    nn.set_optimizer(OptimizerType::SGD, 0.05);
+
+    const auto& layers = nn.get_layers();
+    MatrixXd activation = X;
+    for (const auto& layer : layers) {
+        activation = layer->forward(activation, true);
+    }
+    MatrixXd gradient = 2.0 * (activation.col(0) - y) / y.size();
+    for (int i = static_cast<int>(layers.size()) - 1; i >= 0; --i) {
+        gradient = layers[i]->backward(gradient);
+    }
+    MatrixXd expected = layers[1]->get_weights();
+    MatrixXd weight_gradient = layers[1]->get_weights_gradient();
+    if (weight_gradient.norm() > 1.0) {
+        weight_gradient /= weight_gradient.norm();
+    }
+    expected -= 0.05 * weight_gradient;
+
+    nn.fit(X, y, 1, 4, false);
+    EXPECT_TRUE(layers[1]->get_weights().isApprox(expected, 1e-12));
+}
+
 TEST_F(NeuralNetworkModelTest, DenseInitializationUsesConfiguredSeed) {
     NeuralNetwork default_seed({2, 4, 1}, "relu", "sigmoid", OptimizerType::ADAM, 0.001);
     NeuralNetwork first({2, 4, 1}, "relu", "sigmoid", OptimizerType::ADAM, 0.001,

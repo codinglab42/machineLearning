@@ -31,7 +31,7 @@ pip install -r tests/python/requirements.txt
 **Linear Regression**
 ```cpp
 // C++ example
-LinearRegression model(learning_rate=0.01, max_iter=1000, lambda=0.0, solver=GRADIENT_DESCENT);
+models::LinearRegression model(0.01, 1000, 0.0, models::LinearRegression::GRADIENT_DESCENT);
 model.fit(X, y);
 Eigen::VectorXd y_pred = model.predict(X_test);
 
@@ -41,6 +41,8 @@ double mse = model.mse(X_test, y_test);
 double mae = model.mae(X_test, y_test);
 Eigen::VectorXd coef = model.coefficients();
 double intercept = model.intercept();
+```
+
 Parameters:
 
 learning_rate: Step size for gradient descent (default: 0.01)
@@ -50,15 +52,16 @@ max_iter: Maximum number of iterations (default: 1000)
 lambda: L2 regularization strength (default: 0.0)
 
 solver: Solver type (GRADIENT_DESCENT, NORMAL_EQUATION, SVD)
-```
 **Logistic Regression**
 ```cpp
-LogisticRegression model(learning_rate=0.1, max_iter=1000, lambda=0.001);
+models::LogisticRegression model(0.1, 1000, 0.001);
 model.fit(X, y);
 Eigen::VectorXd y_proba = model.predict(X_test);
 Eigen::VectorXi y_pred = model.predict_class(X_test);
 double accuracy = model.score(X_test, y_test);
 Eigen::MatrixXd cm = model.confusion_matrix(X_test, y_test);
+```
+
 Parameters:
 
 learning_rate: Step size (default: 0.1)
@@ -68,13 +71,12 @@ max_iter: Maximum iterations (default: 1000)
 lambda: L2 regularization strength (default: 0.001)
 
 tolerance: Convergence tolerance (default: 1e-4)
-```
 **Neural Network**
 ```cpp
 // Create network
-NeuralNetwork network({input_size, hidden1, hidden2, output_size}, 
-                      "relu", "softmax", OptimizerType::ADAM, 0.01,
-                      RegularizerType::NONE, 0.01, 42);
+models::NeuralNetwork network({input_size, hidden1, hidden2, output_size},
+                              "relu", "softmax", models::OptimizerType::ADAM, 0.01,
+                              models::RegularizerType::NONE, 0.01, 42);
 network.set_loss_function("categorical_crossentropy");
 network.set_epochs(100);
 network.set_batch_size(32);
@@ -89,6 +91,8 @@ Eigen::MatrixXd y_proba = network.predict_proba(X_test);
 
 // Training history
 auto [loss, val_loss, acc] = network.get_training_history();
+```
+
 Parameters:
 
 layer_sizes: Vector of layer sizes [input, hidden1, hidden2, ..., output]
@@ -100,7 +104,6 @@ output_activation: Output layer activation ("softmax", "sigmoid", "linear")
 optimizer_type: Optimizer type (SGD, MOMENTUM, ADAM)
 
 learning_rate: Learning rate (default: 0.01)
-```
 ### Optimizers
 | Type | Description | Parameters |  
 | :--- | :--- | :--- |  
@@ -114,23 +117,23 @@ Usage in Python:
 
 ```python
 # SGD
-optimizer = ml.OptimizerFactory.create("sgd", 0.01)
+optimizer = ml.OptimizerFactory.create_by_name("sgd", 0.01)
 
 # Momentum
 params = {"momentum": 0.9}
-optimizer = ml.OptimizerFactory.create("momentum", 0.01, params)
+optimizer = ml.OptimizerFactory.create_by_name("momentum", 0.01, params)
 
 # Adam
 params = {"beta1": 0.9, "beta2": 0.999, "epsilon": 1e-8}
-optimizer = ml.OptimizerFactory.create("adam", 0.001, params)
+optimizer = ml.OptimizerFactory.create_by_name("adam", 0.001, params)
 
 # RMSprop
 params = {"rho": 0.9, "epsilon": 1e-8}
-optimizer = ml.OptimizerFactory.create("rmsprop", 0.001, params)
+optimizer = ml.OptimizerFactory.create_by_name("rmsprop", 0.001, params)
 
 # Adagrad
 params = {"epsilon": 1e-8}
-optimizer = ml.OptimizerFactory.create("adagrad", 0.01, params)
+optimizer = ml.OptimizerFactory.create_by_name("adagrad", 0.01, params)
 ```
 ### Regularizers
 | Type | Description | Formula |  
@@ -143,14 +146,14 @@ Usage in Python:
 
 ```python
 # L1
-reg = ml.RegularizerFactory.create("l1", 0.01)
+reg = ml.RegularizerFactory.create_by_name("l1", 0.01)
 
 # L2
-reg = ml.RegularizerFactory.create("l2", 0.01)
+reg = ml.RegularizerFactory.create_by_name("l2", 0.01)
 
 # Elastic Net
 params = {"l1_ratio": 0.5}
-reg = ml.RegularizerFactory.create("elastic_net", 0.01, params)
+reg = ml.RegularizerFactory.create_by_name("elastic_net", 0.01, params)
 ```
 ### Layers
 **Dense Layer**
@@ -182,7 +185,7 @@ auto lstm = std::make_unique<layers::LSTMLayer>(units, input_size);
 auto gru = std::make_unique<layers::GRULayer>(units, input_size);
 ```
 ### Python Bindings
-All C++ classes are exposed to Python with a clean API:
+The Python bindings expose models and selected C++ components:
 
 ```python
 import ml_core as ml
@@ -195,6 +198,7 @@ y_pred = model.predict(X_test)
 
 # Logistic Regression
 model = ml.LogisticRegression(0.1, 1000, 0.001)
+model.fit(X_train, y_train)
 y_pred = model.predict_class(X_test)
 cm = model.confusion_matrix(X_test, y_test)
 
@@ -208,6 +212,9 @@ The optional `seed` parameter defaults to `42` and controls network layer
 initialization, Dropout masks, and the training shuffle. New network saves
 preserve the random-generator and recurrent states so training can continue
 reproducibly after loading in the same build environment.
+
+See the [model binding examples](../pybinding/bindings/models/README.md#usage-examples)
+for training with BatchNorm and multiclass matrix targets.
 ## Examples
 ### Example 1: Iris Classification with Logistic Regression
 ```python
